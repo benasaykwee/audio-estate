@@ -58,6 +58,15 @@ function translateAutopsy(ms) {
   ];
   bands.forEach((b) => { b.on = Math.abs(b.gain) > 0.01; });   // flat bands stay off -> passthrough
 
+  // Dynamic EQ (dqAmount/dqThr*) -> AUTOPSY per-band dynamics on three representative bells.
+  // A dynamic cut (negative range) tames resonances the way Masterbox's DynEq does. Only
+  // engaged when the brain asks, so a preset without it is byte-identical to before.
+  if (ms.dqAmount > 0) {
+    const range = -Math.max(0, Math.min(24, 6 * clamp01(ms.dqAmount)));   // dynamic cut, up to 6 dB
+    const setDyn = (hz, thr) => { const bi = 2 + nearest(hz); bands[bi].on = true; bands[bi].dyn = { on: true, range, thresh: thr == null ? -32 : thr, att: 10, rel: 150 }; };
+    setDyn(120, ms.dqThrLow); setDyn(1000, ms.dqThrMid); setDyn(6000, ms.dqThrHigh);
+  }
+
   const raw = AUTOPSY.defaultState(); raw.bands = bands;
   const state = AUTOPSY.sanitizeState(raw);
   const clamped = [];
