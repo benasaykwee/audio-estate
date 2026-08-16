@@ -30,5 +30,15 @@ console.log('Control — the uncalibrated render misses, and the report records 
   check('calibration closed the gap', Math.abs(out.meters.integrated - target) < Math.abs(uncal.meters.integrated - target), `${uncal.meters.integrated.toFixed(2)} -> ${out.meters.integrated.toFixed(2)}`);
 }
 
+console.log('Robust exit — deterministic drive on a grid (LAW 5 defense)');
+{
+  const ms = { compAmount: 0.3, ceilingDbTp: -1, makeupDb: 0, targetLufs: -12 };
+  const a = calibrate(ms, L, R, FS, { passes: 6 }), b = calibrate(ms, L, R, FS, { passes: 6 });
+  const da = a.preset.casket.drive, db = b.preset.casket.drive;
+  check('two runs give identical drive (deterministic)', da === db, `${da} === ${db}`);
+  check('final drive sits on the 0.1 dB grid', Math.abs(da * 10 - Math.round(da * 10)) < 1e-9, `${da}`);
+  check('pass count is bounded', a.preset.report.calibration.passes.length <= 6, `${a.preset.report.calibration.passes.length}`);
+}
+
 console.log(`\n=== ${pass} passed, ${fail} failed ===`);
 process.exit(fail ? 1 : 0);
