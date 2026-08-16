@@ -67,10 +67,19 @@ function translateAutopsy(ms) {
     setDyn(120, ms.dqThrLow); setDyn(1000, ms.dqThrMid); setDyn(6000, ms.dqThrHigh);
   }
 
+  // M/S EQ (§9.2, resolved here): side "air" -> a side-placed high shelf; mid "body" -> a
+  // mid-placed bell. AUTOPSY carries M/S per band, so they consume the least-active (off)
+  // stereo slots — the trade the band budget forces, made explicit.
+  const placeMS = (want, band) => { if (!want) return true; const slot = bands.findIndex((b) => !b.on); if (slot < 0) return false; bands[slot] = band; return true; };
+  const airOk = placeMS(ms.sideAir, { on: true, type: 'highshelf', freq: 10000, gain: ms.sideAir, q: 0.7, slope: 12, place: 's', dyn: offDyn() });
+  const bodyOk = placeMS(ms.midBody, { on: true, type: 'bell', freq: 250, gain: ms.midBody, q: 1.0, slope: 12, place: 'm', dyn: offDyn() });
+
   const raw = AUTOPSY.defaultState(); raw.bands = bands;
   const state = AUTOPSY.sanitizeState(raw);
   const clamped = [];
   bands.forEach((b, i) => { if (b.on && state.bands[i].gain !== b.gain) clamped.push({ core: 'autopsy', field: `band${i}.gain`, asked: b.gain, got: state.bands[i].gain }); });
+  if (!airOk) clamped.push({ core: 'autopsy', field: 'sideAir', asked: ms.sideAir, got: 'dropped — no free band' });
+  if (!bodyOk) clamped.push({ core: 'autopsy', field: 'midBody', asked: ms.midBody, got: 'dropped — no free band' });
   return { state, clamped };
 }
 
