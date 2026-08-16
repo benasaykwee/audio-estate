@@ -42,9 +42,18 @@ brain speak to the scalpels only in *presets*.
 
 ---
 
+## Source of truth (why the two memory stores don't need to sync)
+**This committed file is authoritative.** The Masterbox side (Claude Code) and the
+trilogy side run *separate* memory stores that will never sync themselves; each keeps
+a convenience note (slug `underworld-boundary-rule`) that is a **pointer to this file,
+not an authority**. If a memory note ever disagrees with this charter, the charter
+wins and the note is stale. So there is nothing to keep in sync: every session is
+instructed to read this file first, and both notes exist only to make sure a session
+*knows to*. Drift in either private store is therefore harmless by construction.
+
 ## Enforcement / how to keep this from rotting
-- Any Underworld work reads this file first (and the mirrored memory note
-  `underworld-boundary-rule`).
+- Any Underworld work reads this file first; the per-side memory notes are only
+  breadcrumbs to it (see "Source of truth" above).
 - The translator is verified in the trilogy's own idiom: every emitted state is a
   `sanitizeState` fixpoint, and the rendered chain is asserted to hit its loudness
   target and hold its ceiling — plus a null/bypass control.
