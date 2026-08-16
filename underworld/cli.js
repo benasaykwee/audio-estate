@@ -17,20 +17,21 @@ const { albumMaster } = require('./album.js');
 const T = require('./translate.js');
 const { calibrate } = require('./calibrate.js');
 
-// Build settings + run the pipeline. Pure: no file I/O, so tests drive it directly.
-// Layering: genre/describe form a base, explicit flags override, delivery pins loudness.
-function runPipeline(L, R, fs, opts) {
+// Settings from flags: genre/describe form a base, explicit flags override, delivery pins loudness.
+function buildMs(opts) {
   const { genre, describe } = require('./describe.js');
   let base = {};
   if (opts.genre) base = genre(opts.genre);
   if (opts.describe) base = Object.assign(base, describe(opts.describe, base).ms);
-  let ms = Object.assign({
-    ceilingDbTp: -1, targetLufs: -14, compAmount: 0, makeupDb: 0,
-  }, base);
+  let ms = Object.assign({ ceilingDbTp: -1, targetLufs: -14, compAmount: 0, makeupDb: 0 }, base);
   const ov = { ceilingDbTp: opts.ceiling, targetLufs: opts.lufs, compAmount: opts.comp, eqLow: opts.eqLow, eqHigh: opts.eqHigh, eqLowMid: opts.eqLowMid, eqHighMid: opts.eqHighMid, width: opts.width };
   for (const k of Object.keys(ov)) if (ov[k] != null) ms[k] = ov[k];
   if (opts.delivery) ms = T.fromDelivery(opts.delivery, ms);
-  return calibrate(ms, L, R, fs, { passes: opts.passes || 5 });
+  return ms;
+}
+// Build settings + run the pipeline. Pure: no file I/O, so tests drive it directly.
+function runPipeline(L, R, fs, opts) {
+  return calibrate(buildMs(opts), L, R, fs, { passes: opts.passes || 5 });
 }
 
 function parseArgs(argv) {
@@ -70,7 +71,16 @@ function main(argv) {
   const o = parseArgs(argv);
   if (o.album) return batchAlbum(o.album, o);
   const inPath = o._[0];
-  if (!inPath) { console.error('usage: cli.js in.wav [--out out.wav] [--delivery club] [--lufs -14] [--ceiling -1] [--comp 0.3] [--bits 16|24] [--format wav|aiff]\n       cli.js --album <folder> [--delivery ...]'); process.exit(2); }
+  if (!inPath) { console.error('usage: cli.js in.wav [--out out.wav] [--delivery club] [--lufs -14] [--ceiling -1]\n            [--comp 0.3] [--bits 16|24] [--format wav|aiff] [--report] [--ab] [--plan]\n       cli.js --album <folder> [--delivery ...] [--ab]'); process.exit(2); }
+  if (o.plan) {
+    const { plan } = require('./compare.js');
+    const p = plan(buildMs(o));
+    console.log(`\n  THE UNDERWORLD — plan for ${inPath} (no render)`);
+    p.moves.forEach((m) => console.log('  · ' + m));
+    if (p.clamped.length) console.log('  clamped: ' + p.clamped.map((c) => c.field).join(', '));
+    console.log('');
+    return;
+  }
   const { L, R, sampleRate } = readAudio(inPath);
   const { preset, out } = runPipeline(L, R, sampleRate, o);
   // final independent true-peak guard before the file is written
@@ -84,6 +94,10 @@ function main(argv) {
   const outJson = o.preset || `${base}.underworld.json`;
   (fmt === 'aiff' ? writeAiff : writeWav)(outFile, guard.L, guard.R, sampleRate, bits);
   fsMod.writeFileSync(outJson, writePreset(preset));
+  // optional: matched A/B original, and a standalone HTML report
+  let abFile, htmlFile;
+  if (o.ab) { const { abPair } = require('./ab.js'); const ab = abPair(L, R, guard.L, guard.R, sampleRate); abFile = `${base}.ab-original.wav`; writeWav(abFile, ab.originalMatched.L, ab.originalMatched.R, sampleRate, 16); }
+  if (o.report) { const { fullReport } = require('./report.js'); const { renderReportHtml } = require('./report-html.js'); htmlFile = `${base}.report.html`; fsMod.writeFileSync(htmlFile, renderReportHtml(fullReport(L, R, guard.L, guard.R, preset, out, sampleRate), nodePath.basename(base))); }
   const r = preset.report;
   console.log(`\n  THE UNDERWORLD — mastered ${inPath}`);
   console.log(`  target      : ${preset.target.lufs} LUFS  /  ${preset.target.ceilingDbTp} dBTP`);
@@ -93,8 +107,8 @@ function main(argv) {
   console.log(`  meters      : ${r.meterCheck.agree ? 'agree' : 'DIVERGE'} ${r.meterCheck.spreadDb} dB (CASKET ${r.meterCheck.readings.casketMeter} · indep ${r.meterCheck.readings.independent})`);
   console.log(`  clamped     : ${r.clamped.length ? r.clamped.map(c => c.field).join(', ') : 'none'}`);
   console.log(`  output      : ${bits}-bit ${fmt.toUpperCase()}  ·  latency ${out.latency} smp`);
-  console.log(`  -> ${outFile}\n  -> ${outJson}\n`);
+  console.log(`  -> ${outFile}\n  -> ${outJson}${abFile ? '\n  -> ' + abFile : ''}${htmlFile ? '\n  -> ' + htmlFile : ''}\n`);
 }
 
 if (require.main === module) main(process.argv.slice(2));
-module.exports = { runPipeline, parseArgs, batchAlbum };
+module.exports = { runPipeline, parseArgs, batchAlbum, buildMs, main };
