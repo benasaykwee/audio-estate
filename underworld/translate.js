@@ -96,6 +96,12 @@ function translateRigor(ms) {
            { threshOff: 0, gain: 0, mute: false, solo: false },
            { threshOff: 0, gain: 0, mute: false, solo: false }],
   };
+  // Optional, only when the brain/analysis asks (so a plain preset stays byte-stable):
+  if (Array.isArray(ms.xover)) desired.xover = ms.xover;                          // adaptive crossovers
+  if (ms.scHp != null) { desired.scOn = true; desired.scHp = ms.scHp; }           // sidechain HP (avoid bass pumping)
+  if (ms.scLp != null) { desired.scOn = true; desired.scLp = ms.scLp; }
+  if (ms.detect) desired.detect = ms.detect;                                      // peak vs rms detector
+  if (Array.isArray(ms.bandThreshOff)) desired.band = desired.band.map((b, i) => Object.assign({}, b, { threshOff: ms.bandThreshOff[i] || 0 }));
   const state = RIGOR.sanitizeState(Object.assign(RIGOR.defaultState(), desired));
   const clamped = [];
   for (const k of ['thresh', 'ratio', 'attack', 'release', 'knee']) if (state[k] !== desired[k]) clamped.push({ core: 'rigor', field: k, asked: desired[k], got: state[k] });
