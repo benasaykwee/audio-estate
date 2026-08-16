@@ -85,12 +85,32 @@ function translateRigor(ms) {
 }
 
 // ---- CASKET (limiter) --------------------------------------------------------
+//   width -> CASKET's M/S side trim (msSide), engaged only when width departs neutral so
+//   width==1 keeps the null. This is the one width control the seam decides; the M/S *EQ*
+//   moves (sideAir, midBody, bassMono) are left to §9.2 "where should M/S live" — genuinely
+//   under-determined, and not mine to settle from outside.
 function translateCasket(ms) {
   const desired = { lid: ms.ceilingDbTp, drive: Math.max(0, ms.makeupDb || 0), targetLufs: ms.targetLufs };
+  if (ms.width != null && Math.abs(ms.width - 1) > 1e-4) {
+    desired.ms = true;
+    desired.msSide = Math.max(-12, Math.min(12, 20 * Math.log10(Math.max(ms.width, 1e-3))));
+  }
   const state = CASKET.sanitizeState(Object.assign(CASKET.defaultState(), desired));
   const clamped = [];
-  for (const k of Object.keys(desired)) if (desired[k] !== undefined && state[k] !== desired[k]) clamped.push({ core: 'casket', field: k, asked: desired[k], got: state[k] });
+  for (const k of ['lid', 'drive', 'targetLufs', 'msSide']) if (desired[k] !== undefined && state[k] !== desired[k]) clamped.push({ core: 'casket', field: k, asked: desired[k], got: state[k] });
   return { state, clamped };
+}
+
+// ---- delivery presets (mirror Masterbox's DELIVERY table exactly) ------------
+const DELIVERY = {
+  spotify: { lufs: -14, ceil: -1 }, apple: { lufs: -16, ceil: -1 }, youtube: { lufs: -14, ceil: -1 },
+  tidal: { lufs: -14, ceil: -1 }, amazon: { lufs: -14, ceil: -2 }, soundcloud: { lufs: -14, ceil: -1 },
+  club: { lufs: -8, ceil: -0.3 }, cd: { lufs: -9, ceil: -0.3 }, broadcast: { lufs: -23, ceil: -1 }, podcast: { lufs: -16, ceil: -1 },
+};
+function fromDelivery(key, ms) {
+  const d = DELIVERY[key];
+  if (!d) throw new Error('unknown delivery target: ' + key);
+  return Object.assign({}, ms || {}, { targetLufs: d.lufs, ceilingDbTp: d.ceil });
 }
 
 // ---- the envelope (§2) -------------------------------------------------------
@@ -111,5 +131,6 @@ function toChainPreset(ms) {
 
 module.exports = {
   toChainPreset, translateAutopsy, translateRigor, translateCasket,
-  autopsyIdle, rigorIdle, casketIdle, MATCH_FREQS, cores: { AUTOPSY, RIGOR, CASKET },
+  autopsyIdle, rigorIdle, casketIdle, MATCH_FREQS,
+  DELIVERY, fromDelivery, cores: { AUTOPSY, RIGOR, CASKET },
 };
