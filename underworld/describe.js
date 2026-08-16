@@ -21,7 +21,31 @@ const RULES = [
   [/\b(harsh|brittle|fatiguing)\b/,        { eqHighMid: -2.5 }],
   [/\b(lo-?fi|vintage|tape|retro)\b/,      { eqHigh: -2, eqLow: +1, compAmount: +0.15 }],
   [/\b(club|dj|festival)\b/,               { targetLufs: +6, ceilingDbTp: +0.7 }], // toward -8 / -0.3
+  [/\b(muddy|boxy|congested)\b/,           { eqLowMid: -2.5 }],
+  [/\b(glassy|shimmer\w*|silky)\b/,        { eqHigh: +2, eqHighMid: +1 }],
+  [/\b(crunch\w*|gritty|driven)\b/,        { compAmount: +0.3, eqHighMid: +1 }],
+  [/\b(deep|weighty|powerful)\b/,          { eqLow: +2, targetLufs: +2 }],
+  [/\b(polished|radio-?ready|commercial)\b/,{ compAmount: +0.3, eqHigh: +1.5, targetLufs: +3 }],
 ];
+
+// Genre presets — a bundle of settings as a starting point (over Custom defaults).
+const GENRE = {
+  motown:    { eqLow: 1.5, eqHighMid: 1.5, compAmount: 0.4, punch: 0.6, width: 1.1, targetLufs: -12 },
+  disco:     { eqLow: 2, eqHigh: 2, compAmount: 0.35, punch: 0.4, width: 1.3, targetLufs: -10 },
+  'lo-fi':   { eqHigh: -3, eqLow: 1, compAmount: 0.5, punch: 0.2, targetLufs: -14 },
+  hiphop:    { eqLow: 3, compAmount: 0.3, punch: 0.5, targetLufs: -9, ceilingDbTp: -0.3 },
+  jazz:      { compAmount: 0.15, punch: -0.1, width: 1.1, targetLufs: -16 },
+  classical: { compAmount: 0.05, width: 1.15, targetLufs: -18 },
+  rock:      { eqHighMid: 1, compAmount: 0.45, punch: 0.5, targetLufs: -10 },
+  edm:       { eqLow: 2.5, eqHigh: 1.5, compAmount: 0.4, targetLufs: -8, ceilingDbTp: -0.3 },
+  folk:      { compAmount: 0.2, eqHighMid: 1, width: 1.05, targetLufs: -15 },
+  soul:      { eqLow: 1.5, eqHighMid: 1, compAmount: 0.3, width: 1.1, targetLufs: -13 },
+};
+function genre(name) {
+  const g = GENRE[String(name).toLowerCase()];
+  if (!g) throw new Error('unknown genre: ' + name);
+  return Object.assign({ targetLufs: -14, ceilingDbTp: -1, width: 1 }, g);
+}
 
 function describe(text, baseMs) {
   const ms = Object.assign({ targetLufs: -14, ceilingDbTp: -1, width: 1 }, baseMs || {});
@@ -41,4 +65,4 @@ function describe(text, baseMs) {
   return { ms, matched };
 }
 
-module.exports = { describe, RULES };
+module.exports = { describe, genre, RULES, GENRE };

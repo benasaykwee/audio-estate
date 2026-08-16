@@ -18,14 +18,17 @@ const T = require('./translate.js');
 const { calibrate } = require('./calibrate.js');
 
 // Build settings + run the pipeline. Pure: no file I/O, so tests drive it directly.
+// Layering: genre/describe form a base, explicit flags override, delivery pins loudness.
 function runPipeline(L, R, fs, opts) {
-  let ms = {
-    ceilingDbTp: opts.ceiling != null ? opts.ceiling : -1,
-    targetLufs: opts.lufs != null ? opts.lufs : -14,
-    compAmount: opts.comp != null ? opts.comp : 0,
-    eqLow: opts.eqLow, eqHigh: opts.eqHigh, eqLowMid: opts.eqLowMid, eqHighMid: opts.eqHighMid,
-    width: opts.width, makeupDb: 0,
-  };
+  const { genre, describe } = require('./describe.js');
+  let base = {};
+  if (opts.genre) base = genre(opts.genre);
+  if (opts.describe) base = Object.assign(base, describe(opts.describe, base).ms);
+  let ms = Object.assign({
+    ceilingDbTp: -1, targetLufs: -14, compAmount: 0, makeupDb: 0,
+  }, base);
+  const ov = { ceilingDbTp: opts.ceiling, targetLufs: opts.lufs, compAmount: opts.comp, eqLow: opts.eqLow, eqHigh: opts.eqHigh, eqLowMid: opts.eqLowMid, eqHighMid: opts.eqHighMid, width: opts.width };
+  for (const k of Object.keys(ov)) if (ov[k] != null) ms[k] = ov[k];
   if (opts.delivery) ms = T.fromDelivery(opts.delivery, ms);
   return calibrate(ms, L, R, fs, { passes: opts.passes || 5 });
 }

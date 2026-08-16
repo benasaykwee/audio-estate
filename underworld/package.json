@@ -1,0 +1,11 @@
+{
+  "name": "underworld",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Underworld — Masterbox's brain auto-driving the AUTOPSY/RIGOR/CASKET trilogy (LAW 0: preset+signal boundary only).",
+  "bin": { "underworld": "cli.js" },
+  "scripts": {
+    "test": "node run-tests.js",
+    "master": "node cli.js"
+  }
+}
