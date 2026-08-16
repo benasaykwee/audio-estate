@@ -27,10 +27,27 @@ and never touches their source.
 | `*.test.js` | 99 assertions, every check paired with a control that proves it bites. |
 | `diagnostics/` | Repro scripts for findings (e.g. the CASKET-null knee/dc probe). |
 
+## More modules (second round of solo tasks)
+| File | What |
+|---|---|
+| `chain.js` `calibrate.js` | orchestrator + loudness calibration (grid-quantised exit, LAW 5) |
+| `analyze.js` `auto.js` | FFT/log-band spectrum; reference matching, LRA targeting, auto dynamic-EQ |
+| `describe.js` | plain-language + genre presets → settings |
+| `explain.js` `diff.js` | verified explanations; preset diff |
+| `ab.js` `session.js` `album.js` | loudness-matched A/B; re-render/re-tweak; album batch |
+| `wav.js` `safety.js` | WAV/AIFF I/O + TPDF dither; final true-peak guard |
+| `meter-reconcile.js` | surfaces §9.3 meter divergence |
+| `corpus.js` | golden-master corpus |
+| `selftest.js` | latency / PDC honesty test |
+| `cli.js` `server.js` `app.html` | offline CLI + local web app (drop-a-mix, A/B) |
+| `cpp/translator.h` | self-contained C++ port of the mapping for the host path (no trilogy linked) |
+| `run-tests.js` | runs the whole suite as one job (173 assertions) |
+
 ## Run
 ```bash
-node underworld/cli.js mix.wav --delivery club --comp 0.4     # master a file
-for f in underworld/*.test.js; do node "$f"; done              # the whole suite
+node underworld/cli.js mix.wav --delivery club --comp 0.4     # master a file (CLI)
+node underworld/server.js                                      # local web app -> localhost:8799
+node underworld/run-tests.js                                   # the whole suite (173 assertions)
 ```
 
 ## Per-core "idle / do nothing" (spike-verified)
