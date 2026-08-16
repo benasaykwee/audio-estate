@@ -1,0 +1,106 @@
+# ============================================================================
+# ALLOWLIST .gitignore — deny everything, then admit the audio estate.
+#
+# This repository is rooted at the CLAUDE folder, which is a 2.9 GB working
+# directory holding video, photography, scripts, HAR captures and a decade of
+# unrelated work. The audio estate inside it is about 5 MB. A denylist would
+# be a list of every mistake somebody thought of in advance; this is the other
+# way round, and the only files git can see are the ones named below.
+#
+# TWO THINGS IN THIS FOLDER MUST NEVER BE COMMITTED, and the leading `*` is
+# what guarantees it rather than the explicit rules further down:
+#   - www.patreon.com*.har — browser captures containing session_id,
+#     authorization and cookie values. A live login in plaintext.
+#   - the video and image files, which are hundreds of megabytes each.
+#
+# Verify, do not trust. After any edit here:
+#     git status --porcelain            # must list ONLY estate paths
+#     git check-ignore -v www.patreon.com.har
+#     du -sh $(git ls-files | head -1000)
+# ============================================================================
+
+# --- deny everything, including directory contents -------------------------
+/*
+!/.gitignore
+
+# --- admit the estate ------------------------------------------------------
+!/shared/
+!/AUTOPSY/
+!/RIGOR/
+!/CASKET/
+
+# --- admit the estate's documents, by exact name ---------------------------
+!/AUDIO_INTERCHANGE.md
+!/AUTOPSY_ARCHITECTURE.md
+!/RIGOR_ARCHITECTURE.md
+!/CASKET_ARCHITECTURE.md
+!/LICENSE
+!/README.md
+
+# --- admit ONLY the estate's workflows -------------------------------------
+# NECROPHONE's build.yml also lives in .github/workflows but its sources are
+# scattered across the CLAUDE root and NECROPHONE-repo/, neither of which is
+# in this repository. Committing it would add a job that could only ever fail.
+!/.github/
+/.github/*
+!/.github/workflows/
+/.github/workflows/*
+!/.github/workflows/casket.yml
+!/.github/workflows/autopsy.yml
+!/.github/workflows/rigor.yml
+
+# ============================================================================
+# Now the ordinary exclusions, applied INSIDE the admitted directories.
+# ============================================================================
+
+# --- build output ----------------------------------------------------------
+build/
+cmake-build-*/
+*.o
+*.a
+*.dylib
+*.so
+*.dll
+*.exe
+*_artefacts/
+JUCE/
+node_modules/
+
+# --- compiled parity gates (the source is tracked, the binaries are not) ---
+core_parity
+casket_parity
+casket_parity_lto
+cp0
+cp2
+cp3
+
+# --- harness scratch -------------------------------------------------------
+# RIGOR's mutation harness writes these while it runs. Committing one would
+# capture a deliberately broken core as though it were the real thing.
+*.__mut.js
+.__mut_test.js
+*.tailmark
+__wtest.txt
+
+# --- rendered audio --------------------------------------------------------
+# Renders are outputs of the suite, reproducible from the code that made them.
+*.wav
+*.aiff
+*.aif
+*.flac
+*.mp3
+
+# --- OS and editor ---------------------------------------------------------
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+*~
+*.swp
+.vscode/
+.idea/
+.~lock.*#
+
+# The Underworld charter (Masterbox↔trilogy boundary law) — admitted to the allowlist
+!/UNDERWORLD_CHARTER.md
