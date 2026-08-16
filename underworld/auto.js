@@ -55,11 +55,12 @@ function autoRigorTuning(mixL, mixR, fs) {
   let peak = 0, sq = 0; for (let i = 0; i < mixL.length; i++) { const v = Math.abs(mixL[i]); if (v > peak) peak = v; sq += mixL[i] * mixL[i]; }
   const crest = 20 * Math.log10(peak / (Math.sqrt(sq / mixL.length) + 1e-12) + 1e-12);
   const region = (a, b) => { let m = 0; for (let i = a; i <= b; i++) m += sp[i]; return m / (b - a + 1); };
-  const lowE = region(0, 2), m = mean(sp);
+  const m = mean(sp);
+  const maxR = (a, b) => { let mx = -1e9; for (let i = a; i <= b; i++) mx = Math.max(mx, sp[i]); return mx; };
   const off = (e) => +Math.max(-12, Math.min(12, -(e - m) * 0.5)).toFixed(1);
   const valley = (a, b) => { let bi = a, bv = 1e9; for (let i = a; i <= b; i++) if (sp[i] < bv) { bv = sp[i]; bi = i; } return Math.round(freqs[bi]); };
   return {
-    scHp: lowE > m + 4 ? 90 : 30,                          // HP the sidechain when the low end dominates
+    scHp: maxR(0, 1) > maxR(7, 9) + 6 ? 90 : 30,           // HP the sidechain when the sub/bass peak dominates the top
     detect: crest > 12 ? 'peak' : 'rms',
     bandThreshOff: [off(region(0, 2)), off(region(3, 6)), off(region(7, 9))],
     xover: [Math.max(80, Math.min(400, valley(2, 4))), Math.max(1500, Math.min(6000, valley(6, 8)))],
