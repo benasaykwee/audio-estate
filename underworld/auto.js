@@ -29,4 +29,23 @@ function withLraTarget(ms, mixL, mixR, fs, targetLra) {
   return { ms: out, measuredLra: +lra.toFixed(2) };
 }
 
-module.exports = { matchReference, withLraTarget };
+// Dynamic-EQ depth from analysis (task 6): find where the spectrum sticks out above its
+// local trend (resonances) and set the dynamic-cut amount + per-region thresholds from how
+// peaky each region is — instead of a fixed dqAmount.
+function autoDynEq(mixL, mixR, fs) {
+  const freqs = T.MATCH_FREQS;
+  const sp = averageSpectrum(mixL, mixR, fs, freqs);
+  const peak = sp.map((v, b) => {
+    const nb = [sp[b - 1], sp[b + 1]].filter((x) => x != null);
+    return v - nb.reduce((s, x) => s + x, 0) / nb.length;
+  });
+  const reg = (a, b) => { let m = 0; for (let i = a; i <= b; i++) m = Math.max(m, peak[i] || 0); return m; };
+  const low = reg(0, 3), mid = reg(3, 6), high = reg(7, 9), overall = Math.max(low, mid, high);
+  return {
+    dqAmount: +Math.min(1, overall / 6).toFixed(3),
+    dqThrLow: +(-20 - low * 2).toFixed(1), dqThrMid: +(-20 - mid * 2).toFixed(1), dqThrHigh: +(-20 - high * 2).toFixed(1),
+    peakiness: { low: +low.toFixed(1), mid: +mid.toFixed(1), high: +high.toFixed(1) },
+  };
+}
+
+module.exports = { matchReference, withLraTarget, autoDynEq };
