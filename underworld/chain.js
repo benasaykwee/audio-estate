@@ -31,11 +31,12 @@ function renderChain(preset, inL, inR, fs) {
   const rInL = new Float64Array(RN), rInR = new Float64Array(RN); rInL.set(aL); rInR.set(aR);
   const rOutL = new Float64Array(RN), rOutR = new Float64Array(RN);
   re.process(rInL, rInR, rOutL, rOutR);
+  const rigorGr = (re.meters && re.meters().gr) || 0;
   const rL = rOutL.subarray(rl, rl + n), rR = rOutR.subarray(rl, rl + n);
 
   // CASKET — renderOffline compensates its own latency and returns aligned audio + meters.
   const out = CASKET.renderOffline(preset.casket, rL, rR, fs);
-  return { L: out.L, R: out.R, meters: out.meters, latency: chainLatency(preset, fs) };
+  return { L: out.L, R: out.R, meters: out.meters, latency: chainLatency(preset, fs), gr: { rigor: +Math.abs(rigorGr).toFixed(2), casket: +Math.abs(out.meters.gr || 0).toFixed(2) } };
 }
 
 module.exports = { renderChain, chainLatency };
