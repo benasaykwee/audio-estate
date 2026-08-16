@@ -8,10 +8,12 @@
 //
 // LAW 0: builds a preset from Masterbox-style settings and renders through the trilogy's
 // public API. Nothing of theirs is edited.
-const fsMod = require('fs');
+const fsMod = require('fs'), nodePath = require('path');
 const { readAudio, writeWav, writeAiff } = require('./wav.js');
 const { writePreset } = require('./preset-io.js');
 const { guardTruePeak } = require('./safety.js');
+const { reconcileTruePeak } = require('./meter-reconcile.js');
+const { albumMaster } = require('./album.js');
 const T = require('./translate.js');
 const { calibrate } = require('./calibrate.js');
 
@@ -38,15 +40,40 @@ function parseArgs(argv) {
   return o;
 }
 
+// Master every WAV/AIFF in a folder to ONE target, write masters + one album report.
+function batchAlbum(dir, o) {
+  const files = fsMod.readdirSync(dir).filter((f) => /\.(wav|aiff?)$/i.test(f)).sort();
+  if (!files.length) { console.error('no WAV/AIFF files in ' + dir); process.exit(2); }
+  const bits = o.bits === 16 ? 16 : 24, fmt = (o.format || 'wav').toLowerCase();
+  console.log(`\n  THE UNDERWORLD — album mode · ${files.length} tracks -> ${o.delivery || (o.lufs || -14) + ' LUFS'}\n`);
+  const report = { tracks: [] };
+  for (const f of files) {
+    const a = readAudio(nodePath.join(dir, f));
+    const { preset, out } = runPipeline(a.L, a.R, a.sampleRate, o);
+    const g = guardTruePeak(out.L, out.R, preset.target.ceilingDbTp);
+    const outFile = nodePath.join(dir, f.replace(/\.(wav|aiff?)$/i, '') + `.mastered.${fmt === 'aiff' ? 'aiff' : 'wav'}`);
+    (fmt === 'aiff' ? writeAiff : writeWav)(outFile, g.L, g.R, a.sampleRate, bits);
+    const lufs = preset.report.achieved.lufs;
+    report.tracks.push({ file: f, lufs, truePeakDb: preset.report.achieved.truePeakDb, trimDb: g.trimDb });
+    console.log(`  ${f.padEnd(28)} ${lufs.toFixed(2)} LUFS  ${g.wasOver ? `(trimmed ${g.trimDb})` : ''}`);
+  }
+  const lufs = report.tracks.map((t) => t.lufs);
+  report.spreadLu = +(Math.max(...lufs) - Math.min(...lufs)).toFixed(3);
+  fsMod.writeFileSync(nodePath.join(dir, 'album.underworld.json'), JSON.stringify(report, null, 2));
+  console.log(`\n  album loudness spread: ${report.spreadLu} LU  ->  ${nodePath.join(dir, 'album.underworld.json')}\n`);
+}
+
 function main(argv) {
   const o = parseArgs(argv);
+  if (o.album) return batchAlbum(o.album, o);
   const inPath = o._[0];
-  if (!inPath) { console.error('usage: cli.js in.wav [--out out.wav] [--delivery club] [--lufs -14] [--ceiling -1] [--comp 0.3] ...'); process.exit(2); }
+  if (!inPath) { console.error('usage: cli.js in.wav [--out out.wav] [--delivery club] [--lufs -14] [--ceiling -1] [--comp 0.3] [--bits 16|24] [--format wav|aiff]\n       cli.js --album <folder> [--delivery ...]'); process.exit(2); }
   const { L, R, sampleRate } = readAudio(inPath);
   const { preset, out } = runPipeline(L, R, sampleRate, o);
   // final independent true-peak guard before the file is written
   const guard = guardTruePeak(out.L, out.R, preset.target.ceilingDbTp);
   preset.report.safety = guard.wasOver ? { trimmedDb: guard.trimDb, independentTruePeakDb: guard.truePeakDb } : { trimmedDb: 0 };
+  preset.report.meterCheck = reconcileTruePeak(guard.L, guard.R, sampleRate);   // §9.3: every master carries it
   const bits = o.bits === 16 ? 16 : 24;
   const fmt = (o.format || 'wav').toLowerCase();
   const base = inPath.replace(/\.(wav|aiff?|flac)$/i, '');
@@ -60,10 +87,11 @@ function main(argv) {
   console.log(`  achieved    : ${r.achieved.lufs} LUFS  /  ${r.achieved.truePeakDb} dBTP  ${r.calibration.reachedTarget ? '✓' : '(missed)'}`);
   console.log(`  calibration : ${r.calibration.passes.length} passes${r.calibration.driveAtLimit ? '  [drive at limit]' : ''}`);
   console.log(`  safety      : ${guard.wasOver ? `trimmed ${guard.trimDb} dB (independent meter read ${guard.truePeakDb})` : 'clear'}`);
+  console.log(`  meters      : ${r.meterCheck.agree ? 'agree' : 'DIVERGE'} ${r.meterCheck.spreadDb} dB (CASKET ${r.meterCheck.readings.casketMeter} · indep ${r.meterCheck.readings.independent})`);
   console.log(`  clamped     : ${r.clamped.length ? r.clamped.map(c => c.field).join(', ') : 'none'}`);
   console.log(`  output      : ${bits}-bit ${fmt.toUpperCase()}  ·  latency ${out.latency} smp`);
   console.log(`  -> ${outFile}\n  -> ${outJson}\n`);
 }
 
 if (require.main === module) main(process.argv.slice(2));
-module.exports = { runPipeline, parseArgs };
+module.exports = { runPipeline, parseArgs, batchAlbum };
