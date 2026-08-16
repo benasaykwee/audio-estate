@@ -9,8 +9,9 @@
 // LAW 0: builds a preset from Masterbox-style settings and renders through the trilogy's
 // public API. Nothing of theirs is edited.
 const fsMod = require('fs');
-const { readWav, writeWav } = require('./wav.js');
+const { readAudio, writeWav, writeAiff } = require('./wav.js');
 const { writePreset } = require('./preset-io.js');
+const { guardTruePeak } = require('./safety.js');
 const T = require('./translate.js');
 const { calibrate } = require('./calibrate.js');
 
@@ -41,20 +42,27 @@ function main(argv) {
   const o = parseArgs(argv);
   const inPath = o._[0];
   if (!inPath) { console.error('usage: cli.js in.wav [--out out.wav] [--delivery club] [--lufs -14] [--ceiling -1] [--comp 0.3] ...'); process.exit(2); }
-  const { L, R, sampleRate } = readWav(inPath);
+  const { L, R, sampleRate } = readAudio(inPath);
   const { preset, out } = runPipeline(L, R, sampleRate, o);
-  const outWav = o.out || inPath.replace(/\.wav$/i, '') + '.mastered.wav';
-  const outJson = o.preset || inPath.replace(/\.wav$/i, '') + '.underworld.json';
-  writeWav(outWav, out.L, out.R, sampleRate, 24);
+  // final independent true-peak guard before the file is written
+  const guard = guardTruePeak(out.L, out.R, preset.target.ceilingDbTp);
+  preset.report.safety = guard.wasOver ? { trimmedDb: guard.trimDb, independentTruePeakDb: guard.truePeakDb } : { trimmedDb: 0 };
+  const bits = o.bits === 16 ? 16 : 24;
+  const fmt = (o.format || 'wav').toLowerCase();
+  const base = inPath.replace(/\.(wav|aiff?|flac)$/i, '');
+  const outFile = o.out || `${base}.mastered.${fmt === 'aiff' ? 'aiff' : 'wav'}`;
+  const outJson = o.preset || `${base}.underworld.json`;
+  (fmt === 'aiff' ? writeAiff : writeWav)(outFile, guard.L, guard.R, sampleRate, bits);
   fsMod.writeFileSync(outJson, writePreset(preset));
   const r = preset.report;
   console.log(`\n  THE UNDERWORLD — mastered ${inPath}`);
   console.log(`  target      : ${preset.target.lufs} LUFS  /  ${preset.target.ceilingDbTp} dBTP`);
   console.log(`  achieved    : ${r.achieved.lufs} LUFS  /  ${r.achieved.truePeakDb} dBTP  ${r.calibration.reachedTarget ? '✓' : '(missed)'}`);
   console.log(`  calibration : ${r.calibration.passes.length} passes${r.calibration.driveAtLimit ? '  [drive at limit]' : ''}`);
+  console.log(`  safety      : ${guard.wasOver ? `trimmed ${guard.trimDb} dB (independent meter read ${guard.truePeakDb})` : 'clear'}`);
   console.log(`  clamped     : ${r.clamped.length ? r.clamped.map(c => c.field).join(', ') : 'none'}`);
-  console.log(`  latency     : ${out.latency} smp`);
-  console.log(`  -> ${outWav}\n  -> ${outJson}\n`);
+  console.log(`  output      : ${bits}-bit ${fmt.toUpperCase()}  ·  latency ${out.latency} smp`);
+  console.log(`  -> ${outFile}\n  -> ${outJson}\n`);
 }
 
 if (require.main === module) main(process.argv.slice(2));
