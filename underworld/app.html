@@ -1,0 +1,152 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Underworld</title>
+<style>
+:root{
+  --void:#0a0710; --void-2:#0d0916; --crypt:#150e22; --crypt-2:#1d1531;
+  --gild:#e8b04b; --gild-bright:#f6cd6e; --styx:#54d2c6; --oxblood:#c6455a;
+  --bone:#f1ebf7; --ash:#b6aac9; --ash-2:#7d7196; --rule:rgba(232,176,75,.16); --rule-soft:rgba(182,170,201,.12);
+  --serif:"Hoefler Text","Iowan Old Style",Palatino,Georgia,serif;
+  --sans:"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:"SF Mono","JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box} html,body{margin:0}
+body{ background:var(--void); color:var(--bone); font-family:var(--sans); line-height:1.6;
+  background-image:radial-gradient(120% 55% at 50% -10%,rgba(232,176,75,.10),transparent 60%),radial-gradient(80% 40% at 12% 6%,rgba(84,210,198,.06),transparent 55%);
+  min-height:100vh; }
+.wrap{ max-width:760px; margin:0 auto; padding:56px 24px 80px; }
+h1{ font-family:var(--serif); font-size:clamp(44px,10vw,80px); line-height:.9; margin:0;
+  background:linear-gradient(92deg,#b9832f,#f6cd6e 40%,#fff5df 50%,#f6cd6e 60%,#b9832f);
+  -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent; }
+.the{ font-family:var(--mono); font-size:.2em; letter-spacing:.5em; color:var(--gild); -webkit-text-fill-color:var(--gild); display:block; margin-bottom:.4em; }
+.tag{ color:var(--ash); font-family:var(--serif); font-style:italic; font-size:19px; margin:18px 0 34px; }
+.drop{ border:1.5px dashed var(--rule); border-radius:16px; padding:40px 24px; text-align:center; background:linear-gradient(180deg,var(--crypt),var(--void-2)); cursor:pointer; transition:border-color .2s,background .2s; }
+.drop.over{ border-color:var(--gild); background:linear-gradient(180deg,var(--crypt-2),var(--crypt)); }
+.drop .big{ font-family:var(--serif); font-size:22px; color:var(--bone); }
+.drop .sub{ color:var(--ash-2); font-size:13px; font-family:var(--mono); margin-top:6px; letter-spacing:.03em; }
+.drop.has{ border-style:solid; border-color:var(--styx); }
+.controls{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:22px 0; }
+@media(max-width:560px){ .controls{ grid-template-columns:1fr; } }
+label.f{ display:block; font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--ash-2); margin-bottom:6px; }
+select,input[type=text]{ width:100%; background:var(--crypt-2); color:var(--bone); border:1px solid var(--rule); border-radius:9px; padding:10px 12px; font-family:var(--sans); font-size:15px; }
+.full{ grid-column:1/-1; }
+.range{ display:flex; align-items:center; gap:12px; }
+input[type=range]{ flex:1; accent-color:var(--gild); }
+.range .val{ font-family:var(--mono); color:var(--gild-bright); min-width:34px; text-align:right; }
+button.go{ width:100%; padding:15px; border:none; border-radius:11px; font-family:var(--serif); font-size:19px; letter-spacing:.02em; color:#1a0f08; cursor:pointer; margin-top:6px;
+  background:linear-gradient(180deg,var(--gild-bright),var(--gild)); }
+button.go:disabled{ opacity:.4; cursor:default; }
+.panel{ margin-top:26px; background:linear-gradient(180deg,var(--crypt),var(--void-2)); border:1px solid var(--rule-soft); border-radius:14px; padding:22px; display:none; }
+.panel.show{ display:block; }
+.rows{ display:grid; grid-template-columns:auto 1fr; gap:6px 18px; font-size:15px; }
+.rows .k{ font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--ash-2); align-self:center; }
+.rows .v{ font-family:var(--mono); color:var(--bone); font-variant-numeric:tabular-nums; }
+.rows .v.ok{ color:var(--styx); } .rows .v.warn{ color:var(--gild); }
+.ab{ display:flex; gap:10px; align-items:center; margin-top:20px; flex-wrap:wrap; }
+.ab button{ background:var(--crypt-2); color:var(--bone); border:1px solid var(--rule); border-radius:24px; padding:9px 18px; font-family:var(--mono); font-size:13px; cursor:pointer; letter-spacing:.06em; }
+.ab button.on{ border-color:var(--gild); color:var(--gild-bright); box-shadow:0 0 0 3px rgba(232,176,75,.12); }
+.ab .play{ background:linear-gradient(180deg,var(--styx),#2b8c85); color:#04201d; border:none; font-weight:700; }
+.ab .dl{ margin-left:auto; color:var(--gild-bright); text-decoration:none; font-family:var(--mono); font-size:13px; }
+.err{ color:var(--oxblood); font-family:var(--mono); font-size:13px; margin-top:12px; }
+.hint{ color:var(--ash-2); font-family:var(--mono); font-size:11px; margin-top:8px; }
+@media(prefers-reduced-motion:reduce){ h1{background-position:30% 0} }
+</style></head><body>
+<div class="wrap">
+  <h1><span class="the">THE</span>Underworld</h1>
+  <p class="tag">Drop a mix. The trilogy masters it — and hands you both, matched, to compare.</p>
+
+  <div class="drop" id="drop">
+    <div class="big" id="dropText">Drop a WAV or AIFF here</div>
+    <div class="sub" id="dropSub">or click to choose · stays on your machine</div>
+    <input type="file" id="file" accept=".wav,.aiff,.aif" hidden>
+  </div>
+
+  <div class="controls">
+    <div><label class="f">Delivery</label><select id="delivery">
+      <option value="">Custom</option><option value="spotify">Spotify · −14</option><option value="apple">Apple · −16</option>
+      <option value="youtube">YouTube · −14</option><option value="club">Club · −8</option><option value="cd">CD · −9</option>
+      <option value="broadcast">Broadcast · −23</option><option value="podcast">Podcast · −16</option>
+    </select></div>
+    <div><label class="f">Genre start</label><select id="genre">
+      <option value="">None</option><option>motown</option><option>disco</option><option>lo-fi</option>
+      <option>hiphop</option><option>jazz</option><option>classical</option><option>rock</option><option>edm</option><option>folk</option><option>soul</option>
+    </select></div>
+    <div class="full"><label class="f">Describe the sound</label><input type="text" id="describe" placeholder="e.g. warm, wide, a bit punchy, glassy highs"></div>
+    <div class="full"><label class="f">Compression <span id="compV" style="color:var(--gild-bright);font-family:var(--mono)"></span></label>
+      <div class="range"><input type="range" id="comp" min="0" max="1" step="0.05" value="0.3"><span class="val" id="compNum">0.30</span></div></div>
+  </div>
+
+  <button class="go" id="go" disabled>Master</button>
+  <div class="err" id="err"></div>
+
+  <div class="panel" id="panel">
+    <div class="rows">
+      <div class="k">Target</div><div class="v" id="rTarget">—</div>
+      <div class="k">Achieved</div><div class="v ok" id="rAchieved">—</div>
+      <div class="k">Meters</div><div class="v" id="rMeters">—</div>
+      <div class="k">Safety</div><div class="v" id="rSafety">—</div>
+      <div class="k">Passes</div><div class="v" id="rPasses">—</div>
+    </div>
+    <div class="ab">
+      <button class="play" id="play">▶ Play</button>
+      <button id="bOrig">Original</button>
+      <button id="bMast" class="on">Mastered</button>
+      <a class="dl" id="dl" download="mastered.wav">↓ download master</a>
+    </div>
+    <div class="hint" id="matchHint"></div>
+  </div>
+</div>
+
+<audio id="aMast"></audio><audio id="aOrig"></audio>
+<script>
+const $ = (id) => document.getElementById(id);
+let bytes = null, name = 'mix';
+const drop = $('drop'), file = $('file');
+drop.onclick = () => file.click();
+['dragover','dragenter'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', ev => { if (ev.dataTransfer.files[0]) load(ev.dataTransfer.files[0]); });
+file.addEventListener('change', () => { if (file.files[0]) load(file.files[0]); });
+async function load(f) { bytes = new Uint8Array(await f.arrayBuffer()); name = f.name.replace(/\.[^.]+$/, ''); drop.classList.add('has'); $('dropText').textContent = f.name; $('dropSub').textContent = (bytes.length/1e6).toFixed(1) + ' MB · ready'; $('go').disabled = false; }
+$('comp').addEventListener('input', () => $('compNum').textContent = (+$('comp').value).toFixed(2));
+
+function b64ToBlob(b64) { const bin = atob(b64); const arr = new Uint8Array(bin.length); for (let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i); return new Blob([arr], {type:'audio/wav'}); }
+
+$('go').addEventListener('click', async () => {
+  if (!bytes) return;
+  $('err').textContent = ''; $('go').disabled = true; $('go').textContent = 'Crossing…';
+  const p = new URLSearchParams();
+  if ($('delivery').value) p.set('delivery', $('delivery').value);
+  if ($('genre').value) p.set('genre', $('genre').value);
+  if ($('describe').value) p.set('describe', $('describe').value);
+  p.set('comp', $('comp').value);
+  try {
+    const r = await fetch('/master?' + p.toString(), { method:'POST', body: bytes });
+    const j = await r.json();
+    if (j.error) throw new Error(j.error);
+    const rep = j.report;
+    $('rTarget').textContent = `${j.target.lufs} LUFS  /  ${j.target.ceilingDbTp} dBTP`;
+    $('rAchieved').textContent = `${rep.achieved.lufs} LUFS  /  ${rep.achieved.truePeakDb} dBTP  ${rep.calibration.reachedTarget ? '✓' : '(missed)'}`;
+    const mc = rep.meterCheck; $('rMeters').textContent = `${mc.agree ? 'agree' : 'diverge'} ${mc.spreadDb} dB`; $('rMeters').className = 'v ' + (mc.agree ? 'ok' : 'warn');
+    $('rSafety').textContent = rep.safety && rep.safety.trimmedDb ? `trimmed ${rep.safety.trimmedDb} dB` : 'clear';
+    $('rPasses').textContent = `${rep.calibration.passes.length}`;
+    $('matchHint').textContent = `A/B: the original is level-matched ${j.matchGainDb > 0 ? '+' : ''}${j.matchGainDb} dB so you hear tone, not loudness.`;
+    const mUrl = URL.createObjectURL(b64ToBlob(j.masteredWav)), oUrl = URL.createObjectURL(b64ToBlob(j.abOriginalWav));
+    $('aMast').src = mUrl; $('aOrig').src = oUrl; $('dl').href = mUrl; $('dl').download = name + '.mastered.wav';
+    $('panel').classList.add('show');
+  } catch (e) { $('err').textContent = 'The ferry turned back: ' + e.message; }
+  $('go').disabled = false; $('go').textContent = 'Master';
+});
+
+// synced A/B — both play together, only one audible
+let which = 'mast';
+function applyGain() { $('aMast').volume = which === 'mast' ? 1 : 0; $('aOrig').volume = which === 'orig' ? 1 : 0; $('bMast').classList.toggle('on', which === 'mast'); $('bOrig').classList.toggle('on', which === 'orig'); }
+$('bMast').onclick = () => { which = 'mast'; applyGain(); };
+$('bOrig').onclick = () => { which = 'orig'; applyGain(); };
+$('play').addEventListener('click', () => {
+  const m = $('aMast'), o = $('aOrig');
+  if (m.paused) { o.currentTime = m.currentTime; applyGain(); m.play(); o.play(); $('play').textContent = '❚❚ Pause'; }
+  else { m.pause(); o.pause(); $('play').textContent = '▶ Play'; }
+});
+$('aMast').addEventListener('ended', () => $('play').textContent = '▶ Play');
+</script></body></html>
