@@ -15,8 +15,8 @@ and never touches their source.
 | File | What |
 |---|---|
 | `spike.js` | The chaining spike. Proves the signal/preset contract end-to-end: AUTOPSY → RIGOR → CASKET holds the ceiling exactly, and the idle chain nulls to 1 ULP. |
-| `translate.js` | The translator (step 2). Masterbox `MasteringSettings` → an `underworld.chain` preset (§2). CASKET mapped; AUTOPSY/RIGOR currently emitted idle (their mapping is the next increment). |
-| `translate.test.js` | The three §3.2 assertions — fixpoint, clamping-reported, rendered-measured + null control — each with a control that proves it bites. |
+| `translate.js` | The translator (step 2). Masterbox `MasteringSettings` → an `underworld.chain` preset (§2). **All three cores mapped** — AUTOPSY (tone shelves + 10-band Match-EQ, mid bells folded), RIGOR (3-band comp mirroring Masterbox's exact formulas), CASKET (ceiling/drive). The full vocabulary map with reasons is the header comment. |
+| `translate.test.js` | The three §3.2 assertions — fixpoint, clamping-reported, rendered + null — PLUS render proofs that each mapping does what it claims (EQ boosts the right band, comp reduces level), each with a control that proves it bites. |
 | `diagnostics/casket_null.js` | Repro for the §10 finding: CASKET's DC blocker + soft knee break a bit-exact null even below the lid. |
 
 ## Run
