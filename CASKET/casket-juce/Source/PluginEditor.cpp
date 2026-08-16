@@ -45,7 +45,7 @@ CasketLook::CasketLook() {
 }
 
 juce::Font CasketLook::getLabelFont(juce::Label&) {
-    return juce::Font(juce::FontOptions(11.0f));
+    return juce::Font(11.0f);
 }
 
 void CasketLook::drawRotarySlider(juce::Graphics& g, int x, int y, int w, int h,
@@ -88,7 +88,7 @@ void CasketLook::drawToggleButton(juce::Graphics& g, juce::ToggleButton& b,
     g.setColour(on ? C_BLOOD : (over ? C_DIM : C_LINE));
     g.drawRoundedRectangle(r, 4.0f, 1.0f);
     g.setColour(on ? C_BONE : C_DIM);
-    g.setFont(juce::Font(juce::FontOptions(10.5f)));
+    g.setFont(juce::Font(10.5f));
     g.drawText(b.getButtonText(), b.getLocalBounds(), juce::Justification::centred);
 }
 
@@ -123,7 +123,7 @@ void Dial::resized() {
 }
 void Dial::paint(juce::Graphics& g) {
     g.setColour(C_DIM);
-    g.setFont(juce::Font(juce::FontOptions(9.5f)));
+    g.setFont(juce::Font(9.5f));
     g.drawText(cap.toUpperCase(), getLocalBounds().removeFromTop(13),
                juce::Justification::centred);
 }
@@ -152,7 +152,7 @@ void Chooser::resized() {
 }
 void Chooser::paint(juce::Graphics& g) {
     g.setColour(C_DIM);
-    g.setFont(juce::Font(juce::FontOptions(9.5f)));
+    g.setFont(juce::Font(9.5f));
     g.drawText(cap.toUpperCase(), getLocalBounds().removeFromTop(13),
                juce::Justification::centred);
 }
@@ -208,7 +208,7 @@ CasketEditor::CasketEditor(CasketProcessor& p)
         l.setText(t, juce::dontSendNotification);
         l.setJustificationType(juce::Justification::centredLeft);
         l.setColour(juce::Label::textColourId, C_GOLD);
-        l.setFont(juce::Font(juce::FontOptions(9.5f)));
+        l.setFont(juce::Font(9.5f));
         addAndMakeVisible(l);
     };
     grp(groupA, "THE LID");
@@ -320,10 +320,10 @@ void CasketEditor::paint(juce::Graphics& g) {
 void CasketEditor::drawHeader(juce::Graphics& g, juce::Rectangle<int> h) {
     auto header = h.reduced(14, 6);
     g.setColour(gold);
-    g.setFont(juce::Font(juce::FontOptions(24.0f)));
+    g.setFont(juce::Font(24.0f));
     g.drawText("CASKET", header.removeFromLeft(140), juce::Justification::centredLeft);
     g.setColour(dim);
-    g.setFont(juce::Font(juce::FontOptions(12.5f)));
+    g.setFont(juce::Font(12.5f));
     g.drawText("nothing gets out.", header.removeFromLeft(150),
                juce::Justification::centredLeft);
 
@@ -332,7 +332,7 @@ void CasketEditor::drawHeader(juce::Graphics& g, juce::Rectangle<int> h) {
     juce::String il = std::isfinite(m.integrated)
         ? juce::String(m.integrated, 1) + " LUFS" : juce::String("-inf LUFS");
     g.setColour(bone);
-    g.setFont(juce::Font(juce::FontOptions(12.0f)));
+    g.setFont(juce::Font(12.0f));
     g.drawText("true peak " + tp + "     integrated " + il +
                "     weight " + juce::String(m.gr, 2) + " dB" +
                "     latency " + juce::String(m.latency) + " smp",
@@ -403,13 +403,13 @@ void CasketEditor::drawViewing(juce::Graphics& g, juce::Rectangle<int> area) {
     float dashes[] = { 6.0f, 4.0f };
     juce::PathStrokeType(1.6f).createDashedStroke(dashed, lid, dashes, 2);
     g.strokePath(dashed, juce::PathStrokeType(1.6f));
-    g.setFont(juce::Font(juce::FontOptions(11.0f)));
+    g.setFont(juce::Font(11.0f));
     g.drawText("LID " + juce::String(st.lid, 1) + " dBTP",
                juce::Rectangle<float>(x0, ly - 16.0f, w - 6.0f, 14.0f),
                juce::Justification::centredRight);
 
     /* the key, so the two traces are not a guessing game */
-    g.setFont(juce::Font(juce::FontOptions(10.0f)));
+    g.setFont(juce::Font(10.0f));
     g.setColour(violet);
     g.drawText("in", juce::Rectangle<float>(x0 + 8, y0 + 4, 40, 12),
                juce::Justification::centredLeft);
@@ -429,7 +429,7 @@ void CasketEditor::drawPlot(juce::Graphics& g, juce::Rectangle<int> area) {
 
     auto inner = area.reduced(12, 10);
     g.setColour(dim);
-    g.setFont(juce::Font(juce::FontOptions(10.0f)));
+    g.setFont(juce::Font(10.0f));
     g.drawText("THE PLOT", inner.removeFromTop(14), juce::Justification::topLeft);
 
     /* LRA and true peak get words, not a bar — a range is not a level */

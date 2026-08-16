@@ -35,7 +35,7 @@ MorgueLNF::MorgueLNF()
 
 juce::Font MorgueLNF::getLabelFont(juce::Label&)
 {
-    return juce::Font(juce::FontOptions(12.0f));
+    return juce::Font(12.0f);
 }
 
 void MorgueLNF::drawRotarySlider(juce::Graphics& g, int x, int y, int w, int h,
@@ -79,7 +79,7 @@ void MorgueLNF::drawToggleButton(juce::Graphics& g, juce::ToggleButton& b, bool 
         g.fillRoundedRectangle(box.reduced(3.5f), 1.5f);
     }
     g.setColour(b.getToggleState() ? BONE : (hi ? BONE : DIM));
-    g.setFont(juce::FontOptions(12.0f));
+    g.setFont(12.0f);
     g.drawText(b.getButtonText(), r.withTrimmedLeft(6.0f), juce::Justification::centredLeft);
 }
 
@@ -103,7 +103,7 @@ void Dial::resized()
 void Dial::paint(juce::Graphics& g)
 {
     g.setColour(GOLDD);
-    g.setFont(juce::FontOptions(9.5f));
+    g.setFont(9.5f);
     g.drawText(caption.toUpperCase(), getLocalBounds().removeFromTop(13),
                juce::Justification::centred);
 }
@@ -117,7 +117,7 @@ void CurveView::paint(juce::Graphics& g)
 
     auto head = all.removeFromTop(16.0f).reduced(8.0f, 0.0f);
     g.setColour(GOLDD);
-    g.setFont(juce::FontOptions(9.5f));
+    g.setFont(9.5f);
     g.drawText("THE STIFFENING CURVE", head, juce::Justification::centredLeft);
 
     auto plot = all.reduced(20.0f);
@@ -179,7 +179,7 @@ void ChartView::paint(juce::Graphics& g)
 
     auto head = all.removeFromTop(16.0f).reduced(8.0f, 0.0f);
     g.setColour(GOLDD);
-    g.setFont(juce::FontOptions(9.5f));
+    g.setFont(9.5f);
     g.drawText("THE CHART", head, juce::Justification::centredLeft);
 
     const auto st = proc.currentState();
@@ -224,7 +224,7 @@ void ChartView::paint(juce::Graphics& g)
     g.drawDashedLine(tl, dashes, 2, 1.2f);
 
     /* readouts, including the two meters a sample peak cannot give you */
-    g.setFont(juce::FontOptions(11.0f));
+    g.setFont(11.0f);
     auto tpDb = proc.truePeak() > 1.0e-7f ? 20.0f * std::log10(proc.truePeak()) : -99.0f;
     g.setColour(ARTERY);
     g.drawText(juce::String(proc.gainReduction(), 1) + " dB GR",
@@ -345,10 +345,10 @@ void RigorAudioProcessorEditor::paint(juce::Graphics& g)
     g.fillAll(BG);
     auto top = getLocalBounds().removeFromTop(38).reduced(14, 0);
     g.setColour(GOLD);
-    g.setFont(juce::FontOptions(19.0f));
+    g.setFont(19.0f);
     g.drawText("R I G O R", top, juce::Justification::centredLeft);
     g.setColour(DIM);
-    g.setFont(juce::FontOptions(11.5f));
+    g.setFont(11.5f);
     g.drawText("the body stops moving", top, juce::Justification::centredRight);
 }
 
