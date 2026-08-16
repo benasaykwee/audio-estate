@@ -85,6 +85,7 @@ cp3
 # RIGOR's mutation harness writes these while it runs. Committing one would
 # capture a deliberately broken core as though it were the real thing.
 *.__mut.js
+*.__probe.js
 .__mut_test.js
 *.tailmark
 __wtest.txt

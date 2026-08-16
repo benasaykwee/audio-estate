@@ -1,0 +1,21 @@
+{
+  "version": "0.1",
+  "fs": 48000,
+  "n": 48000,
+  "hashes": {
+    "idle": "61a9e999",
+    "pine": "f953d0b9",
+    "velvet": "b847e161",
+    "oak": "a53aa3e3",
+    "iron": "50ce4dbd",
+    "lead": "79bf2131",
+    "lining16": "2ca5ffe0",
+    "linked0": "19bc6e67",
+    "dusted": "7bfec9b8",
+    "saturated": "8c09e47d",
+    "sealed2x": "817d3435",
+    "sealed4x": "663de691",
+    "sealedDust": "632de9e6",
+    "midside": "e3938d5d"
+  }
+}

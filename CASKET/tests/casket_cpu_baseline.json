@@ -1,0 +1,24 @@
+{
+  "note": "Ratios against a same-machine bypass calibration. Re-blessing is a deliberate act — record it in AUDIO_INTERCHANGE.md §7.",
+  "blessed": "2026-08-16",
+  "tolerance": 0.3,
+  "ratios": {
+    "pine": 3.338,
+    "velvet": 3.668,
+    "oak": 3.552,
+    "iron": 5.709,
+    "lead": 7.562,
+    "lead + shaped dust": 8.305,
+    "velvet + mid/side": 3.727,
+    "velvet at 16x lining": 10.705,
+    "autoDrive (9 passes)": 9.593,
+    "autoMargin (4 passes)": 4.392,
+    "difference (two states)": 1.979,
+    "matchReference": 12.843,
+    "resample 44.1 → 96": 3.47,
+    "resample 96 → 44.1": 1.611,
+    "batchRender ×3": 2.975,
+    "batchRender ×3 gapless": 3.495,
+    "albumMaster ×3 (6 passes)": 32.476
+  }
+}

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AUTOPSY — Coroner's Report</title>
+<style>
+  body { margin: 0; background: #0b0a0d; color: #d8d2c4;
+         font: 15px/1.6 Georgia, 'Times New Roman', serif;
+         max-width: 860px; padding: 30px 24px 60px; margin-inline: auto; }
+  h1 { color: #c9a227; letter-spacing: 5px; font-weight: normal; margin-bottom: 2px; }
+  .tag { font-style: italic; color: #8a8494; margin-bottom: 26px; }
+  h2 { color: #c9a227; font-weight: normal; font-size: 19px; border-bottom: 1px solid #2a2433;
+       padding-bottom: 5px; margin-top: 34px; }
+  .stamp { display: inline-block; border: 2px solid #2e8b57; color: #2e8b57; padding: 2px 10px;
+           border-radius: 3px; font-size: 13px; letter-spacing: 2px; transform: rotate(-2deg);
+           margin-left: 10px; vertical-align: middle; }
+  .stamp.wait { border-color: #8a7222; color: #c9a227; }
+  ul { padding-left: 22px; }
+  li { margin: 7px 0; }
+  .dim { color: #8a8494; }
+  .num { color: #c9a227; font-variant-numeric: tabular-nums; }
+  code { background: #141218; padding: 1px 6px; border-radius: 3px; font-size: 13px; color: #b6afc2; }
+  em.law { color: #a12d3f; font-style: normal; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+
+<h1>AUTOPSY</h1>
+<div class="tag">Coroner's report · v0.4 · fourth sitting, 2026-08-16 — the hardening</div>
+
+<h2>The fourth sitting — hardening <span class="stamp">TWO REAL BUGS DOWN</span></h2>
+<ul>
+  <li><strong>Host buffer size changed the sound.</strong> The Interchange named
+      this the highest-value check, and it was right: every multiple of 32
+      agreed bit-for-bit; primes diverged up to <span class="num">−16.9 dBFS</span>
+      during a glide (441-sample hosts: −59 dBFS). The worklet's fixed 128 is why
+      nobody ever heard it. Fixed with CASKET's pattern — <code>ctrlPhase</code>
+      carried across calls — proven over 17 chunkings, pinned in the parity gate
+      by a split-buffer case, and <em>zero hashes moved</em>.</li>
+  <li><strong>A fresh engine faded in from defaults.</strong> Found by the new
+      fuzzer's reset() byte-identity check on its first run (both siblings'
+      fuzzers also scored on day one). First setState now snaps; reset() is
+      fresh-engine-equivalent. Three hashes moved, deliberately, on the record.</li>
+  <li><strong>Denormals in silent tails</strong> — 178,519 subnormal samples
+      measured, decaying to 4.94e-324. dn() now flushes at every section output
+      and state write, in BOTH bodies, because the plugin's ScopedNoDenormals
+      was already making the two deployments disagree. Zero hashes moved.</li>
+  <li>New standing armor: <strong>two-direction plugin lint</strong> (named-exists
+      + exists-reachable), <strong>seeded fuzzer</strong>, <strong>audits</strong>
+      (round-trips, §6.5 advice verification — Compensate now proves its own
+      work — embed freshness, motion guards), <strong>bench</strong>
+      (worst case <span class="num">59×</span> realtime), sample-rate sweeps,
+      the latency promise tested in every state, and a <strong>bespoke plugin
+      face</strong> — table, handles, inspector strip — replacing the generic
+      panel. Parity <span class="num">5,176 → 9,292</span>.</li>
+</ul>
+
+<h2>Cause of construction</h2>
+<p>A surgical parametric EQ in the Pro-Q lineage — the first of three planned
+instruments (EQ, then compressor, then limiter). One DSP core; two bodies:
+a browser instrument and a JUCE plugin, proven identical to the last bit.</p>
+
+<h2>Phase 1 — the browser corpse <span class="stamp">COMPLETE</span></h2>
+<ul>
+  <li>Core v0.2: RBJ bell/shelves/notch + 12&nbsp;dB Butterworth cuts, 12-band
+      TDF2 stereo engine, deterministic control-rate smoothing, constant-power pan.</li>
+  <li>Examination table: drag-to-create bands, analyzer (pre dim / post gold),
+      per-band jewel curves, accessible band cards, keyboard surgery.</li>
+  <li>Sources: Slab Noise, whole-page file drop, live input. Reports save and
+      load as <code>.autopsy.json</code>.</li>
+  <li>Fresh this session: <strong>Slab A/B</strong> compare with copy-across, and
+      <strong>per-incision solo</strong> (browser-derived state — the core never
+      learned what solo means, and needn't).</li>
+</ul>
+
+<h2>Phase 2 — the twin <span class="stamp wait">CORE DONE · AWAITING CI</span></h2>
+<ul>
+  <li><code>AutopsyCore.h</code> ported and proven: <span class="num">3,804</span>
+      parity checks, all bit-exact — now covering all 8 band types, all 6 cut
+      slopes, and every placement path.</li>
+  <li>The trick that made it possible: <strong>necromath</strong> — portable
+      sin/cos/exp/log/pow10 built from fixed-order IEEE ops, identical in JS and
+      C++. Plus the <em class="law">PARITY LAW</em>: <code>-ffp-contract=off</code>,
+      because FMA contraction rounds once where JavaScript rounds twice.</li>
+  <li>Plugin scaffold complete: 86-param static layout (12 incisions ×
+      on/type/freq/gain/Q/slope/place + output), processor, curve-drawing
+      editor, CMake, GitHub Actions workflow. First compile happens on the CI
+      runners, per house rules.</li>
+</ul>
+
+<h2>Phase 3 — sharper instruments <span class="stamp">MOSTLY DONE</span></h2>
+<ul>
+  <li><strong>Variable-slope cuts</strong>, 6–48 dB/oct: true Butterworth
+      cascades (up to 4 sections), −3 dB at the cut frequency at every order,
+      proven octave-down attenuation at 6/18/24/48.</li>
+  <li><strong>Tilt</strong> (complementary ∓g/2 shelves) and
+      <strong>bandpass</strong> (constant 0 dB peak) band types.</li>
+  <li><strong>Placement</strong>: any incision can work stereo, left, right,
+      mid, or side — exact M/S matrix, with algebraic proofs in the harness
+      (mid ≡ stereo on mono; side on mono is a perfect passthrough).</li>
+  <li>Browser: slope + placement controls, dashed off-stereo curves with
+      placement letters, <strong>undo lineage</strong> (Ctrl/Cmd+Z, per slab),
+      <strong>10 factory reports</strong> (Vocal Séance to Widen the Veil),
+      and <strong>share-report-as-URL</strong>.</li>
+  <li>Remaining nicety: plugin-side A/B.</li>
+</ul>
+
+<h2>The pulse — dynamic EQ <span class="stamp">ALIVE</span></h2>
+<ul>
+  <li>Any gain-bearing incision can now <strong>listen</strong>: a bandpass
+      detector at the band's own frequency feeds a per-sample attack/release
+      envelope; at control rate the band's gain glides toward its range as the
+      signal crosses the threshold — <code>range·(over/(over+6))</code>, smooth
+      and knee-less by design.</li>
+  <li>Deterministic to the bit: the full dynamics path (detector, envelope,
+      modulation) is inside the parity gate — <span class="num">5,176</span>
+      checks, all bit-exact, and the harness proves below-threshold dynamic
+      output is <em>bitwise identical</em> to static.</li>
+  <li>On the table: dotted range ghosts show each dynamic band's reach; the
+      bright moving curve is the engine's actual response, streamed from the
+      worklet every 2048 samples.</li>
+  <li>This envelope-follower DNA is the deliberate on-ramp to the
+      <strong>compressor</strong> — the next body.</li>
+</ul>
+
+<h2>Quality of life, third sitting</h2>
+<ul>
+  <li>Gain tools: halve / double / invert / flatten every gain at once.</li>
+  <li><strong>Compensate</strong>: integrates the curve over 20 Hz–20 kHz and
+      offsets output gain so the average rests at 0 dB.</li>
+  <li><strong>?</strong> opens the instruments sheet; number keys select
+      incisions; B toggles bypass.</li>
+  <li>Fixed: panel sliders no longer rebuild the panel mid-drag.</li>
+</ul>
+
+<h2>Vital signs</h2>
+<ul>
+  <li>Core harness: <span class="num">56</span> checks green.</li>
+  <li>UI-logic harness: <span class="num">56</span> checks green.</li>
+  <li>Regression: <span class="num">5</span> byte-stable baselines
+      (FNV-1a over %.17g). Every pre-v0.4 hash survived the dynamics work
+      untouched — new powers, zero drift in old paths.</li>
+  <li>Parity gate: <span class="num">5,176</span> bit-exact.</li>
+  <li>Plugin: <span class="num">146</span> host parameters.</li>
+  <li>Sync: byte-identical, idempotent.</li>
+</ul>
+
+<h2>Awaiting the next séance</h2>
+<ul>
+  <li>Ben: listen test — dynamic mode on a vocal (bell at 3 kHz, range −6,
+      threshold around −30) is the money demo; watch the bright curve duck.</li>
+  <li>Push to GitHub → first CI build of the AU/VST3.</li>
+  <li>The compressor gets its own slab: PRO-C lineage, this detector DNA.</li>
+</ul>
+
+<p class="dim" style="margin-top:40px; font-style:italic">
+filed by the night attendant · every frequency examined.</p>
+
+</body>
+</html>

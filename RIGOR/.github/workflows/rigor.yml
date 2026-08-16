@@ -1,0 +1,21 @@
+# ============================================================================
+# DEAD FILE — kept only because the sandbox that emptied it cannot delete
+# files on this volume. Safe to `rm -rf RIGOR/.github` at any time.
+#
+# GitHub reads workflows from <repo-root>/.github/workflows and nowhere else.
+# The repository is rooted at the CLAUDE folder, so RIGOR's real workflow
+# lives at:
+#
+#     .github/workflows/rigor.yml
+#
+# It runs with `defaults.run.working-directory: RIGOR`, which is what lets a
+# job that starts at the estate root behave as though it started inside the
+# project.
+#
+# This file previously held a full copy of that workflow. Two copies of a CI
+# definition is one CI definition and one lie: nothing runs this one, so
+# nothing tells you when it stops matching the one that does. It has been
+# emptied rather than left to rot.
+#
+# Checked by `node tools/estate_lint.js`.
+# ============================================================================

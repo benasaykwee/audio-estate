@@ -1,0 +1,94 @@
+name: AUTOPSY
+
+# LAYOUT NOTE. This file belongs at the ESTATE ROOT, not inside AUTOPSY/.
+# GitHub only reads workflows from <repo-root>/.github/workflows — a copy
+# living at AUTOPSY/.github/workflows is silently ignored, which is the
+# failure mode that leaves a project with no CI and no error to notice.
+#
+# Because the checkout lands at the estate root, every `run:` step needs to
+# start inside AUTOPSY/. That is what the `defaults.run.working-directory`
+# below does. NOTE that it applies to `run:` steps ONLY — inputs to `uses:`
+# actions (notably upload-artifact's `path:`) are still resolved from the
+# repo root and must name AUTOPSY/ explicitly.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  harnesses:
+    name: JS harnesses + parity gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: AUTOPSY
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Core tests
+        run: node tests/autopsy_test.js
+
+      - name: UI-logic tests
+        run: node tests/autopsy_ui_test.js
+
+      - name: Regression (byte-stable baselines)
+        run: node tests/autopsy_regression.js
+
+      - name: Plugin lint (two directions, no compiler needed)
+        run: node tests/autopsy_plugin_test.js
+
+      - name: Fuzzer (seeded, reproducible)
+        run: node tests/autopsy_fuzz.js
+
+      - name: Audits (round-trips, laws, embed order)
+        run: node tests/autopsy_audit.js
+
+      - name: Sync is current (embed byte-identical, idempotent)
+        run: |
+          md5sum autopsy.html > /tmp/before.md5
+          node autopsy_sync.js
+          md5sum autopsy.html > /tmp/after.md5
+          diff /tmp/before.md5 /tmp/after.md5
+
+      - name: Parity gate (JS truth vs C++ twin, bit-exact)
+        # PARITY LAW: -ffp-contract=off. FMA contraction fuses a*b+c
+        # into one rounding where the JS engine performs two.
+        run: |
+          node tests/parity_emit.js
+          git diff --exit-code tests/parity_expected.h
+          g++ -std=c++17 -O2 -ffp-contract=off -o core_parity tests/core_parity.cpp
+          ./core_parity
+
+  plugin-macos:
+    name: Build AU/VST3 (macOS)
+    runs-on: macos-14
+    needs: harnesses
+    defaults:
+      run:
+        working-directory: AUTOPSY
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -S autopsy-juce -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release -j 3
+
+      - name: List artefacts
+        run: find build -name "*.component" -o -name "*.vst3" -o -name "*.app" | head -20
+
+      # `path:` is an input to a `uses:` action, so working-directory does NOT
+      # apply — these must be spelled from the repo root or the upload finds
+      # nothing and only warns.
+      - name: Upload plugin artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: autopsy-plugins-macos
+          path: |
+            AUTOPSY/build/**/*.component
+            AUTOPSY/build/**/*.vst3
+          if-no-files-found: warn

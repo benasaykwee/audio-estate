@@ -1,0 +1,12 @@
+{
+  "version": "0.4",
+  "fs": 48000,
+  "n": 48000,
+  "hashes": {
+    "flat": "24053a49",
+    "surgical": "9f8c89e0",
+    "extremes": "ae8ec3df",
+    "placed": "37eaf519",
+    "dynamic": "61ee467f"
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "changed": "2026-08-16",
+  "projects": {
+    "autopsy": {
+      "harnesses": {
+        "autopsy_test": {
+          "value": 70,
+          "measured": "2026-08-16"
+        },
+        "autopsy_ui_test": {
+          "value": 68,
+          "measured": "2026-08-16"
+        },
+        "autopsy_plugin_test": {
+          "value": 15,
+          "measured": "2026-08-16"
+        }
+      },
+      "parity": 9292,
+      "baselines": 5,
+      "assertions": 153,
+      "harnessCount": 3,
+      "measured": "2026-08-16"
+    },
+    "rigor": {
+      "harnesses": {
+        "rigor_test": {
+          "value": 233,
+          "measured": "2026-08-16"
+        },
+        "rigor_ui_test": {
+          "value": 114,
+          "measured": "2026-08-16"
+        },
+        "rigor_plugin_test": {
+          "value": 28,
+          "measured": "2026-08-16"
+        }
+      },
+      "parity": 61694,
+      "baselines": 35,
+      "assertions": 375,
+      "harnessCount": 3,
+      "measured": "2026-08-16"
+    },
+    "casket": {
+      "harnesses": {
+        "casket_test": {
+          "value": 197,
+          "measured": "2026-08-16"
+        },
+        "casket_ui_test": {
+          "value": 76,
+          "measured": "2026-08-16"
+        },
+        "casket_edge": {
+          "value": 20,
+          "measured": "2026-08-16"
+        },
+        "casket_dither": {
+          "value": 6,
+          "measured": "2026-08-16"
+        },
+        "casket_conformance": {
+          "value": 35,
+          "measured": "2026-08-16"
+        },
+        "casket_nan_audit": {
+          "value": 40,
+          "measured": "2026-08-16"
+        },
+        "casket_seal_margin": {
+          "value": 20,
+          "measured": "2026-08-16"
+        },
+        "casket_plugin_test": {
+          "value": 42,
+          "measured": "2026-08-16"
+        },
+        "casket_host": {
+          "value": 19,
+          "measured": "2026-08-16"
+        },
+        "casket_album": {
+          "value": 51,
+          "measured": "2026-08-16"
+        },
+        "casket_rate": {
+          "value": 39,
+          "measured": "2026-08-16"
+        }
+      },
+      "parity": 22861,
+      "baselines": 14,
+      "assertions": 545,
+      "harnessCount": 11,
+      "measured": "2026-08-16"
+    }
+  },
+  "estate": {
+    "parity": 93847,
+    "assertions": 1073,
+    "baselines": 54
+  }
+}

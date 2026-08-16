@@ -105,8 +105,21 @@ own doc when it is built, and treat every choice as a decision with a reason, no
 3. **The rendered chain is measured, not assumed.** Assert the render hits its loudness
    target within a stated tolerance and holds its ceiling, plus a null control: a preset
    asking for no processing must come back **bit-identical** through the whole chain
-   (`AUDIO_INTERCHANGE.md §4`, and note the documented exception — CASKET's `Lead` is
-   sealed and cannot be bit-exact by design; use an unsealed arrangement for the null test).
+   (`AUDIO_INTERCHANGE.md §4`).
+
+   **An unsealed arrangement is necessary but NOT sufficient — corrected 2026-08-16 by
+   measurement, see §10.** CASKET's `Lead` is sealed and cannot be bit-exact by design, so
+   it is disqualified; but even unsealed `velvet` fails to null with the lid merely above
+   the signal. Two always-on paths perturb it, both measured 12 dB under the lid:
+   `dc:true` (the DC blocker, a real sub-20 Hz high-pass whose warm-up gives ~6e-2), and
+   the soft `knee`, which applies a sub-0.1 dB touch **independent of headroom** — `lid:6`
+   and `lid:12` produced the identical 1.07e-2 residual, so the knee curve reaches well
+   below the lid. **The idle recipe is therefore lid-above-signal + `knee:0` + `dc:false`.**
+   Per-core idle states are tabulated in `underworld/README.md`.
+
+   *Why this clause is worth its length:* a translator trusting "unsealed ⇒ null" would
+   ship a null test that quietly never bites, which is this suite's most expensive defect
+   class. The spike found it on its first run.
 
 ### 3.3 `report` is advice, and advice gets verified
 
@@ -252,6 +265,15 @@ before they were visible in the code.
 
 ## 10. THE LOG
 *Every change to the seam. Newest first. If you edit this file, add a line.*
+
+### 2026-08-16 (Cowork side) — §3.2 assertion 3 tightened, as the entry below asked
+
+Accepted the refinement below and rewrote §3.2(3): the idle recipe is now stated as
+lid-above-signal **+ `knee:0` + `dc:false`**, with the two measured residuals and the
+reason the clause earns its length. The knee's sub-lid reach is recorded as measured
+behaviour rather than judged — **whether the knee SHOULD reach below the lid is still
+CASKET's question, not the seam's**, and nothing in `AUDIO_INTERCHANGE.md` or `CASKET/`
+was touched. Documentation only; no code, no gate, no hash.
 
 ### 2026-08-16 (Masterbox side) — first chaining spike run; a refinement to the §3.2 null test
 

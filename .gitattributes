@@ -1,0 +1,31 @@
+# ============================================================================
+# Byte-identity is load-bearing in this repository, so line endings are pinned.
+#
+# This suite verifies things by exact bytes, not by "looks the same":
+#   - the HTML embeds are asserted byte-for-byte against their source files
+#   - regression baselines are FNV-1a hashes over %.17g of rendered samples
+#   - CI runs `git diff --exit-code` on each parity_expected.h
+#
+# A CRLF conversion on clone or an edit through GitHub's web UI would change
+# those bytes and fail the gates for a reason that has nothing to do with the
+# code. `eol=lf` means every checkout on every platform sees identical bytes.
+#
+# Verify after any edit here:
+#     git ls-files --eol | grep -v 'w/lf'      # must print nothing
+# ============================================================================
+
+* text=auto eol=lf
+
+# Never munge these, whatever git's heuristics think.
+*.h    text eol=lf
+*.cpp  text eol=lf
+*.js   text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+*.yml  text eol=lf
+*.html text eol=lf
+
+# Binary, if any ever slips past the allowlist.
+*.wav  binary
+*.aiff binary
+*.png  binary

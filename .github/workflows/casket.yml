@@ -1,0 +1,323 @@
+name: CASKET
+
+# LAYOUT NOTE. This file belongs at the ESTATE ROOT, not inside CASKET/.
+# GitHub only reads workflows from <repo-root>/.github/workflows, and CASKET
+# reaches outside its own directory in three ways that a CASKET-only repo
+# cannot satisfy: ../shared/necromath.js, ../shared/necrodyn.js, and ../AUTOPSY
+# for the tripwire job. Every job therefore sets working-directory rather than
+# assuming it is already in the project.
+
+on:
+  push:
+  pull_request:
+  schedule:
+    # 04:00 UTC nightly — the long jobs live here so they can never become
+    # the reason somebody stops pushing.
+    - cron: '0 4 * * *'
+
+jobs:
+  harnesses:
+    name: JS harnesses (${{ matrix.os }}, node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: CASKET
+    strategy:
+      # Do NOT cancel the whole matrix on one red cell. If bit-exactness
+      # breaks on exactly one platform, that single cell IS the finding,
+      # and killing its siblings destroys the comparison that identifies it.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Core tests (the guarantee, BS.1770, the null test)
+        run: node tests/casket_test.js
+
+      - name: UI-logic tests (UIH headless, embeds, the boot path)
+        run: node tests/casket_ui_test.js
+
+      # THE REASON THIS MATRIX EXISTS. Every hash and every parity check in
+      # this project is bit-exact on ONE machine, which makes bit-exactness
+      # a hypothesis rather than a fact. Node ships different V8 versions on
+      # different platforms, and V8 is free to change how it evaluates the
+      # same arithmetic. necromath exists precisely so that it cannot — but
+      # "exists so that it cannot" is a claim, and this is the experiment.
+      - name: Regression (byte-stable baselines — the cross-platform claim)
+        run: node tests/casket_regression.js
+
+      - name: NaN audit (silence is a legal input everywhere)
+        run: node tests/casket_nan_audit.js
+
+      - name: Fuzz (random legal states across five sample rates)
+        run: node tests/casket_fuzz.js 1500
+
+      - name: Automation stress (setState between every block)
+        run: node tests/casket_automation.js 150
+
+      - name: Dither quality (the shaping must actually shape)
+        run: node tests/casket_dither.js
+
+      - name: Edge cases (subnormals, signed zero, degenerate buffers)
+        run: node tests/casket_edge.js
+
+      - name: Conformance (BS.1770 true peak, the reconstruction ladder, EBU 3341/3342)
+        run: node tests/casket_conformance.js
+
+      # MEASURED 2026-08-16: this is the most expensive harness in the set by
+      # a wide margin — 60 states ran past 200 seconds on a machine where the
+      # whole rest of the suite finishes in under 300. Trimmed to 25 on the
+      # push path; the nightly job runs it properly.
+      - name: Offline-tools fuzz (autoDrive, difference, autoMargin, matchReference)
+        run: node tests/casket_tools_fuzz.js 25
+
+      - name: The seal vs the margin (two features on the same axis)
+        run: node tests/casket_seal_margin.js
+
+      - name: Batch and album (one drive, gapless joins, the dither policy)
+        run: node tests/casket_album.js
+
+      - name: Plugin lint (the checks that do not need a compiler)
+        run: node tests/casket_plugin_test.js
+
+      - name: Host boundary (block size, chunking, latency, the mono bus)
+        run: node tests/casket_host.js
+
+      - name: Sample-rate conversion (a 44.1 file in a 96 session)
+        run: node tests/casket_rate.js
+
+      # A shared/ change by any sibling project leaves CASKET's three embeds
+      # stale, and the failure surfaces here rather than where it was caused.
+      # That is the point: this step is the estate's tripwire in reverse.
+      - name: Sync is current (three embeds byte-identical, idempotent)
+        shell: bash
+        run: |
+          node casket_sync.js
+          git diff --exit-code casket.html
+
+  autopsy-tripwire:
+    name: AUTOPSY is undisturbed
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: AUTOPSY
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      # CASKET shares shared/necromath.js with AUTOPSY. If a change here
+      # ever touches NM, AUTOPSY's hashes move — and AUTOPSY is a sealed
+      # artifact. This job is the tripwire, and it must never need fixing.
+      #
+      # FIXED 2026-08-16: this used to open with `cd ../AUTOPSY`, which
+      # escaped the checkout entirely and would have failed on the first
+      # run under any repo layout.
+      - name: Run AUTOPSY's full suite
+        run: |
+          node tests/autopsy_test.js
+          node tests/autopsy_ui_test.js
+          node tests/autopsy_regression.js
+          node tests/parity_emit.js
+          git diff --exit-code tests/parity_expected.h
+
+  parity:
+    name: Parity gate (JS truth vs the C++ twin)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: CASKET
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+
+      # The emitted expectations must be reproducible before they are
+      # trusted. A gate generated fresh from the code it is gating proves
+      # nothing; this proves the generator is deterministic first.
+      - name: The gate is not stale
+        run: |
+          node tests/parity_emit.js
+          git diff --exit-code tests/parity_expected.h
+
+      # PARITY LAW: -ffp-contract=off. Not belt-and-braces — without it
+      # this gate reports thousands of mismatches, the worst at 9,805 ulp.
+      # The polyphase inner loop is a long multiply-accumulate chain,
+      # exactly the shape GCC most wants to fuse into FMAs.
+      - name: Bit-exact at -O0, -O2 and -O3
+        run: |
+          for O in 0 2 3; do
+            g++ -std=c++17 -O$O -ffp-contract=off -o cp$O tests/core_parity.cpp
+            ./cp$O
+          done
+
+  counts:
+    name: The docs' numbers are derived, not remembered
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+
+      # Same shape as the parity gate: regenerate, then prove nothing moved.
+      # tools/counts.js runs all three gates and the asserting harnesses and
+      # rewrites the figures between the <!--c:key--> markers in the docs. If
+      # this job goes red, a document is quoting a number its gate no longer
+      # produces — which happened four different ways to RIGOR's row in a
+      # single hour before this existed.
+      #
+      # The script is idempotent by construction: each figure carries the date
+      # it last CHANGED rather than the date it was last confirmed, so a run
+      # that finds nothing moved writes nothing and this job stays green
+      # without anybody re-blessing a timestamp every morning.
+      #
+      # Two slow harnesses come from tools/counts.json rather than being
+      # re-run here; the nightly job re-measures them with --full, which is
+      # the only way a cached value can go stale unnoticed.
+      - name: Regenerate every derived count
+        run: node tools/counts.js
+
+      - name: And prove no document had drifted
+        run: git diff --exit-code
+
+  cpu:
+    name: CPU gate (the shape of the cost)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: CASKET
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      # Ratios against a same-machine calibration, never absolute
+      # milliseconds — a shared runner's absolute speed is not a property
+      # of this code and gating on it would only teach people to ignore
+      # the gate.
+      - name: Performance is defended like correctness
+        run: node tests/casket_cpu_gate.js
+
+  nightly:
+    name: Nightly soak
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: CASKET
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+
+      # FIXED 2026-08-16: this used to invoke the soak with no argument.
+      # The default is 20 minutes PER ARRANGEMENT and there are five of
+      # them, so the step needed 100 minutes and the timeout below killed
+      # it at 90 — a nightly that could only ever go red. Twelve minutes
+      # each is 60 total, which fits with room to spare.
+      - name: Soak (long-run drift)
+        run: node tests/casket_soak.js 12
+        timeout-minutes: 90
+
+      - name: Deep fuzz (far more states than a push can afford)
+        run: node tests/casket_fuzz.js 20000
+
+      - name: Offline-tools fuzz, at full strength
+        run: node tests/casket_tools_fuzz.js 60
+
+      # The push path takes two CASKET harness counts from the cache because
+      # they cost three and a half minutes between them. A cached number is
+      # the one that can rot without anyone noticing, so re-measure it here.
+      - name: Every derived count, nothing cached
+        working-directory: .
+        run: |
+          node tools/counts.js --full
+          git diff --exit-code
+
+      # The bench is not a gate — the CPU gate is. But a benchmark nobody
+      # ever runs is a benchmark nobody trusts, and it costs nothing here.
+      - name: Bench (absolute figures, for the record rather than for a gate)
+        run: node tests/casket_bench.js
+
+      # Kept because it is the runnable evidence behind architecture §6.3 —
+      # why the residual form of the seal was rejected. Evidence you cannot
+      # execute is just a claim with a filename.
+      - name: The seal experiment (evidence for architecture §6.3)
+        run: node tests/seal_experiment.js
+
+      # ADDED 2026-08-16. Twelve deliberate breaks; the suite must go red for
+      # nine of them and stay green for the three marked equivalent. Nightly
+      # rather than per-push because each mutant reruns the whole witness
+      # harness, so a full pass is roughly twelve minutes.
+      #
+      # On its first run it found three real holes: the overshoot theorem's
+      # HYPOTHESIS was never asserted (only its consequences, which a clamp
+      # stands in front of), the bypass TOGGLE was never exercised, and
+      # `quantize` had no JavaScript test at all — its only guard was the
+      # parity gate, which proves the twins agree and not that either is
+      # right.
+      - name: Mutation tester (a test for the tests)
+        run: node tests/casket_mutate.js
+        timeout-minutes: 30
+
+  plugin:
+    name: AU / VST3 build
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -S CASKET/casket-juce -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Parity gate on the plugin's own toolchain
+        run: ./build/casket_parity
+
+      # ADDED 2026-08-16. The gate above builds without LTO, but the plugin
+      # links juce_recommended_lto_flags, so its arithmetic is generated at
+      # link time under flags the gate was never measuring. This target uses
+      # the plugin's exact flag set. Verified on GCC/Linux that the check can
+      # fail: -O2 -flto with no contraction flag breaks parity outright.
+      # Clang on macOS is the toolchain that actually ships, which is why the
+      # measurement belongs here rather than on one developer's machine.
+      - name: Parity gate under the plugin's LTO flags (the binary you ship)
+        run: ./build/casket_parity_lto
+
+      # FIXED 2026-08-16: the artefact FILES are named after PRODUCT_NAME,
+      # which is "CASKET" in caps, while the artefacts DIRECTORY is named
+      # after the CMake target, which is "Casket". The old paths said
+      # Casket.vst3 and Casket.component and only worked by accident,
+      # because the runner's APFS volume is case-insensitive.
+      #
+      # pluginval's strictness 10 includes varying the block size between
+      # calls — precisely the class of bug that cost this project a whole
+      # round, and which our own harnesses only found after being taught
+      # to try prime-length buffers.
+      - name: pluginval (strictness 10)
+        run: |
+          curl -sL https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip -o pluginval.zip
+          unzip -q pluginval.zip
+          ./pluginval.app/Contents/MacOS/pluginval \
+            --strictness-level 10 \
+            --validate-in-process \
+            --validate build/Casket_artefacts/Release/VST3/CASKET.vst3
+
+      # FIXED 2026-08-16: the manufacturer code was written as Necr, but
+      # CMakeLists declares PLUGIN_MANUFACTURER_CODE Basy. auval takes
+      # <type> <subtype> <manufacturer>, so the old line asked the system
+      # for a component that does not exist and would have failed every run.
+      - name: auval (the AU gatekeeper Logic itself uses)
+        run: |
+          cp -R build/Casket_artefacts/Release/AU/CASKET.component ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar || true
+          auval -v aufx Cskt Basy
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: casket-plugins
+          path: build/Casket_artefacts/Release

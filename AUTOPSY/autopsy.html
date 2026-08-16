@@ -1,0 +1,1860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AUTOPSY — every frequency examined</title>
+<style>
+  :root {
+    --slab: #0b0a0d; --panel: #141218; --panel2: #1b1721;
+    --gold: #c9a227; --gold-dim: #8a7222; --bone: #d8d2c4;
+    --dim: #8a8494; --line: #2a2433; --blood: #a12d3f;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--slab); color: var(--bone);
+         font: 14px/1.45 Georgia, 'Times New Roman', serif; }
+  header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+           padding: 14px 18px 8px; border-bottom: 1px solid var(--line); }
+  h1 { margin: 0; font-size: 26px; letter-spacing: 5px; color: var(--gold);
+       font-weight: normal; }
+  h1 .ver { font-size: 11px; letter-spacing: 1px; color: var(--dim); }
+  .tag { font-style: italic; color: var(--dim); font-size: 13px; }
+  .spacer { flex: 1; }
+  button, select {
+    background: var(--panel2); color: var(--bone); border: 1px solid var(--line);
+    border-radius: 3px; padding: 5px 10px; font: inherit; font-size: 12.5px;
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--gold-dim); }
+  button.armed { border-color: var(--gold); color: var(--gold); }
+  button.danger:hover { border-color: var(--blood); color: var(--blood); }
+  #status { padding: 4px 18px; color: var(--dim); font-size: 12.5px; font-style: italic;
+            min-height: 22px; }
+  #tableWrap { padding: 6px 18px; }
+  #table { display: block; width: 100%; height: 420px; background: #08070a;
+           border: 1px solid var(--line); border-radius: 4px; cursor: crosshair;
+           touch-action: none; }
+  #outRow { display: flex; gap: 22px; align-items: center; padding: 8px 18px;
+            flex-wrap: wrap; color: var(--dim); font-size: 12.5px; }
+  #outRow label { display: flex; gap: 8px; align-items: center; }
+  input[type=range] { accent-color: var(--gold); }
+  #bandPanel { display: flex; gap: 10px; flex-wrap: wrap; padding: 8px 18px 20px; }
+  .bandCard { background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+              padding: 8px 10px; width: 232px; font-size: 12.5px; }
+  .bandCard.sel { border-color: var(--gold); }
+  .bandCard h3 { margin: 0 0 6px; font-size: 13px; font-weight: normal;
+                 display: flex; align-items: center; gap: 7px; }
+  .chip { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .bandCard .row { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+  .bandCard .row span.k { width: 34px; color: var(--dim); }
+  .bandCard .row input[type=range] { flex: 1; min-width: 0; }
+  .bandCard .row .v { width: 62px; text-align: right; font-variant-numeric: tabular-nums; }
+  footer { padding: 0 18px 26px; color: var(--dim); font-size: 12px; font-style: italic; }
+  body.dropping #table { border-color: var(--gold); }
+  .toolset { display: flex; gap: 5px; }
+  #ctxMenu { position: absolute; z-index: 60; background: var(--panel);
+             border: 1px solid var(--gold-dim); border-radius: 4px; padding: 4px 0;
+             min-width: 168px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); font-size: 12.5px; }
+  #ctxMenu .item { padding: 4px 14px; cursor: pointer; }
+  #ctxMenu .item:hover, #ctxMenu .item:focus { background: var(--panel2); color: var(--gold); outline: none; }
+  #ctxMenu .item.checked { color: var(--gold); }
+  #ctxMenu .item.danger:hover { color: var(--blood); }
+  #ctxMenu .sep { border-top: 1px solid var(--line); margin: 4px 0; }
+  #helpOverlay { position: fixed; inset: 0; background: rgba(11,10,13,0.92);
+                 display: none; z-index: 50; padding: 60px 20px; }
+  #helpOverlay.open { display: block; }
+  #helpOverlay .sheet { max-width: 560px; margin: 0 auto; background: var(--panel);
+                        border: 1px solid var(--gold-dim); border-radius: 6px; padding: 22px 28px; }
+  #helpOverlay h2 { color: var(--gold); font-weight: normal; letter-spacing: 3px; margin-top: 0; }
+  #helpOverlay td { padding: 3px 14px 3px 0; font-size: 13px; }
+  #helpOverlay td:first-child { color: var(--gold); white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>AUTOPSY <span class="ver" id="verTag">v0.1</span></h1>
+  <span class="tag">every frequency examined.</span>
+  <span class="spacer"></span>
+  <button id="noiseBtn" title="Looped flat noise — ideal for seeing the curve in the analyzer">Slab Noise</button>
+  <button id="micBtn" title="Live input (Scarlett / mic)">Live Input</button>
+  <button id="abBtn" title="Two slabs, one table — switch examinations">Slab A</button>
+  <button id="abCopyBtn" title="Copy this slab's findings to the other">A→B</button>
+  <button id="bypassBtn" title="Hear the body untouched">Bypass</button>
+  <button id="freezeBtn" title="Freeze the analyzer (F) — hold the spectra still for study">Freeze</button>
+  <button id="photoBtn" title="Photograph the finding (P) — save the table as a PNG">Photograph</button>
+  <button id="saveBtn" title="Export findings as JSON">Save Report</button>
+  <button id="loadBtn" title="Import a saved report">Open Report</button>
+  <select id="factorySel" title="Pre-written examinations"><option>Factory Reports…</option></select>
+  <button id="shareBtn" title="Copy a link that resurrects this exact state">Share</button>
+  <input type="file" id="loadFile" accept="application/json" hidden>
+</header>
+
+<div id="status">Drop an audio file anywhere, or press Slab Noise. Double-click the table to make an incision.</div>
+
+<div id="tableWrap">
+  <canvas id="table" tabindex="0"
+    aria-label="EQ examination table. Double-click to create a band. Arrow keys move the selected band; hold Shift for fine movement; Delete removes it."></canvas>
+</div>
+
+<div id="outRow">
+  <label>Output <input type="range" id="outGain" min="-24" max="24" step="0.1" value="0"
+     aria-label="Output gain in decibels"><span class="v" id="outGainV">0.0 dB</span></label>
+  <label>Pan <input type="range" id="outPan" min="-1" max="1" step="0.01" value="0"
+     aria-label="Output pan"><span class="v" id="outPanV">C</span></label>
+  <span class="toolset">
+    <button id="halfBtn" title="Halve every band gain — same shape, gentler hand">½</button>
+    <button id="dblBtn" title="Double every band gain">×2</button>
+    <button id="invBtn" title="Mirror every band gain — cuts become boosts">Invert</button>
+    <button id="flatBtn" title="Zero every band gain, keep the incisions">Flatten</button>
+    <button id="compBtn" title="Offset output gain so the average curve sits at 0 dB">Compensate</button>
+  </span>
+  <span id="engineTag" style="margin-left:auto"></span>
+</div>
+
+<div id="bandPanel" aria-label="Active incisions"></div>
+
+<div id="helpOverlay" role="dialog" aria-label="Keyboard shortcuts">
+  <div class="sheet">
+    <h2>THE INSTRUMENTS</h2>
+    <table>
+      <tr><td>double-click</td><td>new incision (on empty table) / close (on a handle)</td></tr>
+      <tr><td>drag handle</td><td>frequency &amp; gain</td></tr>
+      <tr><td>wheel on handle</td><td>Q</td></tr>
+      <tr><td>1–9</td><td>select incision</td></tr>
+      <tr><td>arrows / shift+arrows</td><td>nudge selected (fine with shift)</td></tr>
+      <tr><td>S</td><td>solo selected</td></tr>
+      <tr><td>B</td><td>bypass</td></tr>
+      <tr><td>F</td><td>freeze the spectra</td></tr>
+      <tr><td>P</td><td>photograph the finding (PNG)</td></tr>
+      <tr><td>right-click handle</td><td>the incision menu — type, slope, placement, solo</td></tr>
+      <tr><td>Delete</td><td>close selected incision</td></tr>
+      <tr><td>Ctrl/Cmd+Z · Shift+Z</td><td>exhume / rebury (undo / redo)</td></tr>
+      <tr><td>?</td><td>this sheet</td></tr>
+    </table>
+    <p style="color:var(--dim); font-style:italic">press ? or Escape to close</p>
+  </div>
+</div>
+
+<footer>
+  Double-click: new incision · drag handle: frequency/gain · wheel on handle: Q ·
+  right-click handle: select &amp; inspect below · S: solo · Delete: close ·
+  Ctrl/Cmd+Z: exhume (undo) · Slab A/B for before-and-after photographs ·
+  dashed curves are placed off-stereo (mid/side/left/right).
+</footer>
+
+<script type="text/plain" id="nm-src">
+/* ============================================================
+   necromath — portable transcendentals, shared DSP substrate
+   Extracted VERBATIM from autopsy_core.js v0.4 (2026-08-15) so that
+   AUTOPSY and RIGOR cannot drift. The op ORDER in this file is the
+   load-bearing property: it is what makes the JS<->C++ parity gates
+   bit-exact. Do not reorder, do not "simplify", do not use libm.
+   Mirror: shared/necromath.h (namespace nm).
+   ============================================================ */
+/* ---------- NM: portable "necromath" ----------
+   Transcendentals built from IEEE +-*x/ ops in a FIXED order so the
+   JS core and the C++ twin (AutopsyCore.h) produce bit-identical
+   doubles. Native libm and v8 disagree in the last 1-2 ulp, which
+   an IIR feeds back into audible-in-the-hash drift; these do not.
+   Accuracy ~1e-15 relative. sqrt stays native (IEEE-exact). */
+var NM = (function () {
+  var LN2 = 0.69314718055994531;
+  var LN10 = 2.3025850929940459;
+  var PI_2 = 1.5707963267948966;
+  /* ---- DOMAIN GUARDS (added 2026-08-16) --------------------------
+     Everything below this comment is a COMPARISON, never a change of
+     arithmetic. For every argument that was already legal the guards
+     are all false and the original op order runs untouched — which is
+     what keeps four programs' worth of blessed hashes and ~90,000
+     parity checks exactly where they were. Proven, not asserted:
+     30,075 arguments x 6 functions bit-identical before and after.
+
+     What they fix: these functions used to LOOP FOREVER rather than
+     return. In a DAW that is a hung audio thread and a force quit,
+     and every test in the suite stayed green while it was true,
+     because the fuzzers all hammered the STATE and never once handed
+     the substrate a bad ARGUMENT. */
+  function twoPow(k) {
+    /* Saturation shortcut. 2^1024 is already Infinity and 2^-1075 is
+       already 0, so past those the loop is doing arithmetic on a value
+       that can no longer change — the guards return exactly what it
+       would have returned, just without the wait. The wait is the
+       point: k arrives as floor(x/LN2), so a LEGAL FINITE x of 1e308
+       asks this loop for 1.4e308 iterations. That is a hang with no
+       infinity anywhere in sight, and it is how this whole guard set
+       was discovered. +-Infinity is the same defect wearing its
+       obvious face: `k--` on an infinity is still that infinity. */
+    if (k >= 1100) return Infinity;
+    if (k <= -1100) return 0;
+    var r = 1;
+    if (k >= 0) { while (k-- > 0) r *= 2; } else { while (k++ < 0) r *= 0.5; }
+    return r;
+  }
+  function exp_(x) {
+    /* The twoPow guard alone would stop the hang but leave exp(+-Inf)
+       returning NaN, because r = x - k*LN2 is Inf - Inf. Silent NaN
+       into a detector is worse than a freeze: it poisons the signal
+       and looks like nothing. These return the IEEE answers. */
+    if (x !== x) return x;
+    if (x === Infinity) return Infinity;
+    if (x === -Infinity) return 0;
+    var k = Math.floor(x / LN2 + 0.5);
+    var r = x - k * LN2;
+    var p = 1 + r * (1 + r * (1 / 2 + r * (1 / 6 + r * (1 / 24 + r * (1 / 120 +
+      r * (1 / 720 + r * (1 / 5040 + r * (1 / 40320 + r * (1 / 362880 +
+      r * (1 / 3628800 + r * (1 / 39916800 + r * (1 / 479001600 +
+      r * (1 / 6227020800)))))))))))));
+    return p * twoPow(k);
+  }
+  function log_(x) {
+    /* Three ways in and all three used to spin:
+         +Infinity  -> `while (m >= 2) m *= 0.5` never falls below 2
+         0          -> `while (m < 1) m *= 2` never rises above 0
+         negatives  -> same loop, marching to -Infinity, still < 1
+       NaN was always fine here purely by accident: every comparison
+       against NaN is false, so it fell straight through both loops.
+       That accident is why the project's NaN assertions never caught
+       any of this. */
+    if (x !== x) return x;
+    if (x === Infinity) return Infinity;
+    if (x <= 0) return x === 0 ? -Infinity : NaN;
+    var e = 0, m = x;
+    while (m >= 2) { m *= 0.5; e++; }
+    while (m < 1) { m *= 2; e--; }
+    if (m > 4 / 3) { m *= 0.5; e++; }
+    var z = (m - 1) / (m + 1);
+    var z2 = z * z;
+    var s = z2 * (1 / 3 + z2 * (1 / 5 + z2 * (1 / 7 + z2 * (1 / 9 + z2 * (1 / 11 +
+      z2 * (1 / 13 + z2 * (1 / 15 + z2 * (1 / 17 + z2 * (1 / 19)))))))));
+    return e * LN2 + 2 * z * (1 + s);
+  }
+  function sincos_(x, wantSin) {
+    /* This one never hung — it has no loop — and JS already returns
+       NaN here by the same accident that saved log_. The guard is for
+       the TWIN: necromath.h casts the quadrant index to long long,
+       and casting a non-finite double to an integer is undefined
+       behaviour in C++, not merely wrong. Stated explicitly so the
+       two languages agree on purpose rather than by luck.
+
+       NOT guarded, and recorded rather than silently changed: the
+       same cast is undefined for any |n| >= 2^63, i.e. |x| >= ~1.4e19.
+       Unreachable here — sin/cos only ever see w0 = 2*pi*f/fs, which
+       is bounded by pi — and changing it would alter finite results
+       nobody has ever measured. */
+    if (!(x > -Infinity && x < Infinity)) return NaN;
+    var n = Math.floor(x / PI_2 + 0.5);
+    var r = x - n * PI_2;
+    var q = ((n % 4) + 4) % 4;
+    var r2 = r * r;
+    var S = r * (1 + r2 * (-1 / 6 + r2 * (1 / 120 + r2 * (-1 / 5040 +
+      r2 * (1 / 362880 + r2 * (-1 / 39916800 + r2 * (1 / 6227020800 +
+      r2 * (-1 / 1307674368000))))))));
+    var C = 1 + r2 * (-1 / 2 + r2 * (1 / 24 + r2 * (-1 / 720 +
+      r2 * (1 / 40320 + r2 * (-1 / 3628800 + r2 * (1 / 479001600 +
+      r2 * (-1 / 87178291200 + r2 * (1 / 20922789888000))))))));
+    if (wantSin) return q === 0 ? S : q === 1 ? C : q === 2 ? -S : -C;
+    return q === 0 ? C : q === 1 ? -S : q === 2 ? -C : S;
+  }
+  return {
+    LN10: LN10,
+    exp: exp_, log: log_,
+    log10: function (x) { return log_(x) / LN10; },
+    pow10: function (x) { return exp_(x * LN10); },
+    sin: function (x) { return sincos_(x, true); },
+    cos: function (x) { return sincos_(x, false); }
+  };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = NM;
+
+</script>
+
+<script type="text/plain" id="core-src">
+/* ============================================================
+   AUTOPSY — DSP core (single source of truth)
+   "every frequency examined."
+   v0.1 · Phase 1 · 2026-08-11
+   This file is embedded VERBATIM into autopsy.html by
+   autopsy_sync.js and ported to C++ in AutopsyCore.h (Phase 2).
+   DEPENDS ON: shared/necromath.js (NM) — injected as the IIFE arg.
+   RULES: doubles everywhere · no host APIs · deterministic ·
+   never a literal closing script tag, even in comments.
+   ============================================================ */
+var AUTOPSY = (function (NM) {
+  'use strict';
+
+  var VERSION = '0.4';
+  var MAX_BANDS = 12;
+  var MAX_SECTIONS = 4; // slope 48 = 4 cascaded biquads
+  var CTRL = 32; // control-rate block (samples) — smoothing + coeff recompute
+  var SMOOTH = 0.25; // per-control-block one-pole factor
+  var SNAP = 1e-6;
+
+  var TYPES = ['bell', 'lowshelf', 'highshelf', 'lowcut', 'highcut', 'notch', 'bandpass', 'tilt'];
+  var SLOPES = [6, 12, 18, 24, 36, 48]; // dB/oct for cut types
+  var PLACES = ['st', 'l', 'r', 'm', 's'];
+
+  /* ---------- limits ---------- */
+  function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+  function clampFreq(f, fs) { return clamp(f, 10, fs * 0.49); }
+  function clampGain(g) { return clamp(g, -30, 30); }
+  function clampQ(q) { return clamp(q, 0.05, 40); }
+
+  /* ---------- state model ---------- */
+  function defaultDyn() {
+    return { on: false, range: 0, thresh: -30, att: 10, rel: 150 };
+  }
+  function defaultBand() {
+    return { on: false, type: 'bell', freq: 1000, gain: 0, q: 1.0,
+             slope: 12, place: 'st', dyn: defaultDyn() };
+  }
+  /* dynamics only make sense on gain-bearing types */
+  function hasGainType(t) {
+    return t === 'bell' || t === 'lowshelf' || t === 'highshelf' || t === 'tilt';
+  }
+  function defaultState() {
+    var bands = [];
+    for (var i = 0; i < MAX_BANDS; i++) bands.push(defaultBand());
+    return {
+      version: 1,
+      bands: bands,
+      out: { gain: 0, pan: 0 },
+      meta: { name: 'Fresh Slab', note: '' }
+    };
+  }
+  function sanitizeState(s) {
+    var d = defaultState();
+    if (!s || typeof s !== 'object') return d;
+    var out = defaultState();
+    if (Array.isArray(s.bands)) {
+      for (var i = 0; i < MAX_BANDS; i++) {
+        var b = s.bands[i];
+        if (!b) continue;
+        var t = TYPES.indexOf(b.type) >= 0 ? b.type : 'bell';
+        out.bands[i] = {
+          on: !!b.on, type: t,
+          freq: clamp(+b.freq || 1000, 10, 30000),
+          gain: clampGain(+b.gain || 0),
+          q: clampQ(+b.q || 1),
+          slope: SLOPES.indexOf(+b.slope) >= 0 ? +b.slope : 12,
+          place: PLACES.indexOf(b.place) >= 0 ? b.place : 'st',
+          dyn: (function (d) {
+            if (!d || typeof d !== 'object') return defaultDyn();
+            var th = +d.thresh; if (!isFinite(th)) th = -30; // 0 dB is a legal threshold
+            return {
+              on: !!d.on,
+              range: clamp(+d.range || 0, -24, 24),
+              thresh: clamp(th, -60, 0),
+              att: clamp(+d.att || 10, 0.1, 500),
+              rel: clamp(+d.rel || 150, 1, 2000)
+            };
+          })(b.dyn)
+        };
+      }
+    }
+    if (s.out) {
+      out.out.gain = clamp(+s.out.gain || 0, -36, 36);
+      out.out.pan = clamp(+s.out.pan || 0, -1, 1);
+    }
+    if (s.meta) {
+      out.meta.name = String(s.meta.name || d.meta.name);
+      out.meta.note = String(s.meta.note || '');
+    }
+    return out;
+  }
+
+  /* ---------- RBJ cookbook coefficient design ----------
+     Section designers return one a0-normalized section {b0,b1,b2,a1,a2}.
+     designBand() returns an ARRAY of 1..MAX_SECTIONS sections:
+       single-section: bell, shelves, notch, bandpass
+       two-section:    tilt (complementary ∓g/2 shelves)
+       cascades:       lowcut/highcut at 6..48 dB/oct (Butterworth) */
+  function norm(b0, b1, b2, a0, a1, a2) {
+    return { b0: b0 / a0, b1: b1 / a0, b2: b2 / a0, a1: a1 / a0, a2: a2 / a0 };
+  }
+  function secBell(f, g, q, fs) {
+    var w0 = 2 * Math.PI * f / fs;
+    var cw = NM.cos(w0), sw = NM.sin(w0);
+    var alpha = sw / (2 * q);
+    var A = NM.pow10(g / 40);
+    return norm(1 + alpha * A, -2 * cw, 1 - alpha * A,
+                1 + alpha / A, -2 * cw, 1 - alpha / A);
+  }
+  function secLowShelf(f, g, q, fs) {
+    var w0 = 2 * Math.PI * f / fs;
+    var cw = NM.cos(w0), sw = NM.sin(w0);
+    var alpha = sw / (2 * q);
+    var A = NM.pow10(g / 40);
+    var sA = 2 * Math.sqrt(A) * alpha;
+    return norm(
+      A * ((A + 1) - (A - 1) * cw + sA),
+      2 * A * ((A - 1) - (A + 1) * cw),
+      A * ((A + 1) - (A - 1) * cw - sA),
+      (A + 1) + (A - 1) * cw + sA,
+      -2 * ((A - 1) + (A + 1) * cw),
+      (A + 1) + (A - 1) * cw - sA);
+  }
+  function secHighShelf(f, g, q, fs) {
+    var w0 = 2 * Math.PI * f / fs;
+    var cw = NM.cos(w0), sw = NM.sin(w0);
+    var alpha = sw / (2 * q);
+    var A = NM.pow10(g / 40);
+    var sA = 2 * Math.sqrt(A) * alpha;
+    return norm(
+      A * ((A + 1) + (A - 1) * cw + sA),
+      -2 * A * ((A - 1) + (A + 1) * cw),
+      A * ((A + 1) + (A - 1) * cw - sA),
+      (A + 1) - (A - 1) * cw + sA,
+      2 * ((A - 1) - (A + 1) * cw),
+      (A + 1) - (A - 1) * cw - sA);
+  }
+  function secNotch(f, q, fs) {
+    var w0 = 2 * Math.PI * f / fs;
+    var cw = NM.cos(w0), sw = NM.sin(w0);
+    var alpha = sw / (2 * q);
+    return norm(1, -2 * cw, 1, 1 + alpha, -2 * cw, 1 - alpha);
+  }
+  function secBandpass(f, q, fs) { // constant 0 dB peak gain
+    var w0 = 2 * Math.PI * f / fs;
+    var cw = NM.cos(w0), sw = NM.sin(w0);
+    var alpha = sw / (2 * q);
+    return norm(alpha, 0, -alpha, 1 + alpha, -2 * cw, 1 - alpha);
+  }
+  function secSosHP(f, q, fs) { // 2nd-order highpass, arbitrary (structural) Q
+    var w0 = 2 * Math.PI * f / fs;
+    var cw = NM.cos(w0), sw = NM.sin(w0);
+    var alpha = sw / (2 * q);
+    return norm((1 + cw) / 2, -(1 + cw), (1 + cw) / 2, 1 + alpha, -2 * cw, 1 - alpha);
+  }
+  function secSosLP(f, q, fs) {
+    var w0 = 2 * Math.PI * f / fs;
+    var cw = NM.cos(w0), sw = NM.sin(w0);
+    var alpha = sw / (2 * q);
+    return norm((1 - cw) / 2, 1 - cw, (1 - cw) / 2, 1 + alpha, -2 * cw, 1 - alpha);
+  }
+  function secFoHP(f, fs) { // 1st order via bilinear; tan(w0/2) = sin/(1+cos)
+    var w0 = 2 * Math.PI * f / fs;
+    var cw = NM.cos(w0), sw = NM.sin(w0);
+    var K = sw / (1 + cw);
+    return { b0: 1 / (K + 1), b1: -1 / (K + 1), b2: 0, a1: (K - 1) / (K + 1), a2: 0 };
+  }
+  function secFoLP(f, fs) {
+    var w0 = 2 * Math.PI * f / fs;
+    var cw = NM.cos(w0), sw = NM.sin(w0);
+    var K = sw / (1 + cw);
+    return { b0: K / (K + 1), b1: K / (K + 1), b2: 0, a1: (K - 1) / (K + 1), a2: 0 };
+  }
+  /* Butterworth cascade for order n = slope/6:
+     even n: Q_k = 1/(2 cos(pi(2k-1)/(2n))), k = 1..n/2
+     odd n:  one 1st-order section + Q_k = 1/(2 cos(pi k/n)), k = 1..(n-1)/2 */
+  function cutCascade(f, slope, fs, isHP) {
+    var s = SLOPES.indexOf(slope) >= 0 ? slope : 12;
+    var n = s / 6;
+    var out = [];
+    if (n % 2 === 1) out.push(isHP ? secFoHP(f, fs) : secFoLP(f, fs));
+    var pairs = Math.floor(n / 2);
+    for (var k = 1; k <= pairs; k++) {
+      var phi = (n % 2 === 0) ? Math.PI * (2 * k - 1) / (2 * n) : Math.PI * k / n;
+      var qk = 1 / (2 * NM.cos(phi));
+      out.push(isHP ? secSosHP(f, qk, fs) : secSosLP(f, qk, fs));
+    }
+    return out;
+  }
+  function designBand(band, fs) {
+    var f = clampFreq(band.freq, fs);
+    var q = clampQ(band.q);
+    var g = clampGain(band.gain);
+    switch (band.type) {
+      case 'bell': return [secBell(f, g, q, fs)];
+      case 'lowshelf': return [secLowShelf(f, g, q, fs)];
+      case 'highshelf': return [secHighShelf(f, g, q, fs)];
+      case 'notch': return [secNotch(f, q, fs)];
+      case 'bandpass': return [secBandpass(f, q, fs)];
+      case 'tilt': return [secLowShelf(f, -g / 2, q, fs), secHighShelf(f, g / 2, q, fs)];
+      case 'lowcut': return cutCascade(f, band.slope, fs, true);
+      case 'highcut': return cutCascade(f, band.slope, fs, false);
+      default: return [{ b0: 1, b1: 0, b2: 0, a1: 0, a2: 0 }];
+    }
+  }
+
+  /* ---------- analytic magnitude response ----------
+     |H| of one section at frequency f (Hz). z^-1 = e^-jw. */
+  function sectionMagAt(c, fs, f) {
+    var w = 2 * Math.PI * f / fs;
+    var c1 = NM.cos(w), s1 = NM.sin(w);
+    var c2 = NM.cos(2 * w), s2 = NM.sin(2 * w);
+    var nr = c.b0 + c.b1 * c1 + c.b2 * c2;
+    var ni = -(c.b1 * s1 + c.b2 * s2);
+    var dr = 1 + c.a1 * c1 + c.a2 * c2;
+    var di = -(c.a1 * s1 + c.a2 * s2);
+    return Math.sqrt((nr * nr + ni * ni) / (dr * dr + di * di));
+  }
+
+  /* linear magnitude of one band = product over its sections */
+  function bandLinMagAt(band, fs, f) {
+    var secs = designBand(band, fs);
+    var m = 1;
+    for (var i = 0; i < secs.length; i++) m *= sectionMagAt(secs[i], fs, f);
+    return m;
+  }
+
+  /* Composite curve in dB at f, from TARGET (unsmoothed) state —
+     this one function drives BOTH UIs. Includes output gain.
+     NOTE: bands placed off-stereo still contribute their full curve;
+     the composite is the "everything audible somewhere" view. */
+  function magnitudeAt(state, fs, f) {
+    var db = state.out.gain;
+    for (var i = 0; i < MAX_BANDS; i++) {
+      var b = state.bands[i];
+      if (!b.on) continue;
+      var m = bandLinMagAt(b, fs, f);
+      db += 20 * NM.log10(m > 1e-12 ? m : 1e-12);
+    }
+    return db;
+  }
+  /* Single band curve in dB (for per-band overlays). */
+  function bandMagAt(band, fs, f) {
+    var m = bandLinMagAt(band, fs, f);
+    return 20 * NM.log10(m > 1e-12 ? m : 1e-12);
+  }
+
+  /* ---------- engine ----------
+     Stereo. TDF2 per section per channel. Smoothing at control rate:
+     freq in log domain, gain in dB, q in log domain, out gain in dB,
+     pan linear. Deterministic: pure function of (state msgs, input). */
+  function createEngine(fs) {
+    var target = defaultState();
+    var cur = []; // per band: {fl, g, ql, on, plc}
+    var coeffs = []; // per band: ARRAY of sections (recomputed at control rate)
+    var zs = []; // per band: MAX_SECTIONS x [z1L,z2L,z1R,z2R] flattened
+    var outG = { cur: 0, tgt: 0 }; // dB
+    var pan = { cur: 0, tgt: 0 };
+    var ctrlPhase = 0; // position inside the current control block — STREAM time,
+                       // carried across process() calls so host buffer size cannot
+                       // change the sound (Interchange §7 2026-08-15, CASKET's bug)
+    var primed = false; // first setState SNAPS smoothing; later ones glide.
+                        // Without this a fresh engine fades its output gain in
+                        // from 0 dB over the first control blocks — found by the
+                        // fuzzer's reset() byte-identity check, same trap CASKET
+                        // hit in its constructor.
+    /* dynamics state */
+    var detC = [];   // detector bandpass coeffs per band
+    var detZ = [];   // detector biquad state per band [z1, z2]
+    var env = [];    // envelope (linear, abs domain)
+    var dynG = [];   // current dynamic gain offset (dB)
+    var dynAct = []; // dyn active this control block
+    var attC = [], relC = [];
+
+    var i, j;
+    for (i = 0; i < MAX_BANDS; i++) {
+      cur.push({ fl: NM.log(1000), g: 0, ql: 0, on: false, plc: 'st' });
+      coeffs.push([{ b0: 1, b1: 0, b2: 0, a1: 0, a2: 0 }]);
+      var z = [];
+      for (j = 0; j < MAX_SECTIONS * 4; j++) z.push(0);
+      zs.push(z);
+      detC.push({ b0: 0, b1: 0, b2: 0, a1: 0, a2: 0 });
+      detZ.push([0, 0]);
+      env.push(0);
+      dynG.push(0);
+      dynAct.push(false);
+      attC.push(0);
+      relC.push(0);
+    }
+
+    function zeroZ(k) {
+      for (var j2 = 0; j2 < MAX_SECTIONS * 4; j2++) zs[k][j2] = 0;
+      detZ[k][0] = detZ[k][1] = 0;
+      env[k] = 0;
+      dynG[k] = 0;
+    }
+
+    function smooth(c, t) {
+      var n = c + (t - c) * SMOOTH;
+      return Math.abs(t - n) < SNAP ? t : n;
+    }
+
+    function control() {
+      var dirty = false;
+      for (var k = 0; k < MAX_BANDS; k++) {
+        var tb = target.bands[k], cb = cur[k];
+        if (cb.on !== tb.on) { cb.on = tb.on; zeroZ(k); dirty = true; }
+        if (cb.plc !== tb.place) { cb.plc = tb.place; zeroZ(k); dirty = true; }
+        if (!cb.on) continue;
+        var tf = NM.log(clampFreq(tb.freq, fs));
+        var tq = NM.log(clampQ(tb.q));
+        var tg = clampGain(tb.gain);
+        var nf = smooth(cb.fl, tf), ng = smooth(cb.g, tg), nq = smooth(cb.ql, tq);
+
+        /* dynamics: envelope -> gain offset, evaluated at control rate */
+        var dyn = tb.dyn;
+        dynAct[k] = !!(dyn && dyn.on && hasGainType(tb.type));
+        if (dynAct[k]) {
+          attC[k] = NM.exp(-1 / (clamp(dyn.att, 0.1, 500) * 0.001 * fs));
+          relC[k] = NM.exp(-1 / (clamp(dyn.rel, 1, 2000) * 0.001 * fs));
+          var envDb = 20 * NM.log10(env[k] + 1e-9);
+          var over = envDb - clamp(dyn.thresh, -60, 0);
+          dynG[k] = over <= 0 ? 0 : clamp(dyn.range, -24, 24) * (over / (over + 6));
+        } else {
+          dynG[k] = 0;
+        }
+
+        if (nf !== cb.fl || ng !== cb.g || nq !== cb.ql || dirty || dynAct[k]) {
+          cb.fl = nf; cb.g = ng; cb.ql = nq;
+          coeffs[k] = designBand(
+            { type: tb.type, freq: NM.exp(nf), gain: ng + dynG[k], q: NM.exp(nq),
+              slope: tb.slope, place: tb.place }, fs);
+          if (dynAct[k]) {
+            detC[k] = secBandpass(clampFreq(NM.exp(nf), fs),
+                                  clamp(NM.exp(nq), 0.3, 8), fs);
+          }
+        }
+        // else: params at rest, coefficients already current
+      }
+      outG.cur = smooth(outG.cur, outG.tgt);
+      pan.cur = smooth(pan.cur, pan.tgt);
+    }
+
+    /* force coefficients current for freshly-enabled bands */
+    function refreshBand(k) {
+      var tb = target.bands[k], cb = cur[k];
+      coeffs[k] = designBand(
+        { type: tb.type, freq: NM.exp(cb.fl), gain: cb.g, q: NM.exp(cb.ql),
+          slope: tb.slope, place: tb.place }, fs);
+    }
+
+    function setState(s) {
+      target = sanitizeState(s);
+      outG.tgt = target.out.gain;
+      pan.tgt = target.out.pan;
+      for (var k = 0; k < MAX_BANDS; k++) refreshBandTargetsOnEnable(k);
+      if (!primed) { // first state ever: arrive, don't fade in
+        outG.cur = outG.tgt;
+        pan.cur = pan.tgt;
+        primed = true;
+      }
+    }
+    function refreshBandTargetsOnEnable(k) {
+      var tb = target.bands[k], cb = cur[k];
+      if (tb.on && !cb.on) {
+        // snap params on enable so a new incision doesn't glide in from stale values
+        cb.fl = NM.log(clampFreq(tb.freq, fs));
+        cb.g = clampGain(tb.gain);
+        cb.ql = NM.log(clampQ(tb.q));
+        refreshBand(k);
+      }
+    }
+
+    /* reset() = start the stream over, equivalent to a fresh engine given the
+       same state. Byte-identity between render/reset/render is asserted by the
+       fuzzer, so every piece of runtime state must return to its post-first-
+       setState value — smoothing included, in the fresh engine's exact order. */
+    function reset() {
+      for (var k = 0; k < MAX_BANDS; k++) {
+        var cb = cur[k];
+        cb.fl = NM.log(1000); cb.g = 0; cb.ql = 0; cb.on = false; cb.plc = 'st';
+        coeffs[k] = [{ b0: 1, b1: 0, b2: 0, a1: 0, a2: 0 }];
+        zeroZ(k);
+      }
+      ctrlPhase = 0;
+      for (var k2 = 0; k2 < MAX_BANDS; k2++) refreshBandTargetsOnEnable(k2);
+      outG.cur = outG.tgt;
+      pan.cur = pan.tgt;
+    }
+
+    /* denormal flush — part of the ARITHMETIC contract, not an optimisation.
+       Without it the JS worklet grinds through subnormals in silent tails
+       (measured: 178k subnormal samples after 9.5 s of silence) while the
+       plugin's ScopedNoDenormals flushes them — two deployments, two sounds.
+       Mirrored operation-for-operation in the twin, per RIGOR's precedent. */
+    function dn(x) { return x < 1e-300 && x > -1e-300 ? 0 : x; }
+
+    /* one biquad section, single channel; z offset o uses slots [o, o+1].
+       y is flushed too: two tiny-but-normal terms can SUM subnormal, and the
+       section output is the next section's input — guard the chain, not just
+       the recursion. */
+    function tick(c, z, o, x) {
+      var y = dn(c.b0 * x + z[o]);
+      z[o] = dn(c.b1 * x - c.a1 * y + z[o + 1]);
+      z[o + 1] = dn(c.b2 * x - c.a2 * y);
+      return y;
+    }
+
+    /* inL/inR/outL/outR: Float32Array-likes of equal length */
+    function process(inL, inR, outL, outR) {
+      var n = inL.length;
+      var pos = 0;
+      while (pos < n) {
+        if (ctrlPhase === 0) control();
+        var run = Math.min(CTRL - ctrlPhase, n - pos);
+        var end = pos + run;
+        var amp = NM.pow10(outG.cur / 20);
+        // constant-power pan, unity at center (cos/sin scaled by sqrt(2))
+        var th = (pan.cur + 1) * Math.PI / 4;
+        var gL = amp * NM.cos(th) * Math.SQRT2;
+        var gR = amp * NM.sin(th) * Math.SQRT2;
+        for (var s = pos; s < end; s++) {
+          var xL = inL[s], xR = inR[s];
+          for (var k = 0; k < MAX_BANDS; k++) {
+            if (!cur[k].on) continue;
+            if (dynAct[k]) { // detector listens to this band's chain input, mono mix
+              var dv = tick(detC[k], detZ[k], 0, (xL + xR) * 0.5);
+              var ad = Math.abs(dv);
+              env[k] = dn(ad > env[k]
+                ? attC[k] * env[k] + (1 - attC[k]) * ad
+                : relC[k] * env[k] + (1 - relC[k]) * ad);
+            }
+            var secs = coeffs[k], z = zs[k], plc = cur[k].plc;
+            var ns = secs.length, si, o;
+            if (plc === 'st') {
+              for (si = 0; si < ns; si++) {
+                o = si * 4;
+                xL = tick(secs[si], z, o, xL);
+                xR = tick(secs[si], z, o + 2, xR);
+              }
+            } else if (plc === 'l') {
+              for (si = 0; si < ns; si++) xL = tick(secs[si], z, si * 4, xL);
+            } else if (plc === 'r') {
+              for (si = 0; si < ns; si++) xR = tick(secs[si], z, si * 4 + 2, xR);
+            } else { // 'm' or 's' — exact matrix: reconstruction is (m+s, m-s)
+              var mid = (xL + xR) * 0.5;
+              var sd = (xL - xR) * 0.5;
+              if (plc === 'm') {
+                for (si = 0; si < ns; si++) mid = tick(secs[si], z, si * 4, mid);
+              } else {
+                for (si = 0; si < ns; si++) sd = tick(secs[si], z, si * 4, sd);
+              }
+              xL = mid + sd;
+              xR = mid - sd;
+            }
+          }
+          outL[s] = xL * gL;
+          outR[s] = xR * gR;
+        }
+        ctrlPhase = (ctrlPhase + run) % CTRL;
+        pos = end;
+      }
+    }
+
+    function dynGains() { return dynG.slice(); }
+
+    return { setState: setState, process: process, reset: reset, dynGains: dynGains,
+             _debug: { cur: cur, coeffs: coeffs } };
+  }
+
+  /* ---------- deterministic test signal (shared with tests) ----------
+     Park–Miller LCG; products stay under 2^53 so JS doubles are exact. */
+  function makeNoise(seed, n) {
+    var x = (seed >>> 0) || 1;
+    var out = new Float64Array(n);
+    for (var i = 0; i < n; i++) {
+      x = (x * 16807) % 2147483647;
+      out[i] = (x / 2147483647) * 2 - 1;
+    }
+    return out;
+  }
+
+  return {
+    VERSION: VERSION, MAX_BANDS: MAX_BANDS, MAX_SECTIONS: MAX_SECTIONS,
+    TYPES: TYPES, SLOPES: SLOPES, PLACES: PLACES, CTRL: CTRL,
+    defaultBand: defaultBand, defaultState: defaultState, sanitizeState: sanitizeState,
+    designBand: designBand, magnitudeAt: magnitudeAt, bandMagAt: bandMagAt,
+    createEngine: createEngine, makeNoise: makeNoise,
+    clampFreq: clampFreq, clampGain: clampGain, clampQ: clampQ,
+    _nm: NM
+  };
+})(typeof module !== 'undefined' && module.exports
+     ? require('../shared/necromath.js') : NM);
+if (typeof module !== 'undefined' && module.exports) module.exports = AUTOPSY;
+
+</script>
+
+<script>
+(function () {
+'use strict';
+
+/* ---------- boot the core on the main thread ---------- */
+var nmText = document.getElementById('nm-src').textContent;
+var coreText = document.getElementById('core-src').textContent;
+/* NM first — the core closes over it. Same order the worklet uses. */
+var coreBundle = nmText + '\n' + coreText;
+var AUTOPSY = (new Function(coreBundle + ';return AUTOPSY;'))();
+var el = document.getElementById.bind(document);
+el('verTag').textContent = 'v' + AUTOPSY.VERSION;
+
+/* UIH-START — pure UI helpers (headless-tested; no DOM, no audio) */
+var UIH = {
+  FMIN: 20, FMAX: 20000, DB: 24, GRAB: 14,
+  freqToX: function (f, w) {
+    var l0 = Math.log10(this.FMIN), l1 = Math.log10(this.FMAX);
+    return (Math.log10(Math.min(Math.max(f, this.FMIN), this.FMAX)) - l0) / (l1 - l0) * w;
+  },
+  xToFreq: function (x, w) {
+    var l0 = Math.log10(this.FMIN), l1 = Math.log10(this.FMAX);
+    return Math.pow(10, l0 + (Math.min(Math.max(x, 0), w) / w) * (l1 - l0));
+  },
+  dbToY: function (db, h) {
+    var d = Math.min(Math.max(db, -this.DB), this.DB);
+    return h / 2 - (d / this.DB) * (h / 2);
+  },
+  yToDb: function (y, h) {
+    return -((Math.min(Math.max(y, 0), h) - h / 2) / (h / 2)) * this.DB;
+  },
+  qFromWheel: function (q, dy) {
+    var f = Math.pow(1.13, dy > 0 ? -1 : 1);
+    var nq = q * f;
+    return nq < 0.05 ? 0.05 : (nq > 40 ? 40 : nq);
+  },
+  handlePos: function (band, w, h) {
+    var gainless = band.type === 'lowcut' || band.type === 'highcut' ||
+                   band.type === 'notch' || band.type === 'bandpass';
+    return { x: this.freqToX(band.freq, w), y: this.dbToY(gainless ? 0 : band.gain, h) };
+  },
+  hasGain: function (type) {
+    return type === 'bell' || type === 'lowshelf' || type === 'highshelf' || type === 'tilt';
+  },
+  hitTest: function (bands, x, y, w, h) {
+    var best = -1, bd = this.GRAB;
+    for (var i = 0; i < bands.length; i++) {
+      if (!bands[i].on) continue;
+      var p = this.handlePos(bands[i], w, h);
+      var d = Math.sqrt((p.x - x) * (p.x - x) + (p.y - y) * (p.y - y));
+      if (d <= bd) { bd = d; best = i; }
+    }
+    return best;
+  },
+  fmtFreq: function (f) {
+    return f >= 1000 ? (f / 1000).toFixed(f >= 10000 ? 1 : 2) + ' kHz' : Math.round(f) + ' Hz';
+  },
+  fmtDb: function (g) { return (g > 0 ? '+' : '') + g.toFixed(1) + ' dB'; },
+  fmtPan: function (p) {
+    if (Math.abs(p) < 0.005) return 'C';
+    return Math.round(Math.abs(p) * 100) + (p < 0 ? ' L' : ' R');
+  },
+  firstFreeSlot: function (bands) {
+    for (var i = 0; i < bands.length; i++) if (!bands[i].on) return i;
+    return -1;
+  },
+  /* derived state with only band idx audible — pure, no mutation */
+  soloState: function (state, idx) {
+    return {
+      version: state.version,
+      bands: state.bands.map(function (b, i) {
+        return { on: i === idx ? b.on : false, type: b.type, freq: b.freq,
+                 gain: b.gain, q: b.q, slope: b.slope, place: b.place, dyn: b.dyn };
+      }),
+      out: { gain: state.out.gain, pan: state.out.pan },
+      meta: state.meta
+    };
+  },
+  /* state with live dynamic gain offsets applied — for the moving curve */
+  dynState: function (state, grs) {
+    return {
+      version: state.version,
+      bands: state.bands.map(function (b, i) {
+        var g = (grs && grs[i]) ? b.gain + grs[i] : b.gain;
+        return { on: b.on, type: b.type, freq: b.freq, gain: g,
+                 q: b.q, slope: b.slope, place: b.place };
+      }),
+      out: { gain: state.out.gain, pan: state.out.pan },
+      meta: state.meta
+    };
+  },
+  /* scale every gain-bearing band's gain; factor 0 flattens, -1 inverts */
+  scaleGains: function (state, factor) {
+    var self = this;
+    return {
+      version: state.version,
+      bands: state.bands.map(function (b) {
+        var g = self.hasGain(b.type) ? Math.min(Math.max(b.gain * factor, -30), 30) : b.gain;
+        return { on: b.on, type: b.type, freq: b.freq, gain: g,
+                 q: b.q, slope: b.slope, place: b.place, dyn: b.dyn };
+      }),
+      out: { gain: state.out.gain, pan: state.out.pan },
+      meta: state.meta
+    };
+  },
+  invertGains: function (state) { return this.scaleGains(state, -1); },
+  /* mean curve level over 61 log-spaced points, 20 Hz .. 20 kHz */
+  avgCurveDb: function (magFn, state, fs) {
+    var sum = 0;
+    for (var i = 0; i <= 60; i++) {
+      sum += magFn(state, fs, 20 * Math.pow(10, (i / 60) * 3));
+    }
+    return sum / 61;
+  },
+  /* peak-hold: rises instantly, falls by decayDb per frame, floored */
+  holdStep: function (prev, cur, decayDb) {
+    var next = cur > prev ? cur : prev - decayDb;
+    return next < -200 ? -200 : next;
+  },
+  /* pure menu model for the right-click band menu — the DOM only renders it */
+  bandMenu: function (band, idx, soloed) {
+    var items = [
+      { act: 'solo', label: soloed ? 'lift solo' : 'solo (under the lens)' },
+      { act: 'inspect', label: 'inspect below' },
+      { act: 'close', label: 'close the incision', danger: true },
+      { sep: true }
+    ];
+    var self = this;
+    ['bell', 'lowshelf', 'highshelf', 'lowcut', 'highcut', 'notch', 'bandpass', 'tilt']
+      .forEach(function (t) {
+        items.push({ act: 'type', val: t, label: t, checked: band.type === t });
+      });
+    if (band.type === 'lowcut' || band.type === 'highcut') {
+      items.push({ sep: true });
+      [6, 12, 18, 24, 36, 48].forEach(function (sl) {
+        items.push({ act: 'slope', val: sl, label: sl + ' dB/oct', checked: band.slope === sl });
+      });
+    }
+    items.push({ sep: true });
+    [['st', 'stereo'], ['l', 'left'], ['r', 'right'], ['m', 'mid'], ['s', 'side']]
+      .forEach(function (p) {
+        items.push({ act: 'place', val: p[0], label: p[1], checked: band.place === p[0] });
+      });
+    return items;
+  },
+  /* report <-> URL-hash round trip (pure; sanitize on the way back in) */
+  encodeReport: function (state) { return encodeURIComponent(JSON.stringify(state)); },
+  decodeReport: function (h) {
+    try { return JSON.parse(decodeURIComponent(h)); } catch (e) { return null; }
+  },
+  /* factory reports — pre-written examinations */
+  FACTORY: [
+    { name: 'Vocal Séance', out: { gain: 0, pan: 0 }, bands: [
+      { on: true, type: 'lowcut', freq: 90, gain: 0, q: 1, slope: 24, place: 'st' },
+      { on: true, type: 'bell', freq: 250, gain: -2.5, q: 1.6, slope: 12, place: 'st' },
+      { on: true, type: 'bell', freq: 3200, gain: 2.5, q: 1.2, slope: 12, place: 'st' },
+      { on: true, type: 'highshelf', freq: 12000, gain: 1.5, q: 0.71, slope: 12, place: 'st' }] },
+    { name: 'Mud Extraction', out: { gain: 0, pan: 0 }, bands: [
+      { on: true, type: 'bell', freq: 300, gain: -4, q: 1.2, slope: 12, place: 'st' },
+      { on: true, type: 'bell', freq: 550, gain: -2, q: 2, slope: 12, place: 'st' }] },
+    { name: 'De-Harsh', out: { gain: 0, pan: 0 }, bands: [
+      { on: true, type: 'bell', freq: 3500, gain: -3, q: 3, slope: 12, place: 'st' },
+      { on: true, type: 'bell', freq: 6500, gain: -2.5, q: 4, slope: 12, place: 'st' }] },
+    { name: 'Kick Embalming', out: { gain: 0, pan: 0 }, bands: [
+      { on: true, type: 'bell', freq: 60, gain: 3, q: 1.4, slope: 12, place: 'st' },
+      { on: true, type: 'bell', freq: 400, gain: -4, q: 1.8, slope: 12, place: 'st' },
+      { on: true, type: 'bell', freq: 3000, gain: 2, q: 2, slope: 12, place: 'st' }] },
+    { name: 'Bass Coffin', out: { gain: 0, pan: 0 }, bands: [
+      { on: true, type: 'lowcut', freq: 28, gain: 0, q: 1, slope: 18, place: 'st' },
+      { on: true, type: 'bell', freq: 80, gain: 2.5, q: 1.2, slope: 12, place: 'st' },
+      { on: true, type: 'bell', freq: 700, gain: 1.5, q: 2, slope: 12, place: 'st' }] },
+    { name: 'Podcast Mortuary', out: { gain: 0, pan: 0 }, bands: [
+      { on: true, type: 'lowcut', freq: 80, gain: 0, q: 1, slope: 24, place: 'st' },
+      { on: true, type: 'bell', freq: 200, gain: -2, q: 1.5, slope: 12, place: 'st' },
+      { on: true, type: 'bell', freq: 4000, gain: 2, q: 1.5, slope: 12, place: 'st' },
+      { on: true, type: 'highcut', freq: 16000, gain: 0, q: 1, slope: 12, place: 'st' }] },
+    { name: 'Sibilance Scalpel', out: { gain: 0, pan: 0 }, bands: [
+      { on: true, type: 'bell', freq: 7000, gain: -5, q: 5, slope: 12, place: 'st' }] },
+    { name: 'Tape Ghost', out: { gain: 0, pan: 0 }, bands: [
+      { on: true, type: 'tilt', freq: 800, gain: -3, q: 0.71, slope: 12, place: 'st' },
+      { on: true, type: 'highcut', freq: 12000, gain: 0, q: 1, slope: 12, place: 'st' }] },
+    { name: 'Séance Radio', out: { gain: 0, pan: 0 }, bands: [
+      { on: true, type: 'lowcut', freq: 300, gain: 0, q: 1, slope: 24, place: 'st' },
+      { on: true, type: 'highcut', freq: 3400, gain: 0, q: 1, slope: 24, place: 'st' },
+      { on: true, type: 'bell', freq: 1500, gain: 2, q: 1, slope: 12, place: 'st' }] },
+    { name: 'Widen the Veil', out: { gain: 0, pan: 0 }, bands: [
+      { on: true, type: 'lowcut', freq: 120, gain: 0, q: 1, slope: 12, place: 's' },
+      { on: true, type: 'highshelf', freq: 8000, gain: 2, q: 0.71, slope: 12, place: 's' }] }
+  ]
+};
+/* UIH-END */
+if (typeof window !== 'undefined') window.UIH = UIH;
+
+/* ---------- state ---------- */
+var state = AUTOPSY.defaultState();  // the slab on the table
+var slabB = AUTOPSY.defaultState();  // the other slab
+var activeSlab = 'A';
+var soloIdx = -1;                    // browser-side solo: core stays untouched
+var selected = -1;
+var bypass = false;
+var grs = null;                      // live dynamic gain offsets from the engine
+var FS = 48000; // display fallback until audio context exists
+
+var JEWELS = ['#2e8b57', '#7d5ba6', '#a12d3f', '#2f5f9e', '#c98a27', '#7a1f2b',
+              '#3aa17e', '#5661a8', '#d4b02a', '#3f7a6a', '#b04a6e', '#7fa8a0'];
+
+function status(msg) { el('status').textContent = msg; }
+
+/* ---------- undo lineage (per active slab) ---------- */
+var undoStack = [], redoStack = [];
+var lastWheelUndo = 0, lastKeyUndo = 0;
+function snapJSON() { return JSON.stringify(state); }
+function pushUndo() {
+  undoStack.push(snapJSON());
+  if (undoStack.length > 80) undoStack.shift();
+  redoStack.length = 0;
+}
+function syncOutUI() {
+  el('outGain').value = state.out.gain;
+  el('outGainV').textContent = UIH.fmtDb(state.out.gain);
+  el('outPan').value = state.out.pan;
+  el('outPanV').textContent = UIH.fmtPan(state.out.pan);
+}
+function restoreJSON(json) {
+  state = AUTOPSY.sanitizeState(JSON.parse(json));
+  selected = -1; soloIdx = -1;
+  syncOutUI(); commit();
+}
+function undo() {
+  if (!undoStack.length) { status('Nothing left to exhume.'); return; }
+  redoStack.push(snapJSON());
+  restoreJSON(undoStack.pop());
+  status('Exhumed the previous state.');
+}
+function redo() {
+  if (!redoStack.length) { status('Nothing to rebury.'); return; }
+  undoStack.push(snapJSON());
+  restoreJSON(redoStack.pop());
+  status('Reburied.');
+}
+document.addEventListener('keydown', function (e) {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  var k = e.key.toLowerCase();
+  if (k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
+  else if (k === 'y') { e.preventDefault(); redo(); }
+});
+
+/* ---------- audio ---------- */
+var ctx = null, node = null, preAn = null, postAn = null, srcNode = null, spEngine = null;
+var srcKind = null; // 'noise' | 'file' | 'mic'
+
+function ensureAudio() {
+  if (ctx) return Promise.resolve();
+  var AC = window.AudioContext || window.webkitAudioContext;
+  ctx = new AC();
+  FS = ctx.sampleRate;
+  preAn = ctx.createAnalyser(); preAn.fftSize = 4096; preAn.smoothingTimeConstant = 0.82;
+  postAn = ctx.createAnalyser(); postAn.fftSize = 4096; postAn.smoothingTimeConstant = 0.82;
+
+  function wire(n) {
+    node = n;
+    preAn.connect(node);
+    node.connect(postAn);
+    postAn.connect(ctx.destination);
+    pushState();
+  }
+
+  var wrapper =
+    'class AutopsyProc extends AudioWorkletProcessor {\n' +
+    '  constructor(){ super(); this.engine = AUTOPSY.createEngine(sampleRate);\n' +
+    '    this.bypass = false; this.count = 0;\n' +
+    '    this.port.onmessage = (e) => {\n' +
+    '      if (e.data && e.data.state) this.engine.setState(e.data.state);\n' +
+    '      if (e.data && typeof e.data.bypass === "boolean") this.bypass = e.data.bypass;\n' +
+    '    };\n' +
+    '  }\n' +
+    '  process(inputs, outputs){\n' +
+    '    var inp = inputs[0], out = outputs[0];\n' +
+    '    if (!inp || !inp[0] || !out || !out[0]) return true;\n' +
+    '    var L = inp[0], R = inp[1] || inp[0];\n' +
+    '    if (this.bypass) { out[0].set(L); if (out[1]) out[1].set(R); return true; }\n' +
+    '    var oR = out[1] || out[0];\n' +
+    '    this.engine.process(L, R, out[0], oR);\n' +
+    '    this.count += out[0].length;\n' +
+    '    if (this.count >= 2048) { this.count = 0; this.port.postMessage({ gr: this.engine.dynGains() }); }\n' +
+    '    return true;\n' +
+    '  }\n' +
+    '}\n' +
+    'registerProcessor("autopsy-proc", AutopsyProc);\n';
+
+  if (ctx.audioWorklet) {
+    var blob = new Blob([coreBundle + '\n' + wrapper], { type: 'application/javascript' });
+    var url = URL.createObjectURL(blob);
+    return ctx.audioWorklet.addModule(url).then(function () {
+      var wn = new AudioWorkletNode(ctx, 'autopsy-proc',
+        { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
+      wn.port.onmessage = function (e) { if (e.data && e.data.gr) grs = e.data.gr; };
+      wire(wn);
+      el('engineTag').textContent = 'engine: worklet · ' + FS + ' Hz';
+    }).catch(function () { spFallback(wire); });
+  }
+  spFallback(wire);
+  return Promise.resolve();
+}
+
+function spFallback(wire) {
+  spEngine = AUTOPSY.createEngine(ctx.sampleRate);
+  var sp = ctx.createScriptProcessor(1024, 2, 2);
+  sp.onaudioprocess = function (e) {
+    var iL = e.inputBuffer.getChannelData(0);
+    var iR = e.inputBuffer.numberOfChannels > 1 ? e.inputBuffer.getChannelData(1) : iL;
+    var oL = e.outputBuffer.getChannelData(0), oR = e.outputBuffer.getChannelData(1);
+    if (bypass) { oL.set(iL); oR.set(iR); return; }
+    spEngine.process(iL, iR, oL, oR);
+  };
+  wire(sp);
+  el('engineTag').textContent = 'engine: script-processor · ' + ctx.sampleRate + ' Hz';
+}
+
+/* what the engine should actually hear (solo derives, never mutates) */
+function effectiveState() {
+  if (soloIdx >= 0 && state.bands[soloIdx] && state.bands[soloIdx].on) {
+    return UIH.soloState(state, soloIdx);
+  }
+  return state;
+}
+
+function pushState() {
+  if (!node) return;
+  var s = effectiveState();
+  if (node.port) node.port.postMessage({ state: s, bypass: bypass });
+  else if (spEngine) spEngine.setState(s);
+}
+
+function stopSource() {
+  if (srcNode) { try { srcNode.disconnect(); } catch (e) {}
+    if (srcNode.stop) { try { srcNode.stop(); } catch (e) {} } srcNode = null; }
+  srcKind = null;
+  el('noiseBtn').classList.remove('armed');
+  el('micBtn').classList.remove('armed');
+}
+
+function playNoise() {
+  ensureAudio().then(function () {
+    if (srcKind === 'noise') { stopSource(); status('Noise silenced.'); return; }
+    stopSource();
+    var n = ctx.sampleRate * 2;
+    var buf = ctx.createBuffer(2, n, ctx.sampleRate);
+    var noise = AUTOPSY.makeNoise(66642, n);
+    for (var c = 0; c < 2; c++) {
+      var ch = buf.getChannelData(c);
+      for (var i = 0; i < n; i++) ch[i] = noise[i] * 0.25;
+    }
+    var s = ctx.createBufferSource();
+    s.buffer = buf; s.loop = true;
+    s.connect(preAn); s.start();
+    srcNode = s; srcKind = 'noise';
+    el('noiseBtn').classList.add('armed');
+    status('Slab noise running — flat corpse, visible incisions.');
+    if (ctx.state === 'suspended') ctx.resume();
+  });
+}
+
+function playFile(file) {
+  ensureAudio().then(function () {
+    var rd = new FileReader();
+    rd.onload = function () {
+      ctx.decodeAudioData(rd.result).then(function (buf) {
+        stopSource();
+        var s = ctx.createBufferSource();
+        s.buffer = buf; s.loop = true;
+        s.connect(preAn); s.start();
+        srcNode = s; srcKind = 'file';
+        status('On the table: ' + file.name + ' (' + buf.duration.toFixed(1) + ' s, looped).');
+        if (ctx.state === 'suspended') ctx.resume();
+      }).catch(function () { status('Could not decode that specimen.'); });
+    };
+    rd.readAsArrayBuffer(file);
+  });
+}
+
+function playMic() {
+  ensureAudio().then(function () {
+    if (srcKind === 'mic') { stopSource(); status('Live input closed.'); return; }
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } })
+      .then(function (stream) {
+        stopSource();
+        var s = ctx.createMediaStreamSource(stream);
+        s.connect(preAn);
+        srcNode = s; srcNode._stream = stream; srcKind = 'mic';
+        el('micBtn').classList.add('armed');
+        status('Live input open — the patient is breathing.');
+        if (ctx.state === 'suspended') ctx.resume();
+      }).catch(function () { status('Live input refused.'); });
+  });
+}
+
+/* ---------- band panel (accessible mirrors of the canvas) ---------- */
+function rebuildPanel() {
+  var host = el('bandPanel');
+  host.innerHTML = '';
+  state.bands.forEach(function (b, i) {
+    if (!b.on) return;
+    var card = document.createElement('div');
+    card.className = 'bandCard' + (i === selected ? ' sel' : '');
+    card.dataset.idx = i;
+    var h3 = document.createElement('h3');
+    var chip = document.createElement('span');
+    chip.className = 'chip'; chip.style.background = JEWELS[i];
+    h3.appendChild(chip);
+    h3.appendChild(document.createTextNode('Incision ' + (i + 1)));
+    var solo = document.createElement('button');
+    solo.textContent = 'solo';
+    solo.style.marginLeft = 'auto';
+    if (soloIdx === i) solo.className = 'armed';
+    solo.setAttribute('aria-label', 'Solo incision ' + (i + 1));
+    solo.onclick = function (ev) { ev.stopPropagation(); toggleSolo(i); };
+    h3.appendChild(solo);
+    var del = document.createElement('button');
+    del.textContent = 'close'; del.className = 'danger';
+    del.setAttribute('aria-label', 'Close incision ' + (i + 1));
+    del.onclick = function () { removeBand(i); };
+    h3.appendChild(del);
+    card.appendChild(h3);
+
+    var typeRow = document.createElement('div'); typeRow.className = 'row';
+    var tk = document.createElement('span'); tk.className = 'k'; tk.textContent = 'type';
+    var sel = document.createElement('select');
+    sel.setAttribute('aria-label', 'Band ' + (i + 1) + ' type');
+    AUTOPSY.TYPES.forEach(function (t) {
+      var o = document.createElement('option'); o.value = t; o.textContent = t;
+      if (t === b.type) o.selected = true; sel.appendChild(o);
+    });
+    sel.onchange = function () { pushUndo(); b.type = sel.value; commit(); };
+    typeRow.appendChild(tk); typeRow.appendChild(sel);
+    card.appendChild(typeRow);
+
+    if (b.type === 'lowcut' || b.type === 'highcut') {
+      card.appendChild(selectRow('slope', 'Band ' + (i + 1) + ' slope',
+        AUTOPSY.SLOPES.map(function (v) { return { v: v, label: v + ' dB/oct' }; }),
+        b.slope, function (v) { pushUndo(); b.slope = +v; commit(); }));
+    }
+    var PLACE_LABELS = { st: 'stereo', l: 'left', r: 'right', m: 'mid', s: 'side' };
+    card.appendChild(selectRow('place', 'Band ' + (i + 1) + ' placement',
+      AUTOPSY.PLACES.map(function (v) { return { v: v, label: PLACE_LABELS[v] }; }),
+      b.place, function (v) { pushUndo(); b.place = v; commit(); }));
+
+    /* sliders push state live but do NOT rebuild the panel — rebuilding
+       mid-drag would destroy the very slider being dragged */
+    card.appendChild(sliderRow('freq', 'Band ' + (i + 1) + ' frequency', 0, 1000, 1,
+      Math.round(UIH.freqToX(b.freq, 1000)),
+      function (v) { b.freq = UIH.xToFreq(+v, 1000); commitLite(); },
+      function () { return UIH.fmtFreq(b.freq); }));
+    card.appendChild(sliderRow('gain', 'Band ' + (i + 1) + ' gain', -24, 24, 0.1, b.gain,
+      function (v) { b.gain = +v; commitLite(); },
+      function () { return UIH.fmtDb(b.gain); }));
+    card.appendChild(sliderRow('Q', 'Band ' + (i + 1) + ' Q', -130, 160, 1,
+      Math.round(Math.log10(b.q) * 100),
+      function (v) { b.q = Math.pow(10, +v / 100); commitLite(); },
+      function () { return b.q.toFixed(2); }));
+
+    /* dynamics — only where gain lives */
+    if (UIH.hasGain(b.type)) {
+      if (!b.dyn) b.dyn = { on: false, range: 0, thresh: -30, att: 10, rel: 150 };
+      var dynRow = document.createElement('div'); dynRow.className = 'row';
+      var dk = document.createElement('span'); dk.className = 'k'; dk.textContent = 'dyn';
+      var chk = document.createElement('input');
+      chk.type = 'checkbox'; chk.checked = b.dyn.on;
+      chk.setAttribute('aria-label', 'Band ' + (i + 1) + ' dynamic mode');
+      chk.onchange = function () { pushUndo(); b.dyn.on = chk.checked; commit(); };
+      var dlab = document.createElement('span');
+      dlab.textContent = b.dyn.on ? 'listening…' : 'static';
+      dlab.style.color = b.dyn.on ? 'var(--gold)' : 'var(--dim)';
+      dynRow.appendChild(dk); dynRow.appendChild(chk); dynRow.appendChild(dlab);
+      card.appendChild(dynRow);
+      if (b.dyn.on) {
+        card.appendChild(sliderRow('range', 'Band ' + (i + 1) + ' dynamic range', -24, 24, 0.5,
+          b.dyn.range, function (v) { b.dyn.range = +v; commitLite(); },
+          function () { return UIH.fmtDb(b.dyn.range); }));
+        card.appendChild(sliderRow('thr', 'Band ' + (i + 1) + ' dynamic threshold', -60, 0, 1,
+          b.dyn.thresh, function (v) { b.dyn.thresh = +v; commitLite(); },
+          function () { return b.dyn.thresh.toFixed(0) + ' dB'; }));
+        card.appendChild(sliderRow('att', 'Band ' + (i + 1) + ' attack', 0.1, 100, 0.1,
+          Math.min(b.dyn.att, 100), function (v) { b.dyn.att = +v; commitLite(); },
+          function () { return b.dyn.att.toFixed(1) + ' ms'; }));
+        card.appendChild(sliderRow('rel', 'Band ' + (i + 1) + ' release', 1, 1000, 1,
+          Math.min(b.dyn.rel, 1000), function (v) { b.dyn.rel = +v; commitLite(); },
+          function () { return b.dyn.rel.toFixed(0) + ' ms'; }));
+      }
+    }
+
+    card.onclick = function () { selected = i; rebuildPanel(); };
+    host.appendChild(card);
+  });
+}
+function sliderRow(label, aria, min, max, step, val, onInput, fmt) {
+  var row = document.createElement('div'); row.className = 'row';
+  var k = document.createElement('span'); k.className = 'k'; k.textContent = label;
+  var r = document.createElement('input');
+  r.type = 'range'; r.min = min; r.max = max; r.step = step; r.value = val;
+  r.setAttribute('aria-label', aria);
+  r.addEventListener('pointerdown', pushUndo);
+  var v = document.createElement('span'); v.className = 'v'; v.textContent = fmt();
+  r.oninput = function () { onInput(r.value); v.textContent = fmt(); };
+  row.appendChild(k); row.appendChild(r); row.appendChild(v);
+  return row;
+}
+function selectRow(label, aria, options, current, onChange) {
+  var row = document.createElement('div'); row.className = 'row';
+  var k = document.createElement('span'); k.className = 'k'; k.textContent = label;
+  var sel = document.createElement('select');
+  sel.setAttribute('aria-label', aria);
+  options.forEach(function (o) {
+    var opt = document.createElement('option');
+    opt.value = o.v; opt.textContent = o.label;
+    if (String(o.v) === String(current)) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  sel.onchange = function () { onChange(sel.value); };
+  row.appendChild(k); row.appendChild(sel);
+  return row;
+}
+
+function commit() { pushState(); rebuildPanel(); }
+function commitLite() { pushState(); } // live updates without panel rebuild
+
+function addBandAt(freq, gain) {
+  var i = UIH.firstFreeSlot(state.bands);
+  if (i < 0) { status('Twelve incisions is enough for any body.'); return -1; }
+  pushUndo();
+  state.bands[i] = { on: true, type: 'bell',
+    freq: AUTOPSY.clampFreq(freq, FS), gain: AUTOPSY.clampGain(gain), q: 1,
+    slope: 12, place: 'st' };
+  selected = i;
+  commit();
+  status('Incision ' + (i + 1) + ' at ' + UIH.fmtFreq(freq) + '.');
+  return i;
+}
+function removeBand(i) {
+  pushUndo();
+  state.bands[i] = AUTOPSY.defaultBand();
+  if (selected === i) selected = -1;
+  if (soloIdx === i) soloIdx = -1;
+  commit();
+  status('Incision ' + (i + 1) + ' closed and sutured.');
+}
+
+function toggleSolo(i) {
+  soloIdx = soloIdx === i ? -1 : i;
+  commit();
+  status(soloIdx >= 0
+    ? 'Incision ' + (i + 1) + ' under the lens — all others muted.'
+    : 'Solo lifted — full examination audible.');
+}
+
+/* ---------- two slabs, one table ---------- */
+function switchSlab() {
+  var tmp = state; state = slabB; slabB = tmp;
+  activeSlab = activeSlab === 'A' ? 'B' : 'A';
+  selected = -1; soloIdx = -1;
+  undoStack.length = 0; redoStack.length = 0; // lineage is per-slab; no cross-haunting
+  el('abBtn').textContent = 'Slab ' + activeSlab;
+  el('abBtn').classList.toggle('armed', activeSlab === 'B');
+  el('abCopyBtn').textContent = activeSlab === 'A' ? 'A→B' : 'B→A';
+  syncOutUI();
+  commit();
+  status('Slab ' + activeSlab + ' on the table.');
+}
+function copySlab() {
+  slabB = AUTOPSY.sanitizeState(JSON.parse(JSON.stringify(state)));
+  status('Findings copied to slab ' + (activeSlab === 'A' ? 'B' : 'A') + '.');
+}
+
+/* ---------- canvas ---------- */
+var cv = el('table'), cx = cv.getContext('2d');
+var dragging = -1;
+var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var ecoPaused = false;
+
+function sizeCanvas() {
+  var r = cv.getBoundingClientRect();
+  var dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(r.width * dpr);
+  cv.height = Math.round(r.height * dpr);
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', sizeCanvas);
+sizeCanvas();
+
+var GRID_F = [20, 30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000, 10000, 20000];
+
+var anFrozen = false;
+var anCache = {};   // last spectra, kept while frozen
+var holdCols = null; // peak-hold columns (post analyzer)
+
+function drawAnalyser(an, key, w, h, fill, line, withHold) {
+  if (!an) return;
+  var data = anCache[key];
+  if (!anFrozen || !data) {
+    data = new Float32Array(an.frequencyBinCount);
+    an.getFloatFrequencyData(data);
+    anCache[key] = data;
+  }
+  var n = data.length;
+  var nyq = FS / 2;
+  var cols = Math.floor(w / 2) + 1;
+  if (withHold && (!holdCols || holdCols.length !== cols)) {
+    holdCols = new Float64Array(cols);
+    for (var hc = 0; hc < cols; hc++) holdCols[hc] = -200;
+  }
+  cx.beginPath();
+  cx.moveTo(0, h);
+  for (var x = 0; x <= w; x += 2) {
+    var f = UIH.xToFreq(x, w);
+    var bin = Math.min(n - 1, Math.round(f / nyq * n));
+    var db = data[bin]; // typically -100..-30
+    if (withHold && !anFrozen) {
+      var ci = x >> 1;
+      holdCols[ci] = UIH.holdStep(holdCols[ci], db, 0.25);
+    }
+    var y = h - Math.min(Math.max((db + 90) / 72, 0), 1) * h;
+    cx.lineTo(x, y);
+  }
+  cx.lineTo(w, h);
+  cx.closePath();
+  cx.fillStyle = fill; cx.fill();
+  if (line) { cx.strokeStyle = line; cx.lineWidth = 1; cx.stroke(); }
+  if (withHold && holdCols) { // the high-water line — what the corpse reached
+    cx.strokeStyle = 'rgba(232,200,74,0.55)';
+    cx.lineWidth = 1;
+    cx.beginPath();
+    for (var x2 = 0; x2 <= w; x2 += 2) {
+      var hd = holdCols[x2 >> 1];
+      var y2 = h - Math.min(Math.max((hd + 90) / 72, 0), 1) * h;
+      if (x2 === 0) cx.moveTo(x2, y2); else cx.lineTo(x2, y2);
+    }
+    cx.stroke();
+  }
+}
+
+function draw() {
+  var r = cv.getBoundingClientRect();
+  var w = r.width, h = r.height;
+  cx.clearRect(0, 0, w, h);
+
+  /* grid */
+  cx.strokeStyle = '#17131d'; cx.lineWidth = 1;
+  cx.fillStyle = '#5a5464'; cx.font = '10px Georgia';
+  GRID_F.forEach(function (f) {
+    var x = UIH.freqToX(f, w);
+    cx.beginPath(); cx.moveTo(x, 0); cx.lineTo(x, h); cx.stroke();
+    cx.fillText(UIH.fmtFreq(f).replace(' ', ''), x + 3, h - 5);
+  });
+  for (var d = -18; d <= 18; d += 6) {
+    var y = UIH.dbToY(d, h);
+    cx.strokeStyle = d === 0 ? '#2a2433' : '#17131d';
+    cx.beginPath(); cx.moveTo(0, y); cx.lineTo(w, y); cx.stroke();
+    cx.fillText((d > 0 ? '+' : '') + d, 4, y - 3);
+  }
+
+  /* analyzers: pre dim, post bright, peak-hold rides the post */
+  drawAnalyser(preAn, 'pre', w, h, 'rgba(90,84,100,0.14)', null, false);
+  drawAnalyser(postAn, 'post', w, h, 'rgba(201,162,39,0.10)', 'rgba(201,162,39,0.45)', true);
+  if (anFrozen) {
+    cx.fillStyle = 'rgba(232,200,74,0.85)'; cx.font = 'italic 12px Georgia';
+    cx.fillText('spectra frozen for study — F to resume', 12, 52);
+  }
+
+  /* per-band curves (dimmed under solo; dashed when placed off-stereo) */
+  state.bands.forEach(function (b, i) {
+    if (!b.on) return;
+    cx.strokeStyle = JEWELS[i];
+    cx.globalAlpha = (soloIdx >= 0 && i !== soloIdx) ? 0.12 : 0.55;
+    cx.lineWidth = 1;
+    if (b.place !== 'st') cx.setLineDash([5, 4]);
+    cx.beginPath();
+    for (var x = 0; x <= w; x += 3) {
+      var db = AUTOPSY.bandMagAt(b, FS, UIH.xToFreq(x, w));
+      var y = UIH.dbToY(db, h);
+      if (x === 0) cx.moveTo(x, y); else cx.lineTo(x, y);
+    }
+    cx.stroke();
+    cx.setLineDash([]);
+    cx.globalAlpha = 1;
+  });
+
+  /* range ghosts: where each dynamic band could reach at full range */
+  state.bands.forEach(function (b, i) {
+    if (!b.on || !b.dyn || !b.dyn.on || !UIH.hasGain(b.type)) return;
+    var ghost = { on: true, type: b.type, freq: b.freq,
+                  gain: b.gain + b.dyn.range, q: b.q, slope: b.slope, place: b.place };
+    cx.strokeStyle = JEWELS[i]; cx.globalAlpha = 0.25; cx.lineWidth = 1;
+    cx.setLineDash([2, 4]);
+    cx.beginPath();
+    for (var gx = 0; gx <= w; gx += 4) {
+      var gy = UIH.dbToY(AUTOPSY.bandMagAt(ghost, FS, UIH.xToFreq(gx, w)), h);
+      if (gx === 0) cx.moveTo(gx, gy); else cx.lineTo(gx, gy);
+    }
+    cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
+  });
+
+  /* composite curve — the finding (what the engine actually hears) */
+  var es = effectiveState();
+  cx.strokeStyle = bypass ? '#5a5464' : '#c9a227';
+  cx.lineWidth = 2;
+  cx.beginPath();
+  for (var x2 = 0; x2 <= w; x2 += 2) {
+    var db2 = AUTOPSY.magnitudeAt(es, FS, UIH.xToFreq(x2, w));
+    var y2 = UIH.dbToY(db2, h);
+    if (x2 === 0) cx.moveTo(x2, y2); else cx.lineTo(x2, y2);
+  }
+  cx.stroke();
+
+  /* the living curve: composite with live dynamic offsets applied */
+  if (!node || (!node.port && spEngine)) { if (spEngine) grs = spEngine.dynGains(); }
+  var anyGr = false;
+  if (grs) { for (var gi = 0; gi < grs.length; gi++) if (Math.abs(grs[gi]) > 0.05) { anyGr = true; break; } }
+  if (anyGr && !bypass) {
+    var ds = UIH.dynState(es, grs);
+    cx.strokeStyle = '#e8c84a'; cx.globalAlpha = 0.9; cx.lineWidth = 1.2;
+    cx.beginPath();
+    for (var x3 = 0; x3 <= w; x3 += 2) {
+      var db3 = AUTOPSY.magnitudeAt(ds, FS, UIH.xToFreq(x3, w));
+      var y3 = UIH.dbToY(db3, h);
+      if (x3 === 0) cx.moveTo(x3, y3); else cx.lineTo(x3, y3);
+    }
+    cx.stroke(); cx.globalAlpha = 1;
+  }
+
+  /* handles */
+  state.bands.forEach(function (b, i) {
+    if (!b.on) return;
+    var p = UIH.handlePos(b, w, h);
+    cx.globalAlpha = (soloIdx >= 0 && i !== soloIdx) ? 0.3 : 1;
+    cx.beginPath();
+    cx.arc(p.x, p.y, i === selected ? 8 : 6, 0, Math.PI * 2);
+    cx.fillStyle = JEWELS[i]; cx.fill();
+    if (i === selected) { cx.strokeStyle = '#c9a227'; cx.lineWidth = 2; cx.stroke(); }
+    cx.fillStyle = '#0b0a0d'; cx.font = 'bold 9px Georgia';
+    cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    cx.fillText(String(i + 1), p.x, p.y + 0.5);
+    cx.textAlign = 'start'; cx.textBaseline = 'alphabetic';
+    if (b.place !== 'st') {
+      cx.fillStyle = 'rgba(201,162,39,0.8)'; cx.font = 'bold 9px Georgia';
+      cx.fillText(b.place.toUpperCase(), p.x + 9, p.y - 8);
+    }
+    cx.globalAlpha = 1;
+  });
+
+  if (soloIdx >= 0) {
+    cx.fillStyle = 'rgba(201,162,39,0.85)'; cx.font = 'italic 12px Georgia';
+    cx.fillText('incision ' + (soloIdx + 1) + ' under the lens', 12, 36);
+  }
+
+  if (bypass) {
+    cx.fillStyle = 'rgba(90,84,100,0.9)'; cx.font = 'italic 13px Georgia';
+    cx.fillText('bypassed — the body as it arrived', 12, 20);
+  }
+}
+
+function frame() {
+  if (!ecoPaused) draw();
+  if (reduceMotion) setTimeout(frame, 100);
+  else requestAnimationFrame(frame);
+}
+frame();
+
+document.addEventListener('visibilitychange', function () {
+  ecoPaused = document.hidden;
+});
+
+/* ---------- canvas interaction ---------- */
+function canvasXY(e) {
+  var r = cv.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top, w: r.width, h: r.height };
+}
+
+cv.addEventListener('dblclick', function (e) {
+  var p = canvasXY(e);
+  var hit = UIH.hitTest(state.bands, p.x, p.y, p.w, p.h);
+  if (hit >= 0) { removeBand(hit); return; }
+  addBandAt(UIH.xToFreq(p.x, p.w), UIH.yToDb(p.y, p.h));
+});
+
+cv.addEventListener('mousedown', function (e) {
+  if (e.button !== 0) return;
+  var p = canvasXY(e);
+  var hit = UIH.hitTest(state.bands, p.x, p.y, p.w, p.h);
+  if (hit >= 0) { pushUndo(); dragging = hit; selected = hit; rebuildPanel(); }
+});
+window.addEventListener('mousemove', function (e) {
+  if (dragging < 0) return;
+  var p = canvasXY(e);
+  var b = state.bands[dragging];
+  b.freq = AUTOPSY.clampFreq(UIH.xToFreq(p.x, p.w), FS);
+  if (UIH.hasGain(b.type)) {
+    b.gain = AUTOPSY.clampGain(UIH.yToDb(p.y, p.h));
+  }
+  pushState();
+  status('Incision ' + (dragging + 1) + ': ' + UIH.fmtFreq(b.freq) +
+         (UIH.hasGain(b.type) ? ', ' + UIH.fmtDb(b.gain) : '') +
+         ', Q ' + b.q.toFixed(2));
+});
+window.addEventListener('mouseup', function () {
+  if (dragging >= 0) { dragging = -1; rebuildPanel(); }
+});
+
+cv.addEventListener('wheel', function (e) {
+  var p = canvasXY(e);
+  var hit = dragging >= 0 ? dragging : UIH.hitTest(state.bands, p.x, p.y, p.w, p.h);
+  if (hit < 0) return;
+  e.preventDefault();
+  var now = Date.now();
+  if (now - lastWheelUndo > 600) { pushUndo(); lastWheelUndo = now; }
+  var b = state.bands[hit];
+  b.q = UIH.qFromWheel(b.q, e.deltaY);
+  selected = hit;
+  pushState();
+  status('Incision ' + (hit + 1) + ': Q ' + b.q.toFixed(2));
+}, { passive: false });
+
+/* ---------- right-click band menu (model in UIH, DOM only renders) ---------- */
+var menuEl = null;
+function closeMenu() {
+  if (menuEl) { menuEl.remove(); menuEl = null; }
+}
+function openBandMenu(i, pageX, pageY) {
+  closeMenu();
+  var b = state.bands[i];
+  var items = UIH.bandMenu(b, i, soloIdx === i);
+  menuEl = document.createElement('div');
+  menuEl.id = 'ctxMenu';
+  menuEl.setAttribute('role', 'menu');
+  menuEl.setAttribute('aria-label', 'Incision ' + (i + 1) + ' menu');
+  items.forEach(function (it) {
+    if (it.sep) {
+      var hr = document.createElement('div'); hr.className = 'sep';
+      menuEl.appendChild(hr); return;
+    }
+    var row = document.createElement('div');
+    row.className = 'item' + (it.checked ? ' checked' : '') + (it.danger ? ' danger' : '');
+    row.setAttribute('role', 'menuitem');
+    row.tabIndex = 0;
+    row.textContent = (it.checked ? '◆ ' : '') + it.label;
+    function act() {
+      closeMenu();
+      if (it.act === 'solo') { toggleSolo(i); return; }
+      if (it.act === 'close') { removeBand(i); return; }
+      if (it.act === 'inspect') {
+        selected = i; rebuildPanel();
+        var card = document.querySelector('.bandCard[data-idx="' + i + '"]');
+        if (card && card.scrollIntoView) card.scrollIntoView({ block: 'nearest' });
+        return;
+      }
+      pushUndo();
+      if (it.act === 'type') b.type = it.val;
+      else if (it.act === 'slope') b.slope = it.val;
+      else if (it.act === 'place') b.place = it.val;
+      commit();
+      status('Incision ' + (i + 1) + ': ' + it.act + ' → ' + it.label + '.');
+    }
+    row.onclick = act;
+    row.onkeydown = function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); act(); } };
+    menuEl.appendChild(row);
+  });
+  document.body.appendChild(menuEl);
+  var mw = menuEl.offsetWidth, mh = menuEl.offsetHeight;
+  menuEl.style.left = Math.min(pageX, window.innerWidth - mw - 8) + 'px';
+  menuEl.style.top = Math.min(pageY, window.innerHeight + window.scrollY - mh - 8) + 'px';
+  var first = menuEl.querySelector('.item');
+  if (first) first.focus();
+}
+document.addEventListener('mousedown', function (e) {
+  if (menuEl && !menuEl.contains(e.target)) closeMenu();
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') closeMenu();
+});
+
+cv.addEventListener('contextmenu', function (e) {
+  e.preventDefault(); // the browser menu has no business on the table
+  var p = canvasXY(e);
+  var hit = UIH.hitTest(state.bands, p.x, p.y, p.w, p.h);
+  if (hit >= 0) {
+    selected = hit; rebuildPanel();
+    openBandMenu(hit, e.pageX, e.pageY);
+  } else {
+    closeMenu();
+  }
+});
+
+cv.addEventListener('keydown', function (e) {
+  if (selected < 0 || !state.bands[selected].on) return;
+  var b = state.bands[selected];
+  var fineF = e.shiftKey ? 1.005 : 1.05;
+  var fineG = e.shiftKey ? 0.1 : 0.5;
+  var nowK = Date.now();
+  if (nowK - lastKeyUndo > 600 && e.key.indexOf('Arrow') === 0) { pushUndo(); lastKeyUndo = nowK; }
+  var used = true;
+  switch (e.key) {
+    case 'ArrowLeft': b.freq = AUTOPSY.clampFreq(b.freq / fineF, FS); break;
+    case 'ArrowRight': b.freq = AUTOPSY.clampFreq(b.freq * fineF, FS); break;
+    case 'ArrowUp': b.gain = AUTOPSY.clampGain(b.gain + fineG); break;
+    case 'ArrowDown': b.gain = AUTOPSY.clampGain(b.gain - fineG); break;
+    case 'Delete': case 'Backspace': removeBand(selected); return;
+    case 's': case 'S': toggleSolo(selected); return;
+    default: used = false;
+  }
+  if (used) { e.preventDefault(); commit(); }
+});
+
+/* ---------- whole-page file drop ---------- */
+document.addEventListener('dragover', function (e) { e.preventDefault(); document.body.classList.add('dropping'); });
+document.addEventListener('dragleave', function () { document.body.classList.remove('dropping'); });
+document.addEventListener('drop', function (e) {
+  e.preventDefault();
+  document.body.classList.remove('dropping');
+  var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!f) return;
+  if (/\.json$/i.test(f.name)) { loadReportFile(f); return; }
+  playFile(f);
+});
+
+/* ---------- header controls ---------- */
+el('noiseBtn').onclick = playNoise;
+el('micBtn').onclick = playMic;
+el('abBtn').onclick = switchSlab;
+el('abCopyBtn').onclick = copySlab;
+el('freezeBtn').onclick = function () {
+  anFrozen = !anFrozen;
+  el('freezeBtn').classList.toggle('armed', anFrozen);
+  status(anFrozen ? 'Spectra frozen for study.' : 'Spectra breathing again.');
+};
+el('photoBtn').onclick = function () {
+  var a = document.createElement('a');
+  a.href = cv.toDataURL('image/png');
+  a.download = 'autopsy-finding-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.png';
+  a.click();
+  status('Finding photographed and filed.');
+};
+el('bypassBtn').onclick = function () {
+  bypass = !bypass;
+  el('bypassBtn').classList.toggle('armed', bypass);
+  pushState();
+  status(bypass ? 'Bypassed — hearing the body as it arrived.' : 'Examination resumed.');
+};
+el('outGain').addEventListener('pointerdown', pushUndo);
+el('outPan').addEventListener('pointerdown', pushUndo);
+el('outGain').oninput = function () {
+  state.out.gain = +this.value;
+  el('outGainV').textContent = UIH.fmtDb(state.out.gain);
+  pushState();
+};
+el('outPan').oninput = function () {
+  state.out.pan = +this.value;
+  el('outPanV').textContent = UIH.fmtPan(state.out.pan);
+  pushState();
+};
+
+/* ---------- save / load reports ---------- */
+el('saveBtn').onclick = function () {
+  var name = (state.meta.name || 'autopsy-report').replace(/[^\w\- ]+/g, '').trim() || 'autopsy-report';
+  var blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name + '.autopsy.json';
+  a.click();
+  status('Report filed: ' + a.download);
+};
+el('loadBtn').onclick = function () { el('loadFile').click(); };
+el('loadFile').onchange = function () {
+  if (this.files && this.files[0]) loadReportFile(this.files[0]);
+  this.value = '';
+};
+function loadReportFile(f) {
+  var rd = new FileReader();
+  rd.onload = function () {
+    try {
+      var parsed = JSON.parse(rd.result);
+      pushUndo();
+      state = AUTOPSY.sanitizeState(parsed);
+      selected = -1; soloIdx = -1;
+      syncOutUI();
+      commit();
+      status('Report opened: ' + f.name);
+    } catch (err) { status('That report is illegible.'); }
+  };
+  rd.readAsText(f);
+}
+
+/* ---------- factory reports + share link ---------- */
+function loadFactory(i) {
+  var fp = UIH.FACTORY[i];
+  var st = AUTOPSY.defaultState();
+  fp.bands.forEach(function (b, k) { st.bands[k] = b; });
+  if (fp.out) { st.out.gain = fp.out.gain || 0; st.out.pan = fp.out.pan || 0; }
+  st.meta.name = fp.name;
+  state = AUTOPSY.sanitizeState(st);
+  selected = -1; soloIdx = -1;
+  syncOutUI(); commit();
+  status('Factory report: ' + fp.name + '.');
+}
+var fsel = el('factorySel');
+UIH.FACTORY.forEach(function (f) {
+  var o = document.createElement('option');
+  o.textContent = f.name;
+  fsel.appendChild(o);
+});
+fsel.onchange = function () {
+  var i = fsel.selectedIndex;
+  if (i > 0) { pushUndo(); loadFactory(i - 1); fsel.selectedIndex = 0; }
+};
+/* ---------- gain tools + compensate ---------- */
+function applyTransform(fn, msg) {
+  pushUndo();
+  state = AUTOPSY.sanitizeState(fn(state));
+  syncOutUI(); commit();
+  status(msg);
+}
+el('halfBtn').onclick = function () {
+  applyTransform(function (s) { return UIH.scaleGains(s, 0.5); }, 'Every gain halved — same shape, gentler hand.');
+};
+el('dblBtn').onclick = function () {
+  applyTransform(function (s) { return UIH.scaleGains(s, 2); }, 'Every gain doubled — bolder incisions.');
+};
+el('invBtn').onclick = function () {
+  applyTransform(function (s) { return UIH.invertGains(s); }, 'Gains mirrored — boosts are now cuts.');
+};
+el('flatBtn').onclick = function () {
+  applyTransform(function (s) { return UIH.scaleGains(s, 0); }, 'Gains flattened — the incisions remain, dormant.');
+};
+el('compBtn').onclick = function () {
+  var avg = UIH.avgCurveDb(AUTOPSY.magnitudeAt, state, FS);
+  pushUndo();
+  state.out.gain = Math.min(Math.max(state.out.gain - avg, -24), 24);
+  syncOutUI(); commitLite();
+  status('Compensated ' + UIH.fmtDb(-avg) + ' — the average curve now rests at 0.');
+};
+
+/* ---------- shortcuts overlay + quick keys ---------- */
+function toggleHelp(force) {
+  var ov = el('helpOverlay');
+  var open = typeof force === 'boolean' ? force : !ov.classList.contains('open');
+  ov.classList.toggle('open', open);
+}
+el('helpOverlay').onclick = function (e) { if (e.target === this) toggleHelp(false); };
+document.addEventListener('keydown', function (e) {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  var tag = e.target && e.target.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  if (e.key === '?') { e.preventDefault(); toggleHelp(); return; }
+  if (e.key === 'Escape') { toggleHelp(false); return; }
+  if (e.key === 'b' || e.key === 'B') { el('bypassBtn').click(); return; }
+  if (e.key === 'f' || e.key === 'F') { el('freezeBtn').click(); return; }
+  if (e.key === 'p' || e.key === 'P') { el('photoBtn').click(); return; }
+  if (e.key >= '1' && e.key <= '9') {
+    var bi = +e.key - 1;
+    if (state.bands[bi] && state.bands[bi].on) {
+      selected = bi; rebuildPanel(); cv.focus();
+      status('Incision ' + (bi + 1) + ' selected.');
+    }
+  }
+});
+
+el('shareBtn').onclick = function () {
+  location.hash = UIH.encodeReport(state);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(location.href).then(
+      function () { status('Link copied — the report travels.'); },
+      function () { status('Link staged in the address bar — copy it from there.'); });
+  } else {
+    status('Link staged in the address bar — copy it from there.');
+  }
+};
+
+/* resurrect a shared report from the URL hash, if one rode in */
+if (location.hash && location.hash.length > 2) {
+  var fromLink = UIH.decodeReport(location.hash.slice(1));
+  if (fromLink) {
+    state = AUTOPSY.sanitizeState(fromLink);
+    status('Report resurrected from link.');
+  }
+}
+syncOutUI();
+rebuildPanel();
+})();
+</script>
+
+</body>
+</html>

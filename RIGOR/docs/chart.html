@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CHART — RIGOR · Patient Record</title>
+<style>
+  :root{
+    --paper:#f3efe3; --paper2:#faf7ee; --manila:#d9c9a3; --manila-dk:#b8a377;
+    --ink:#1c2530; --ink-lt:#5b6570; --rule:#c7bfab; --rule-lt:#ded7c5;
+    --clinical:#1f5b8f; --stampG:#2f7a4f; --stampR:#b4302f; --stampB:#2b5c86;
+    --ecg-bg:#fff6f4; --ecg-fine:#f4c2bd; --ecg-bold:#e08f88;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:#6d6455;
+    background-image:
+      radial-gradient(1200px 600px at 50% 0%, #7d7364 0%, transparent 70%),
+      repeating-linear-gradient(45deg, #00000006 0 2px, transparent 2px 4px);
+    color:var(--ink);
+    font:14px/1.55 "Iowan Old Style", Georgia, "Times New Roman", serif;
+    padding:26px 14px 70px;
+  }
+  .mono{font-family:"SF Mono", Menlo, Consolas, "Courier New", monospace}
+  .chart{max-width:1020px;margin-inline:auto;position:relative}
+
+  /* ---------- folder tab ---------- */
+  .tabs{display:flex;gap:6px;padding-left:26px;position:relative;z-index:2}
+  .tab{
+    background:var(--manila);border:1px solid var(--manila-dk);border-bottom:0;
+    border-radius:7px 7px 0 0;padding:8px 20px 9px;font-size:11px;letter-spacing:2.5px;
+    text-transform:uppercase;color:#5c4f34;box-shadow:0 -2px 6px #0000001f
+  }
+  .tab.active{background:var(--paper);border-color:var(--rule);color:var(--ink);font-weight:bold}
+
+  /* ---------- the sheet ---------- */
+  .sheet{
+    background:var(--paper);
+    background-image:repeating-linear-gradient(0deg, transparent 0 27px, #0000000a 27px 28px);
+    border:1px solid var(--rule);border-radius:2px;
+    box-shadow:0 26px 60px -20px #00000080, 0 2px 0 #ffffff60 inset;
+    padding:26px 34px 34px 62px;position:relative;overflow:hidden
+  }
+  /* hole punches + margin rule */
+  .sheet::before{
+    content:'';position:absolute;left:0;top:0;bottom:0;width:44px;
+    border-right:1px solid #d98b8b60;
+    background:
+      radial-gradient(circle at 22px 90px, #6d6455 0 9px, transparent 9px),
+      radial-gradient(circle at 22px 50%, #6d6455 0 9px, transparent 9px),
+      radial-gradient(circle at 22px calc(100% - 90px), #6d6455 0 9px, transparent 9px);
+  }
+
+  /* ---------- header block ---------- */
+  .letterhead{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;
+    border-bottom:2px solid var(--ink);padding-bottom:12px;margin-bottom:16px}
+  .org{font-size:10.5px;letter-spacing:3.5px;text-transform:uppercase;color:var(--ink-lt)}
+  h1{margin:2px 0 0;font-size:40px;letter-spacing:11px;font-weight:normal;text-indent:11px}
+  .sub{font-style:italic;color:var(--ink-lt);font-size:13.5px;margin-top:2px}
+  .barcode{text-align:right}
+  .bars{display:flex;gap:1.5px;align-items:flex-end;height:44px;justify-content:flex-end}
+  .bars i{display:block;width:2px;background:var(--ink);height:100%}
+  .bars i:nth-child(3n){width:4px} .bars i:nth-child(4n){height:76%} .bars i:nth-child(7n){width:1px}
+  .mrn{font-size:10.5px;letter-spacing:2.5px;margin-top:5px;color:var(--ink-lt)}
+
+  /* ---------- form fields ---------- */
+  .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:2px 22px;margin-bottom:20px}
+  .f{border-bottom:1px solid var(--ink);padding:12px 2px 3px;position:relative}
+  .f span{position:absolute;top:1px;left:2px;font-size:8.5px;letter-spacing:1.6px;
+    text-transform:uppercase;color:var(--ink-lt)}
+  .f b{font-weight:normal;font-size:14px}
+  .f.wide{grid-column:span 2}
+
+  /* ---------- section headers ---------- */
+  h2{
+    font-size:11.5px;letter-spacing:3.5px;text-transform:uppercase;font-weight:bold;
+    background:var(--ink);color:var(--paper);padding:5px 12px;margin:30px 0 0;
+    display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;border-radius:2px
+  }
+  h2 em{font-style:normal;font-weight:normal;letter-spacing:1.5px;font-size:10px;opacity:.7}
+  .secnote{font-size:12.5px;color:var(--ink-lt);font-style:italic;margin:9px 0 12px;padding-left:2px}
+
+  /* ---------- stamps ---------- */
+  .stamp{
+    display:inline-block;border:2.5px solid currentColor;border-radius:3px;padding:3px 11px;
+    font-size:11px;letter-spacing:2.5px;font-weight:bold;text-transform:uppercase;
+    transform:rotate(-3.5deg);opacity:.86;font-family:"SF Mono",Menlo,monospace
+  }
+  .stamp.g{color:var(--stampG)} .stamp.r{color:var(--stampR)} .stamp.b{color:var(--stampB)}
+  .stamp.big{font-size:16px;padding:6px 18px;border-width:3.5px;transform:rotate(-6deg)}
+
+  /* ---------- ECG strip ---------- */
+  .strip{
+    margin-top:12px;border:1px solid var(--ecg-bold);border-radius:2px;position:relative;
+    background-color:var(--ecg-bg);
+    background-image:
+      repeating-linear-gradient(0deg,  var(--ecg-fine) 0 1px, transparent 1px 9px),
+      repeating-linear-gradient(90deg, var(--ecg-fine) 0 1px, transparent 1px 9px),
+      repeating-linear-gradient(0deg,  var(--ecg-bold) 0 1px, transparent 1px 45px),
+      repeating-linear-gradient(90deg, var(--ecg-bold) 0 1px, transparent 1px 45px);
+    box-shadow:inset 0 0 30px #d9807833
+  }
+  .strip canvas{display:block;width:100%;background:transparent}
+  .lead{position:absolute;font-size:9px;letter-spacing:2px;text-transform:uppercase;
+    color:#a04a44;background:#fff6f4cc;padding:1px 6px;border-radius:2px}
+  .lead.one{top:7px;left:8px} .lead.two{top:calc(48% + 7px);left:8px}
+  .stripfoot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;
+    font-size:10.5px;color:var(--ink-lt);margin-top:5px;letter-spacing:1px}
+
+  /* ---------- lab panel ---------- */
+  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+  th{text-align:left;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;
+    color:var(--ink-lt);border-bottom:1.5px solid var(--ink);padding:5px 8px;font-weight:normal}
+  td{padding:7px 8px;border-bottom:1px solid var(--rule-lt)}
+  td.val{font-family:"SF Mono",Menlo,monospace;font-weight:bold;font-size:14px}
+  td.ref{color:var(--ink-lt);font-family:"SF Mono",Menlo,monospace;font-size:12px}
+  .flag{font-size:9.5px;letter-spacing:1.6px;padding:2px 7px;border-radius:2px;
+    font-family:"SF Mono",Menlo,monospace;font-weight:bold}
+  .flag.n{background:#2f7a4f1f;color:var(--stampG);border:1px solid #2f7a4f55}
+  .flag.h{background:#1f5b8f1f;color:var(--clinical);border:1px solid #1f5b8f55}
+
+  /* ---------- progress notes ---------- */
+  .note{display:grid;grid-template-columns:78px 1fr;gap:0 16px;border-bottom:1px solid var(--rule-lt);
+    padding:11px 0}
+  .note:last-child{border-bottom:0}
+  .note .t{font-family:"SF Mono",Menlo,monospace;font-size:11px;color:var(--ink-lt);padding-top:2px}
+  .note .b b{font-weight:bold}
+  .note .b code{background:#e3ddcc;border:1px solid var(--rule);padding:1px 5px;border-radius:2px;
+    font-family:"SF Mono",Menlo,monospace;font-size:11.5px}
+
+  /* ---------- order sheet ---------- */
+  .orders{list-style:none;margin:10px 0 0;padding:0}
+  .orders li{
+    display:grid;grid-template-columns:26px 30px 1fr 62px;gap:12px;align-items:start;
+    border-bottom:1px solid var(--rule-lt);padding:9px 4px;cursor:pointer;transition:background .15s
+  }
+  .orders li:hover{background:#ffffff70}
+  .orders li .box{
+    width:16px;height:16px;border:1.5px solid var(--ink);border-radius:2px;margin-top:2px;
+    display:grid;place-items:center;font-size:13px;line-height:1;color:transparent;
+    font-family:"SF Mono",Menlo,monospace
+  }
+  .orders li.done .box{color:var(--stampR)}
+  .orders li.done .t{text-decoration:line-through;text-decoration-color:#b4302f88}
+  .orders li.done{opacity:.5}
+  .orders li .no{font-family:"SF Mono",Menlo,monospace;font-size:11px;color:var(--ink-lt);padding-top:3px}
+  .orders li .t{font-size:14px}
+  .orders li .why{font-size:12.5px;color:var(--ink-lt);font-style:italic;margin-top:2px;display:block}
+  .orders li .init{border-bottom:1px solid var(--ink);height:17px;margin-top:2px;
+    font-family:"SF Mono",Menlo,monospace;font-size:11px;text-align:center;color:var(--stampR)}
+  .orders li.done .init::after{content:'BA'}
+  .ohead{display:grid;grid-template-columns:26px 30px 1fr 62px;gap:12px;
+    font-size:9px;letter-spacing:1.6px;text-transform:uppercase;color:var(--ink-lt);
+    border-bottom:1.5px solid var(--ink);padding:4px}
+  .tally{font-family:"SF Mono",Menlo,monospace;font-size:12px;color:var(--ink-lt);
+    margin-top:10px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+  .tally b{color:var(--stampR);font-size:15px}
+
+  /* ---------- signature ---------- */
+  .sigs{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:26px;margin-top:34px}
+  .sig{border-top:1px solid var(--ink);padding-top:5px;font-size:9.5px;letter-spacing:1.8px;
+    text-transform:uppercase;color:var(--ink-lt)}
+  .sig .name{font-family:"Snell Roundhand","Apple Chancery","Segoe Script",cursive;
+    font-size:23px;color:var(--stampB);text-transform:none;letter-spacing:0;
+    margin-top:-38px;margin-bottom:9px;transform:rotate(-1.5deg)}
+  .foot{margin-top:30px;padding-top:12px;border-top:1px dashed var(--rule);
+    font-size:10.5px;letter-spacing:1.6px;color:var(--ink-lt);
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+  @media(max-width:700px){
+    .sheet{padding:20px 16px 26px 46px}
+    h1{font-size:28px;letter-spacing:6px;text-indent:6px}
+    .orders li{grid-template-columns:22px 1fr;gap:8px}
+    .orders li .no,.orders li .init{display:none}
+    .ohead{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="chart">
+
+  <div class="tabs">
+    <div class="tab active">Chart</div>
+    <div class="tab">Autopsy</div>
+    <div class="tab">Pending</div>
+  </div>
+
+  <div class="sheet">
+
+    <!-- ============ LETTERHEAD ============ -->
+    <div class="letterhead">
+      <div>
+        <div class="org">Necropolis General · Department of Dynamics</div>
+        <h1>RIGOR</h1>
+        <div class="sub">“The body stops moving.” · dynamics processor, Pro-C lineage</div>
+      </div>
+      <div class="barcode">
+        <div class="bars" id="bars" aria-hidden="true"></div>
+        <div class="mrn mono">MRN 0000-RIGOR-0001</div>
+      </div>
+    </div>
+
+    <div class="fields">
+      <div class="f"><span>Patient</span><b>RIGOR v0.6</b></div>
+      <div class="f"><span>Admitted</span><b class="mono">2026-08-15</b></div>
+      <div class="f"><span>Ward</span><b>CLAUDE / RIGOR</b></div>
+      <div class="f"><span>Attending</span><b>B. Asaykwee</b></div>
+      <div class="f"><span>Prior admission</span><b>AUTOPSY v0.4</b></div>
+      <div class="f"><span>Condition</span><b style="color:var(--stampG)">Stable — bit-exact</b></div>
+      <div class="f wide"><span>Presenting complaint</span><b>Second of three. AUTOPSY opened the body; RIGOR holds it still; the limiter closes the lid.</b></div>
+      <div class="f"><span>Chart revision</span><b class="mono">11 &middot; supersedes 10</b></div>
+      <div class="f wide"><span>Notable event this admission</span><b style="color:var(--stampR)">CRITICAL &mdash; a single &plusmn;Infinity sample LOCKED THE AUDIO THREAD. It reached the peak follower, then ND.linToDb, then NM.log10, which iterates and never converges on a non-finite argument. Every style, every block size, single band and multiband; only bypass survived. In a host that is a frozen DAW needing a force quit, and the entire suite was green throughout. ND.linToDb has always guarded the LOW end &mdash; 0, negative and denormal clamp to &minus;600 dB, which is why silence was never a problem &mdash; and nothing guarded the high end. RIGOR now guards its own input at three points. The substrate defect is in shared/ and is REFERRED OUT, unfixed, because RIGOR may not change shared code: AUTOPSY, CASKET and NECROPHONE are presumably exposed the same way. Parity closes at 50,718.</b></div>
+    </div>
+
+    <!-- ============ VITALS ============ -->
+    <h2>Continuous Monitoring <em>Live · driven by the shipped gain computer</em></h2>
+    <p class="secnote">Two leads. Lead I is the flatline — gain reduction, deflecting downward as the
+      compressor works. Lead II is the level trace: faint is what came in, solid is what leaves.
+      This is not an illustration; it is the v0.1 core maths running in the page.</p>
+
+    <div class="strip">
+      <span class="lead one">Lead I — Gain Reduction</span>
+      <span class="lead two">Lead II — Level, in / out</span>
+      <canvas id="ecg" width="1880" height="560"></canvas>
+    </div>
+    <div class="stripfoot mono">
+      <span>25 mm/s · 10 mm/mV · style REPOSE · 4:1 · knee 12 dB · attack 9 ms · auto-release</span>
+      <span id="ecgRead">GR —</span>
+    </div>
+
+    <!-- ============ LABS ============ -->
+    <h2>Laboratory Panel <em>Collected 2026-08-15 · analysed on the bench</em></h2>
+    <p class="secnote">Every figure below was printed by a harness. None of them were felt.</p>
+    <table>
+      <thead><tr><th>Assay</th><th>Result</th><th>Reference</th><th>Flag</th><th>Note</th></tr></thead>
+      <tbody id="labs"></tbody>
+    </table>
+
+    <!-- ============ PROGRESS NOTES ============ -->
+    <h2>Progress Notes <em>Attending: the night attendant</em> <span class="stamp g">Phases 0–2 complete</span></h2>
+    <div id="notes"></div>
+
+    <!-- ============ STANDING ORDERS ============ -->
+    <h2>Standing Orders — First Course <em>Phases 0–2 · may be carried out without further authorisation</em>
+      <span class="stamp g">All 20 executed</span></h2>
+    <p class="secnote">The full Phase 1 and Phase 2 course of treatment. Click any line to
+      strike it and initial it.</p>
+    <div class="ohead"><span>✓</span><span>No.</span><span>Order</span><span>Init.</span></div>
+    <ul class="orders" id="list-solo"></ul>
+    <div class="tally"><span>Orders carried out</span><span><b id="c-solo">0</b> / 20</span></div>
+
+    <!-- ============ SECOND COURSE ============ -->
+    <h2>Standing Orders — Second Course <em>Phase 3 · v0.2</em>
+      <span class="stamp g">All 20 executed</span></h2>
+    <p class="secnote">Ordered after the first course completed without complication. Three of
+      these turned out to be treating the sibling in Bed 3 rather than this patient — see
+      progress notes, 15 Aug 19:10.</p>
+    <div class="ohead"><span>✓</span><span>No.</span><span>Order</span><span>Init.</span></div>
+    <ul class="orders" id="list-solo2"></ul>
+    <div class="tally"><span>Orders carried out</span><span><b id="c-solo2">0</b> / 20</span></div>
+
+    <!-- ============ THIRD COURSE ============ -->
+    <h2>Standing Orders — Third Course <em>Reconciliation, multiband, and the twin</em>
+      <span class="stamp g">All 20 executed</span></h2>
+    <p class="secnote">Ordered after the records collision was resolved. Four of these were
+      repairs to work that had gone missing in the merge; one was a defect in the
+      instrument that every harness had been happily passing over.</p>
+    <div class="ohead"><span>&check;</span><span>No.</span><span>Order</span><span>Init.</span></div>
+    <ul class="orders" id="list-solo3"></ul>
+    <div class="tally"><span>Orders carried out</span><span><b id="c-solo3">0</b> / 20</span></div>
+
+    <!-- ============ FOURTH COURSE ============ -->
+    <h2>Standing Orders — Fourth Course <em>The plugin, the clock, and the peaks between samples</em>
+      <span class="stamp g">All 20 executed</span></h2>
+    <p class="secnote">Opened on discovering the plugin could not have compiled. Six of these
+      were gaps a new static lint found in work that had looked finished.</p>
+    <div class="ohead"><span>&check;</span><span>No.</span><span>Order</span><span>Init.</span></div>
+    <ul class="orders" id="list-solo4"></ul>
+    <div class="tally"><span>Orders carried out</span><span><b id="c-solo4">0</b> / 20</span></div>
+
+    <!-- ============ FIFTH COURSE ============ -->
+    <h2>Standing Orders — Fifth Course <em>A fuzzer, and the six times it caught me instead</em>
+      <span class="stamp g">All 20 executed</span></h2>
+    <p class="secnote">RIGOR only, by instruction. One real bug found; six of these orders were
+      repairs to the test rather than to the patient.</p>
+    <div class="ohead"><span>&check;</span><span>No.</span><span>Order</span><span>Init.</span></div>
+    <ul class="orders" id="list-solo5"></ul>
+    <div class="tally"><span>Orders carried out</span><span><b id="c-solo5">0</b> / 20</span></div>
+
+    <!-- ============ SIXTH COURSE ============ -->
+    <h2>Standing Orders — Sixth Course <em>Ten orders · the version that disagreed with itself</em>
+      <span class="stamp g">All 10 executed</span></h2>
+    <p class="secnote">RIGOR only. Opened by finding a passing test that had been checking nothing
+      for two rounds.</p>
+    <div class="ohead"><span>&check;</span><span>No.</span><span>Order</span><span>Init.</span></div>
+    <ul class="orders" id="list-solo6"></ul>
+    <div class="tally"><span>Orders carried out</span><span><b id="c-solo6">0</b> / 10</span></div>
+
+    <!-- ============ SEVENTH COURSE ============ -->
+    <h2>Standing Orders — Seventh Course <em>The audits, and the styles that turned out to be three</em>
+      <span class="stamp g">All 20 executed</span></h2>
+    <p class="secnote">RIGOR only. Two real bugs, two bad assertions of mine, and a claim the
+      documentation had been making incorrectly since the first sketch.</p>
+    <div class="ohead"><span>&check;</span><span>No.</span><span>Order</span><span>Init.</span></div>
+    <ul class="orders" id="list-solo7"></ul>
+    <div class="tally"><span>Orders carried out</span><span><b id="c-solo7">0</b> / 20</span></div>
+
+    <!-- ============ EIGHTH COURSE ============ -->
+    <h2>Standing Orders — Eighth Course <em>Twenty proposed · fourteen carried out, two refused on measurement</em>
+      <span class="stamp g">14 executed &middot; 2 refused &middot; 4 deferred</span></h2>
+    <p class="secnote">RIGOR only. Found half-administered and finished first. Two orders were
+      built, measured, and taken back out — a knee that widens under load cannot reach the level
+      it is meant to soften, and a Kaiser window fixes a ceiling that turned out not to exist.
+      One real accessibility defect, one fitted bound in the fuzzer replaced with a derived one,
+      and five bad assertions of my own before the harness went green.</p>
+    <div class="ohead"><span>&check;</span><span>No.</span><span>Order</span><span>Init.</span></div>
+    <ul class="orders" id="list-solo8"></ul>
+    <div class="tally"><span>Orders carried out</span><span><b id="c-solo8">0</b> / 16</span></div>
+
+    <!-- ============ NINTH COURSE ============ -->
+    <h2>Standing Orders — Ninth Course <em>Twenty proposed &middot; the round the tests were put on trial</em>
+      <span class="stamp g">20 executed &middot; 4 test holes closed</span></h2>
+    <p class="secnote">RIGOR only. The scheduled ninth and tenth courses were cancelled at the
+      attending&rsquo;s instruction and carried out here instead. Most of this round was spent
+      not on the compressor but on the things that watch it: a mutation tester that damages
+      the core on purpose and demands the suite notice, a parity gate that now checks its own
+      binary is the one it claims to be, and an embed tool that refuses to ship a stale
+      instrument. Five mutants survived the full 198-test suite on the first run. One of the
+      five was my own error. The other four are now closed, and the tester finishes
+      the round at 11 killed, 0 survived.</p>
+    <div class="ohead"><span>&check;</span><span>No.</span><span>Order</span><span>Init.</span></div>
+    <ul class="orders" id="list-solo9"></ul>
+    <div class="tally"><span>Orders carried out</span><span><b id="c-solo9">0</b> / 20</span></div>
+
+    <!-- ============ TENTH COURSE — THE AUDIT ============ -->
+    <h2>Full Audit <em>Ordered by the attending &middot; &ldquo;a thorough audit, RIGOR only&rdquo;</em>
+      <span class="stamp r">1 critical &middot; 6 defects &middot; 1 referred out</span></h2>
+    <p class="secnote">Conducted against a suite that was entirely green when it started.
+      The headline finding is a hard lock-up of the audio thread from a single bad input
+      sample &mdash; a hung DAW, not a glitch &mdash; which every one of 198 tests missed
+      because nothing had ever handed the engine a bad SAMPLE, only bad settings. Five of
+      the audit&rsquo;s own checks were wrong before they were right, which is recorded
+      here rather than tidied away.</p>
+    <div class="ohead"><span>&check;</span><span>No.</span><span>Order</span><span>Init.</span></div>
+    <ul class="orders" id="list-audit"></ul>
+    <div class="tally"><span>Findings</span><span><b id="c-audit">0</b> / 12</span></div>
+
+    <!-- ============ ELEVENTH COURSE — THE REFERRALS COME BACK ============ -->
+    <h2>Eleventh Course <em>&ldquo;close the open findings&rdquo; &middot; RIGOR and shared/, by consent</em>
+      <span class="stamp r">1 critical closed &middot; 3 defects &middot; 1 new capability</span></h2>
+    <p class="secnote">The round where the things other rounds referred out finally got
+      treated. The attending granted access to <code>shared/</code> for the first time,
+      under the condition that verification stay inside this ward &mdash; so the substrate
+      was fixed and the siblings were only <em>read</em>. Conducted while another session
+      was demonstrably live in the tree, which is recorded below because it is a hazard,
+      not an anecdote.</p>
+    <div class="ohead"><span>&check;</span><span>No.</span><span>Order</span><span>Init.</span></div>
+    <ul class="orders" id="list-solo9"></ul>
+    <div class="tally"><span>Findings</span><span><b id="c-solo9">0</b> / 10</span></div>
+
+    <!-- ============ NEXT TWENTY ============ -->
+    <h2>Standing Orders — Proposed <em>Forty that can be carried out without the attending</em>
+      <span class="stamp b">Awaiting scheduling</span></h2>
+    <p class="secnote">Not started. Roughly in the order I would take them, and none requires
+      anything outside this ward. The later ones are speculative on purpose — you asked for
+      far-fetched, and a list that only contains the obvious is a list that has stopped thinking.</p>
+    <div class="ohead"><span>&check;</span><span>No.</span><span>Proposed order</span><span>Init.</span></div>
+    <ul class="orders" id="list-next"></ul>
+    <div class="tally"><span>Proposed</span><span><b id="c-next">0</b> / 40</span></div>
+
+    <!-- ============ CONSULTS ============ -->
+    <h2>Consults Requested <em>Attending physician required — cannot be delegated</em>
+      <span class="stamp r">Awaiting signature</span></h2>
+    <p class="secnote">Six items. Four are decisions, one is a listen, one is a key the night
+      attendant does not hold. Everything here blocks something downstream.</p>
+    <div class="ohead"><span>✓</span><span>No.</span><span>Consult</span><span>Init.</span></div>
+    <ul class="orders" id="list-ben"></ul>
+    <div class="tally"><span>Consults resolved</span><span><b id="c-ben">0</b> / 6</span></div>
+
+    <!-- ============ LONG TERM ============ -->
+    <h2>Long-Term Care Plan <em>Not indicated for this admission</em>
+      <span class="stamp b">Deferred</span></h2>
+    <p class="secnote">The difference between a very good personal build and something a stranger
+      would pay for and trust on a deadline.</p>
+    <div class="ohead"><span>✓</span><span>No.</span><span>Objective</span><span>Init.</span></div>
+    <ul class="orders" id="list-pro"></ul>
+    <div class="tally"><span>Objectives met</span><span><b id="c-pro">0</b> / 10</span></div>
+
+    <!-- ============ SIGNATURES ============ -->
+    <div class="sigs">
+      <div class="sig"><div class="name">the night attendant</div>Prepared by · Dept. of Dynamics</div>
+      <div class="sig"><div class="name" style="color:#b0a894">&nbsp;</div>Attending signature · B. Asaykwee</div>
+      <div class="sig"><div class="name mono" style="font-family:'SF Mono',Menlo,monospace;font-size:13px;color:var(--ink-lt);transform:none">2026-08-16</div>Date of record</div>
+    </div>
+
+    <div class="foot mono">
+      <span>NECROPOLIS GENERAL · DEPT. OF DYNAMICS · FORM RG-01 REV.12</span>
+      <span>PAGE 1 OF 1 · RETAIN IN PERMANENT RECORD</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ============================================================
+   The shipped v0.1 gain computer, transcribed from rigor_core.js.
+   Note the `>=` on the second branch and the d*(invR-1) linear form —
+   both are load-bearing, and both are why the strip below never
+   flatlines into a NaN.
+   ============================================================ */
+function computeGR(x, T, W, invR){
+  var d = x - T, h = W * 0.5;
+  if (d <  -h) return 0;
+  if (d >=  h) return d * (invR - 1);
+  var k = d + h;
+  return (invR - 1) * k * k / (2 * W);
+}
+function onepole(ms, fps){ return Math.exp(-1/((ms/1000)*fps)); }
+
+var T0 = -26, W0 = 12, INVR = 1/4;
+function sourceDb(t){
+  var bed = -34 + 5*Math.sin(t*0.55) + 2.2*Math.sin(t*1.9);
+  var swell = 7*Math.sin(t*0.17);
+  var hit = 0, ph = t % 2.35;
+  if (ph < 0.30) hit = 21 * Math.pow(1 - ph/0.30, 2.2);
+  var ph2 = (t + 1.17) % 4.7;
+  if (ph2 < 0.22) hit = Math.max(hit, 15 * Math.pow(1 - ph2/0.22, 2.0));
+  return Math.min(bed + swell + hit, -1.5);
+}
+
+var cv = document.getElementById('ecg'), cx = cv.getContext('2d');
+var CW = cv.width, CH = cv.height;
+var N = 500, hist = [], t = 0;
+var ATT = onepole(9,60), RF = onepole(90,60), RS = onepole(720,60);
+var envGR = 0, gF = 0, gS = 0;
+
+function step(){
+  t += 1/60;
+  var inDb = sourceDb(t);
+  var tgt = computeGR(inDb, T0, W0, INVR);
+  if (tgt < envGR){ envGR = ATT*envGR + (1-ATT)*tgt; gF = gS = envGR; }
+  else {
+    gF = RF*gF + (1-RF)*tgt;
+    gS = RS*gS + (1-RS)*tgt;
+    var d = Math.abs(gF - gS), w = d/(d+3);
+    envGR = w*gF + (1-w)*gS;
+  }
+  hist.push({ i:inDb, o:inDb+envGR, g:envGR });
+  if (hist.length > N) hist.shift();
+}
+
+function draw(){
+  cx.clearRect(0,0,CW,CH);
+  if (hist.length < 2) return;
+  var padL = 12, padR = 12, w = CW - padL - padR;
+  var laneH = CH * 0.46, lane2 = CH * 0.52;
+  var step2 = w / (N-1);
+  var X = function(i){ return padL + i*step2; };
+
+  /* --- LEAD I: the flatline, gain reduction, deflecting DOWN --- */
+  var base1 = laneH * 0.30, scale1 = (laneH * 0.60) / 24;
+  cx.beginPath();
+  cx.setLineDash([3,4]); cx.strokeStyle = '#c98a84';
+  cx.moveTo(padL, base1); cx.lineTo(CW-padR, base1); cx.stroke(); cx.setLineDash([]);
+
+  cx.beginPath();
+  hist.forEach(function(p,i){
+    var y = base1 + (-p.g) * scale1;
+    i ? cx.lineTo(X(i), y) : cx.moveTo(X(i), y);
+  });
+  cx.strokeStyle = '#171c22'; cx.lineWidth = 2.6;
+  cx.lineJoin = 'round'; cx.lineCap = 'round'; cx.stroke();
+
+  /* leading marker, like a monitor cursor */
+  var lastX = X(hist.length-1), last = hist[hist.length-1];
+  cx.beginPath(); cx.arc(lastX, base1 + (-last.g)*scale1, 5, 0, 7);
+  cx.fillStyle = '#171c22'; cx.fill();
+
+  /* --- LEAD II: level, in (faint) and out (solid) --- */
+  var top2 = lane2, h2 = CH - lane2 - 10;
+  var Y2 = function(db){
+    var v = Math.max(-60, Math.min(0, db));
+    return top2 + (-v/60) * h2;
+  };
+  cx.beginPath();
+  hist.forEach(function(p,i){ var y = Y2(p.i); i?cx.lineTo(X(i),y):cx.moveTo(X(i),y); });
+  cx.strokeStyle = '#9aa3ab'; cx.lineWidth = 1.6; cx.stroke();
+
+  cx.beginPath();
+  hist.forEach(function(p,i){ var y = Y2(p.o); i?cx.lineTo(X(i),y):cx.moveTo(X(i),y); });
+  cx.strokeStyle = '#1f5b8f'; cx.lineWidth = 2.4; cx.stroke();
+
+  /* the line (threshold) */
+  cx.beginPath(); cx.setLineDash([7,6]);
+  cx.moveTo(padL, Y2(T0)); cx.lineTo(CW-padR, Y2(T0));
+  cx.strokeStyle = '#b4302f99'; cx.lineWidth = 1.6; cx.stroke(); cx.setLineDash([]);
+
+  document.getElementById('ecgRead').textContent =
+    'GR ' + last.g.toFixed(1) + ' dB   ·   IN ' + last.i.toFixed(1) +
+    '   ·   OUT ' + last.o.toFixed(1);
+}
+
+var running = true;
+document.addEventListener('visibilitychange', function(){ running = !document.hidden; });
+var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function frame(){ if (running){ step(); draw(); } requestAnimationFrame(frame); }
+if (reduce){ for (var i=0;i<N;i++) step(); draw(); } else frame();
+
+/* barcode */
+(function(){
+  var b = document.getElementById('bars'), s = '';
+  var x = 7919;
+  for (var i=0;i<46;i++){ x = (x*16807) % 2147483647; s += '<i></i>'; }
+  b.innerHTML = s;
+})();
+
+/* ============================================================
+   labs
+   ============================================================ */
+var LABS = [
+  /* ------------------------------------------------------------
+     The rows between the COUNTS markers are DERIVED. Run
+     `node rigor_counts.js` and they are rewritten from what the
+     suite actually produces; `--check` fails if this file ever
+     states a figure the suite does not.
+
+     This table is why the tool exists. It read "parity 26,022,
+     core 160" for four rounds after both stopped being true,
+     sitting under a heading that says these are current vitals.
+     The rows BELOW the marker are narrative — what was found,
+     what was got wrong — and stay hand-written, because no
+     harness can count those.
+     ------------------------------------------------------------ */
+<!-- COUNTS:LABS BEGIN — generated by rigor_counts.js, do not hand-edit -->
+  ['Parity gate — JS vs C++ twin', '61,694', 'bit-exact', 'n', 'Every figure in this table is measured by <code>rigor_counts.js</code>, not typed. This row used to read 26,022 four rounds after it stopped being true.'],
+  ['Core harness', '233', 'all green', 'n', ''],
+  ['Audits', '46', 'all green', 'n', 'Latency, automation, transitions, extremes, state round trip, and whether the advice functions deliver what they promise.'],
+  ['UI-logic harness', '114', 'all green', 'n', ''],
+  ['Plugin lint', '28', 'all green', 'n', ''],
+  ['Fuzzer', '18', 'all green', 'n', ''],
+  ['Stress', '50', 'all green', 'n', 'Hostile input samples, recovery, determinism, block boundaries inside the control interval.'],
+  ['Mutation', '11 killed', '0 survived', 'n', '1 equivalent — cannot be killed, and the tester flags an equivalent mutant that DIES, which would mean a test asserts something false.'],
+  ['Regression baselines', '35 / 35', 'byte-stable', 'n', 'Every factory case is a baseline, read straight out of the instrument so the list cannot drift.'],
+  ['Coverage census', 'clean', 'no unexplained gaps', 'n', ''],
+  ['Host parameters · state fields', '47 · 38', 'in step', 'n', 'The census fails if a field exists that no host can reach.'],
+  ['Topologies, measured', '4', 'distinct', 'n', 'Counted off the STYLE table. Was 3-not-4 until Spasm was given its own peak decay.']
+<!-- COUNTS:LABS END -->
+,
+  ['Bugs found this round', '4', 'real', 'n', 'The substrate hang (wider than reported \u2014 it took legal FINITE arguments too); the bypass that reported a latency it did not apply; the same bypass leaving its delay line unfed, so LEAVING bypass dropped audio; multiband bypass not actually bypassing.'],
+  ['Bad assertions found', '3', '\u2014', 'h', 'All mine. Comparing a non-linear-phase crossover against a pure delay and calling the 1.16 error a bug; measuring sine peaks at 6 samples/cycle and reading the -1.25 dB sampling artefact as filter response; testing threshold-glide symmetry through the gain envelope, where attack and release are SUPPOSED to differ. Running tally: about eighteen against ten real bugs.'],
+  ['Siblings', 'READ ONLY', 'verified, not written', 'n', 'shared/ was edited for the first time with the attending\u2019s consent. AUTOPSY and CASKET were run, never modified: hashes unmoved, AUTOPSY\u2019s gate recompiled against the modified header still bit-exact. NECROPHONE turned out never to have been exposed.']
+];
+var tb = document.getElementById('labs');
+LABS.forEach(function(r){
+  var tr = document.createElement('tr');
+  tr.innerHTML = '<td>'+r[0]+'</td><td class="val">'+r[1]+'</td><td class="ref">'+r[2]+
+    '</td><td><span class="flag '+r[3]+'">'+(r[3]==='n'?'NORMAL':'NOTED')+'</span></td>'+
+    '<td style="color:var(--ink-lt);font-size:12.5px">'+r[4]+'</td>';
+  tb.appendChild(tr);
+});
+
+/* ============================================================
+   progress notes
+   ============================================================ */
+var NOTES = [
+  ['08:15', 'Patient admitted and named. <b>RIGOR</b> — rigor mortis, the stiffening, which is what a compressor does to a signal. Vocabulary established: the stiffening curve, the chart, <b>the flatline</b>, the line, case files. Styles answer to Fresh · Settling · Spasm · Repose.'],
+  ['09:40', 'Architecture drawn — <code>RIGOR_ARCHITECTURE.md</code> v0.1. Scope settled with reasons rather than vibes: sidechain filter, lookahead, parallel mix and auto-release all in; oversampling deliberately out, as it treats aliasing from hard corners and this patient has none.'],
+  ['10:05', '<b>Phase 0 — the extraction.</b> necromath moved to <code>shared/</code>, shared with AUTOPSY rather than forked. AUTOPSY re-examined afterwards: all five regression hashes and all 5,176 parity checks unchanged. The refactor moved 50 lines between files and not one rendered bit followed.'],
+  ['11:20', '<b>Boundary defect found and corrected before it shipped.</b> The gain computer&rsquo;s second branch must test <code>d &gt;= W/2</code>, not <code>&gt;</code>. With a hard knee the single point <em>x</em> = threshold escapes both outer branches, lands in the quadratic branch and evaluates 0/0 — NaN into the envelope, from which a feedback topology never recovers. Caught by verifying the chart&rsquo;s own animation against the shipped maths. Same species as AUTOPSY&rsquo;s <code>isFinite</code> threshold bug: the legal value that is also the boundary value.'],
+  ['12:00', 'Second defect, same session. The linear branch is now <code>d*(invR-1)</code> rather than <code>(T + d*invR) - x</code>. Algebraically identical, but the textbook form computes <em>y</em> then subtracts <em>x</em>, and <code>T + (x-T)</code> does not always return exactly <em>x</em>. That residue gave a 1:1 ratio ~1e-15 of gain reduction instead of zero, which would have quietly broken the bitwise null test.'],
+  ['13:30', '<b>Phase 1 — the body.</b> <code>rigor_core.js</code> complete: soft-knee gain computer, peak and RMS detection, per-sample gain envelope, program-dependent auto-release, hold, range, sidechain filter with listen and external input, lookahead delay, parallel mix with the dry tapped <em>after</em> the delay, stereo link, analytic auto-makeup, and all four topologies.'],
+  ['15:10', 'Browser instrument delivered — the stiffening curve and the chart, both fed from the core&rsquo;s own <code>transferAt</code>. Draggable threshold, Case A/B, undo lineage, ten factory cases, whole-page drop, keyboard access, and a shortcuts sheet.'],
+  ['17:45', '<b>Phase 2 — the twin.</b> <code>RigorCore.h</code> ported and proven: <b>7,759 parity checks, all bit-exact, on the first compile.</b> 22-parameter APVTS, processor with host latency reporting and a real sidechain bus, editor drawing the curve from the identical maths, CMake and CI. Plugin written compile-first, per house rules.'],
+  ['18:20', 'Vitals rechecked on discharge. Both patients green. AUTOPSY unharmed.'],
+  ['18:45', '<b>SECOND COURSE ordered.</b> Beginning with the shared-code defect flagged at rev 02: <code>necrodyn.js</code> computed gain reduction by differencing — <code>kneeOut(x) - x</code> — which loses the last bits and, worse, returns exactly 0 whenever the true reduction is smaller than one ulp of <em>x</em>. Rewritten to compute the reduction directly. <b>ND and RIGOR now agree bit-for-bit at all 171,288 sampled points.</b>'],
+  ['19:10', '<b>Cross-contamination confirmed and cleared.</b> On checking the sibling in Bed 3, CASKET was found already failing before this session touched anything: its <em>lead</em> style was overshooting the lid by <b>103%</b> and firing the safety clamp <b>17,756 times</b> per 48,000 samples — clipping, not limiting — and its <code>lead</code> regression hash had drifted. The differencing bug was the cause. After the correction: clamp overshoot <b>7.1e-13</b>, hits down to 74, all 103 CASKET tests green, and the <code>lead</code> hash returned to <b>its original blessed value <code>d2b62be5</code></b>. The baseline was right all along; the code had moved away from it.'],
+  ['19:40', '<b>Metering to specification.</b> True peak by 4&times; polyphase interpolation, and LUFS momentary / short-term / integrated with the two-stage BS.1770 gate. K-weighting designed parametrically rather than pasted from the standard&rsquo;s 48 kHz table, so it is correct at 44.1, 88.2, 96 and 192 k as well.'],
+  ['20:05', '<b>A counterintuitive result, pinned by assertion.</b> The true-peak meter gets <em>worse</em> with more taps: 8 taps err by -0.049 dB, 12 by +0.451, 16 by +0.613. A Blackman window over a short span already narrows the passband, and normalising each phase to unity DC then boosts the response until it overshoots near fs/4. The tap count is therefore load-bearing, and the harness pins it so nobody improves it by accident.'],
+  ['20:30', 'Delta listening, mid/side placement, release-curve shaping, denormal guard, auto-threshold and the sidechain analyser tap. Delta is <em>exactly</em> silent when idle rather than nearly so, and wet + delta reconstructs the dry path to within 1e-16.'],
+  ['21:15', '<b>Twin re-proven.</b> Everything new ported and gated: <b>10,636 parity checks, all bit-exact on the first compile.</b> Plugin taken to 25 parameters with a bespoke editor replacing the generic panel, and Case A/B moved into the processor so the comparison survives the window closing.'],
+  ['21:40', 'Discharge check across all three beds: RIGOR 125 + 68 + 12 + 10,636 green; AUTOPSY 5,176 and five hashes untouched; CASKET 103 green and ten hashes stable.'],
+  ['19:55', '<b>RECORDS COLLISION.</b> A second case file for this patient was found open under a different lineage — one built on the shared <code>necrodyn</code> substrate rather than its own. Both were being written to simultaneously; the core was overwritten three times mid-procedure. Work was HALTED rather than risk a corrupted merge. Attending instructed: keep the shared-substrate lineage, port the other work onto it.'],
+  ['20:05', 'Three failures were sitting in the surviving lineage\u2019s own harness. <b>Two were test defects, not code defects.</b> A necromath-consistency check that derived its Butterworth Q with <code>Math.cos</code> instead of <code>NM.cos</code> — one ulp apart, and with the correct Q all five coefficients matched bit-for-bit. A steady-state check reading -16.80 dB against a predicted -17, which is peak-follower ripple at 200 Hz; at 2 kHz it reads -16.98. And a soft-knee makeup expectation that cannot be satisfied: makeup is evaluated at 0 dBFS, 20 dB above threshold, while the knee clamps at 30 dB and so spans at most &plusmn;15.'],
+  ['20:15', 'Ported onto the surviving lineage: delta listening, mid/side placement, release-curve shaping, the denormal guard, true-peak and LUFS and correlation metering, the deterministic FFT, auto-threshold and loudness-match. All 61 existing checks and every regression hash held throughout — the additions are genuinely additive.'],
+  ['20:25', '<b>Multiband.</b> Linkwitz-Riley 1\u20133 bands with the allpass correction on the low band. Measured by sine sweep rather than FFT so the proof does not depend on the analyser\u2019s window: the summed response is flat to <b>0.0007 dB</b> from 30 Hz to 16 kHz. Without the correction the 3-band sum sags <b>0.108 dB</b> at 300 Hz — the correction is worth 150&times;.'],
+  ['20:30', '<b>A bug in my own wrapper.</b> At one band the multiband path was NOT bit-identical to the single engine. Cause: the wrapper primed its inner engines at construction, and engines snap on their first <code>setState</code> and glide afterwards — so the caller\u2019s first real state glided in from the defaults instead of snapping to it. Removing the priming fixed it for all four styles.'],
+  ['20:35', '<b>The instrument was quietly broken and every harness was green.</b> The browser control rack still named v0.2 state fields — <code>sc.hp</code>, <code>lookahead</code>, <code>sc.ext</code> — which do not exist on this core, so those controls were reading undefined. Realigned, and a UI assertion added that every control key must resolve against real state. A harness that only checks what it was told to check will pass while the product does not work.'],
+  ['21:20', '<b>The C++ twin rebuilt from scratch</b> on the shared substrate. First run: <b>7,507 of 22,036 checks failed</b>, worst 9.2e13 ulp, every mismatch appearing only after the first transient. Cause: the peak follower. The JS writes <code>pk *= c; if (|x| &gt; pk) pk = |x|</code> — decay first, then take the max. The port wrote the equivalent-looking <code>pk = |x| &gt; pk ? |x| : c*pk</code>, which takes the decay branch whenever the level merely holds. Two expressions that are algebraically identical are not identical when a comparison sits between them.'],
+  ['21:45', '<b>Parity gate closes at 22,036 checks, all bit-exact.</b> The <em>in progress</em> row in the shared contract is retired. Discharge check: RIGOR 120 + 56 + 17 baselines + 22,036 parity; AUTOPSY 56 and 5,176 untouched; CASKET 153 and ten hashes stable.'],
+  ['22:10', '<b>FOURTH COURSE.</b> Began with a finding: the JUCE sources had gone stale against this lineage. The processor was still writing <code>s.sc.on</code> and <code>s.lookahead</code> \u2014 fields this core does not have \u2014 so the plugin could not have compiled at all. Rebuilt onto <code>rigor::Multi</code> with a 41-parameter layout including the multiband set.'],
+  ['22:25', '<b>A lint that needs no compiler.</b> There is no JUCE in the sandbox, so the first real build happens on CI \u2014 but the failures this project actually produces do not need a compiler to catch. <code>rigor_plugin_test.js</code> checks that every parameter the editor binds exists, that none is wired twice, that every state field the processor writes exists on the core, that every method the editor calls is declared, that the twin mirrors the core, and that laws 1 and 2 hold in CMake, CI and the header. <b>It found six real gaps on its first run</b> \u2014 the twin was missing this round\u2019s DSP entirely.'],
+  ['22:40', '<b>Tempo-synced release</b>, and the design decision that makes it safe: the tempo lives in the STATE. The processor reads the playhead and writes BPM into <code>rigor::State</code>; the DSP never asks anyone for the time. A synced release therefore stays a pure function of the case file, which is the only reason byte-stable regression survives a feature nominally about the host\u2019s clock.'],
+  ['22:55', '<b>Oversampled detection.</b> The detector can now run on the 4&times; interpolated peak rather than the sample, so the compressor reacts to an inter-sample peak <em>before</em> it becomes a sample peak. The demonstration is stark: on a signal sitting 3 dB over threshold whose peaks fall exactly between samples, the sample detector reads <b>0.000 dB of reduction</b> and the interpolating one reads <b>-2.46</b>. Theory predicts -2.63; the difference is follower droop.'],
+  ['23:05', 'Analytic per-band makeup, and a measured CPU budget rather than a hoped-for one: one band at 70&times; realtime, three bands at 16&times;, three bands with everything on at 13&times; \u2014 about nine instances of the heaviest configuration in a 70%-loaded session.'],
+  ['23:20', 'Browser instrument gains the multiband rack: band count, both crossovers, and a strip per band with threshold offset, gain, mute and solo. The UI harness was extended to follow array addressing \u2014 <code>band.2.gain</code> \u2014 because the assertion that every control resolves against real state is only worth having if it can see every control.'],
+  ['23:35', '<b>Parity gate to 24,833, bit-exact on first compile.</b> Discharge: RIGOR 137 + 56 + 27 + 20 baselines + 24,833 parity. AUTOPSY and CASKET untouched for the fourth round running.'],
+  ['00:10', '<b>FIFTH COURSE, and a standing instruction: RIGOR only.</b> Nothing outside this ward is to be touched without the attending\u2019s consent. Noted and observed — the shared substrate and both siblings are unmodified this round.'],
+  ['00:25', '<b>A fuzzer.</b> 1,600 hostile inputs to the sanitiser, hundreds of random states rendered against eight kinds of unpleasant material, and the null test itself fuzzed across every other setting. Seeded, so a failure reproduces by running it again.'],
+  ['00:40', '<b>It found a real bug on its first run.</b> Push both crossovers to the top of their range and they both pin at 20 kHz with no separation left between them. The splitter\u2019s own <code>nb = na &times; 1.1</code> rule then designs a section at <b>23,760 Hz</b> — past 0.45&middot;fs at 48 k and past Nyquist below it. The fix is to push the LOWER crossover down first instead of raising the upper one and clamping it back. Mirrored in the twin, and the parity gate now carries two cases that press that ceiling.'],
+  ['01:05', '<b>And it reported six failures that were mine, not the engine\u2019s.</b> I tried to bound the output with an analytic model of the gain staging and was wrong six times: a flat constant that ignored the legal 7.5e5 ceiling; forgetting mid/side reaches twice a channel; forgetting a Linkwitz-Riley split RINGS; measuring that ringing on a step when noise excites it 1.7&times; harder; treating sidechain-listen as input gain alone when in a multiband it still meets per-band gain; and using the global auto makeup when each band computes its own from its SHIFTED threshold — a -24 dB offset turns 39.98 dB into 55.55.'],
+  ['01:20', '<b>The lesson, and the redesign it forced.</b> A bound that re-derives the signal path is a second implementation of it, with its own bugs and none of the tests. So the assertion was split: over the full random space it now checks only what can be guaranteed — finite, and below a ceiling far above anything the parameter ranges permit. The tight bound moved to a subspace where gain staging is unity and a compressor can therefore only ever make things quieter. That one runs at <b>98% of its allowance</b>, so it has teeth.'],
+  ['01:40', 'Sample-rate sweep: EBU 3341 case 1 reads -23 LUFS at all five rates, and reported latency scales correctly with each. Host behaviour: 32, 127 and whole-buffer blocks agree exactly, and calling setState every block with an unchanged state is a no-op — which is what a DAW actually does.'],
+  ['02:00', '<b>The analyser finally draws.</b> The FFT and the sidechain tap have existed since the third course with nothing rendering them. There is now a spectrum under the chart showing what the DETECTOR hears, with the sidechain corners marked, the crossover splits marked, and each band\u2019s gain reduction drawn over the frequency range it actually governs.'],
+  ['02:15', 'Also repaired: one factory case still carried a pre-ND field name and had been silently falling back to defaults since the lineage merge. A UI assertion now forbids the old names outright.'],
+  ['02:30', '<b>Discharge.</b> RIGOR 137 + 61 + 27 + 18 + 20 baselines + 25,693 parity, all green. CI now runs the plugin lint and the fuzzer on every push. Nothing outside RIGOR/ was touched.'],
+  ['03:10', '<b>SIXTH COURSE — ten orders.</b> Opened by noticing something that had been true for two rounds without anyone catching it.'],
+  ['03:15', '<b>The version strings disagreed, and the test that checked them was lying.</b> The JS core said <code>0.1</code>. The twin said <code>0.3</code>. And the plugin lint asserted a hardcoded <code>&quot;0.3&quot;</code> under the label &ldquo;RigorCore.h version matches the JS core&rdquo; — so it passed, cheerfully, for two rounds while the two files disagreed. Both unified to <b>0.5</b>, and the assertion now reads the core&rsquo;s actual version and compares. <b>An assertion that names its expected value is not checking anything; it is restating itself.</b>'],
+  ['03:35', '<b>The FFT had zero parity coverage.</b> It is core DSP, it uses necromath twiddles, and it had never been gated — only the things I remembered to add were in there. Ported to the twin and gated, including the raw real and imaginary output so a bit-reversal or twiddle-order slip cannot hide behind a magnitude. Bit-exact on first compile. Parity now <b>26,022</b>.'],
+  ['04:00', '<b>Case-file migration.</b> A file saved before the lineage merge uses different names, and a bare sanitise drops every one of them and hands back defaults — the file opens, looks wrong, and says nothing. That had already happened to a factory case. <code>migrateCase</code> translates by SHAPE rather than by a version number, because the files needing migration are exactly the ones written before anyone thought to put a version in them.'],
+  ['04:15', 'The one ambiguous corner is documented rather than hidden: <code>mix: 1</code> means 100% in an old file and 1% in a new one, and nothing in the number distinguishes them. The rule is that a bare 1 reads as the OLD full scale, because that is what every pre-merge file meant. Written down in <code>docs/CASE_FORMAT.md</code> instead of left as a surprise.'],
+  ['04:30', 'Loudness-matched A/B wired to the real core helper — comparing two compressor settings by ear without level-matching them only tells you which is louder. Five factory cases added so the set actually demonstrates multiband, true-peak detection and tempo sync rather than just the basics.'],
+  ['04:45', '<b>The architecture document was rewritten from scratch.</b> It was still the v0.1 sketch, describing a lineage that no longer exists — wrong field names, wrong feature set, wrong everything. A stale document that reads as current is worse than no document. The new one carries the decisions that actually carry weight and a section of lessons this project has paid for.'],
+  ['05:00', '<b>Discharge.</b> RIGOR 153 + 69 + 27 + 18 + 20 baselines + 26,022 parity, all green. Nothing outside RIGOR/ touched, second round running.'],
+  ['06:00', '<b>SEVENTH COURSE — twenty orders.</b> Built <code>rigor_audit.js</code> for the properties a HOST depends on, which the other harnesses miss because they call the engine politely: latency compensation end to end, multiband delay consistency, parameter automation at audio rate, state changing every block, denormal decay, extreme sample rates, and the plugin state round trip.'],
+  ['06:20', '<b>Two real bugs, immediately.</b> First: the crossover\u2019s filters were NOT denormal-guarded. A three-band split leaves six filter chains per channel ringing after every decay, and they settle into denormals rather than zero — measured at ~1e-314, inaudible and worth 50–100&times; CPU for as long as the track is silent. The shared biquad is CASKET\u2019s and unguarded, so RIGOR now carries its own guarded one rather than changing shared code. It moved no regression hashes: the fix only touches the silent tail.'],
+  ['06:45', '<b>Second, and worse: my own case-file migration was corrupting current files.</b> It sniffed values — &ldquo;is it 1 or less? then it must be the old 0–1 scale&rdquo; — which looks reasonable and is wrong. <code>link = 0.11</code> is a legal current value meaning 0.11%, and the sniff silently turned it into 11%. <b>A saved session would have reopened louder than it was closed.</b> The round-trip audit caught it. Rewritten to key on a STRUCTURAL marker — a file is old only if it carries <code>lookahead</code> or an <code>sc</code> block — and the format document was corrected to match.'],
+  ['07:10', 'And two more bad assertions of mine, both in the new audit, both the same species: comparing an allpass output sample-by-sample against its input. A Linkwitz-Riley split moves phase, which is the entire point of it. Then a second wrong version — &ldquo;lookahead shifts the output by L&rdquo; — which is also false, because with lookahead the gain deliberately LEADS the audio. The property that IS true and does isolate the delay: at 1:1 the gain is exactly 1, so lookahead can only delay. That one passes to the bit.'],
+  ['07:40', '<b>Every factory case is now a regression baseline.</b> Fifteen presets were the settings most likely to be used and least likely to be tested — none was covered. They are read straight out of <code>rigor.html</code> so the list cannot drift from the shipped instrument. Baselines 20 &rarr; <b>35</b>.'],
+  ['08:15', '<b>THE FINDING OF THE ROUND.</b> Measuring the four styles for a documentation table produced something the documentation had been getting wrong since the first architecture sketch: <b>Fresh and Spasm are the same signal path.</b> Driven with identical explicit settings they render BIT-IDENTICALLY. Both are feedforward, peak-detecting, gain-smoothed. They differ only in the defaults written when you pick them. There are <b>three topologies and four presets</b>, not four topologies.'],
+  ['08:30', 'Spasm is a <em>good</em> preset — fast attack, hard knee, quick release is exactly what punch wants — but the claim was wrong and is now corrected in the README, the architecture document and a new <code>docs/STYLES_MEASURED.md</code>. A harness asserts the topology COUNT, derived from the style table rather than named, so the claim cannot drift from the code again.'],
+  ['08:45', 'Giving Spasm a real differentiator is a small change — its own peak-follower decay, 2 ms against Fresh\u2019s 15, would track transients far more tightly. It is deliberately NOT done here: it changes how a style <em>sounds</em>, which is a judgement to make by ear, not a correctness fix to slip into a batch. It sits at the top of the proposed forty.'],
+  ['09:00', 'Also written: <code>docs/LISTENING_PROTOCOL.md</code> — what to play, what to switch, what to listen for, and the three questions where measurement has run out and only ears are left. Six tests, an hour, and it says up front which comparisons are pointless so that hour is not wasted on them.'],
+  ['09:15', '<b>Discharge.</b> RIGOR 160 + 69 + 27 + 18 + 39 + 35 baselines + 26,022 parity, all green. CI now runs the audits too. Nothing outside RIGOR/ touched, third round running.'],
+  ['10:00', '<b>EIGHTH COURSE — and it had already started without me.</b> Spasm&rsquo;s 2 ms peak follower was in the core, in the twin, and in the core harness. <code>rigor_sync.js</code> had not been run, so the browser instrument was still shipping the old core; eight regression baselines were unblessed; and STYLES_MEASURED.md still stated the opposite finding in full. Finished before touching anything new. All eight drifted hashes were Spasm cases and no others, which is the signature that change should leave — so they could be blessed with confidence rather than hope.'],
+  ['10:40', '<b>The Kaiser window was refused, and the reason the item existed turned out to be a measurement error.</b> The pin on TP_TAPS = 8 was justified by &ldquo;more taps is worse: 8 &rarr; &minus;0.049 dB, 12 &rarr; +0.451&rdquo;. Those readings are real. They were taken from a COLD engine, where a tone starting at full scale is a genuine step, and a sinc interpolator genuinely overshoots at a step — more so the longer the sinc. Kaiser tracks Blackman to within 0.006 dB at every length, which is how you know it is not a window effect at all.'],
+  ['11:00', 'Measured properly — transient skipped, swept over 48 frequencies and 16 phases, target derived from the fact that a unit cosine peaks at exactly 1.0 — the picture inverts: more taps is mildly BETTER, and every design bottoms out at the same &minus;0.436 dB. That floor is <code>cos(2&pi;&middot;0.40/8)</code>, the arithmetic of evaluating a 0.40 fs tone on a 4&times; grid. <b>No window and no tap count can move it; only more oversampling can.</b> The single-case assertion that had been guarding this was reading &minus;0.049 because &minus;0.194 of steady-state error was being partly cancelled by +0.145 of onset overshoot — two errors cancelling, which is exactly what one test case cannot tell you.'],
+  ['11:30', '<b>Selectable detector oversampling, 2 / 4 / 8.</b> Sanitised as a SET rather than a range, because 3 is not a cheaper 4 and rounding it to one would render audio the case file never asked for. The phase offsets nest, so more phases can never report a lower peak — asserted as an invariant. And it only matters on transients: on a sustained tone the sample index already sweeps the fractional offsets densely, and 8 phases agree with 4 exactly. On an isolated blip, 8&times; recovers up to 0.19 dB that 4&times; misses.'],
+  ['12:00', '<b>The program-dependent knee was built, measured, and taken back out.</b> It did nothing, and not because of a bug. A knee only has influence within W/2 of the threshold; outside that band the gain computer is in its linear branch and the width has cancelled out of the expression. So &ldquo;widen it under heavy reduction&rdquo; is self-defeating — heavy reduction means the level is far above the threshold, exactly where the knee has no influence left to give. The measurement table is now a comment where the feature would have been.'],
+  ['12:30', '<b>Hold tapers into release.</b> Four hold sites, two envelope branches. At taper 0 the branch is skipped entirely rather than evaluated with a unity coefficient — <code>moveTo(x, t, 1)</code> would be <em>algebraically</em> identical and not <em>bitwise</em> identical, and this project has a null test to protect.'],
+  ['13:00', '<b>The accessibility defect of the round.</b> <code>if (!reduce) frame();</code> — reduced motion did not reduce motion, it switched the instrument off. A user with the OS setting enabled got a frozen gain-reduction meter and a frozen chart: worse accessibility than the animation was. Now throttled to ~10 fps, with the decision moved into a pure helper so it can be tested without a browser. The canvases got text alternatives at the same time; they were the only output with no text form at all.'],
+  ['13:40', '<b>The fuzzer caught me, for the seventh time in this file&rsquo;s history.</b> Adding two fields to the random state reshuffled the sequence and surfaced a 3-band case at 2.116 against an allowance of 2.04. Neutralising the new fields on the same sequence reproduced it exactly — so the failure had nothing to do with the new features, and the bound was wrong rather than the engine. The allowance was a fitted constant: &ldquo;the crossover rings up to 1.73&times;, measured across six crossover pairs.&rdquo; Six pairs is not a proof. Replaced with the triangle inequality over the real splitter&rsquo;s band peaks — at unity staging every band gain is &le;1, so the output cannot exceed the sum of the band peaks. Holds at 98% of allowance across 4,000 cases.'],
+  ['14:10', '<b>Five bad assertions of my own before the harness went green</b>, and they are worth naming because none was an engine fault: three off-by-ones (a redraw count that assumed t=0 fires, a CSV row index that forgot the header, a stride count that forgot the last element), a regex that matched its own explanatory comment, and a tolerance of 1e-9 demanded of a file written to six decimal places. The last is the instructive one — it asserted more precision than the format carries, and failed on a correct file. The tolerance is now derived from the format constant.'],
+  ['14:30', '<b><code>tests/rigor_styles.js</code> finally exists.</b> STYLES_MEASURED.md has claimed to be generated by it since round 7; no such file was ever written, which is how the numbers drifted and the prose came to contradict the code. The generator checks every style pair BOTH ways — same path and same render — and immediately found the trap: a DC step still reads Fresh and Spasm as identical, because a step never lets the follower decay. The one measurement the document was built on is blind to the one difference just added to it.'],
+  ['14:50', '<b>The twin has a CPU budget.</b> 47&times; realtime worst case against the JS core&rsquo;s 13&times;, on the same cases and the same <code>-ffp-contract=off</code> the parity gate requires — benchmarking a faster build that fails parity would publish a figure for a different plugin. 8&times; detection costs 18% over 4&times;.'],
+  ['07:55', '<b>FULL AUDIT ordered &mdash; and it found a lock-up on the first pass.</b> A single &plusmn;Infinity input sample stops the audio thread forever, at every style and every block size, with the whole suite green. The fuzzer had never handed the engine a bad SAMPLE, only bad settings. Guarded at three points inside RIGOR; the substrate defect is referred out unfixed because it lives in shared/ and touches all four programs. Also: three parameters round 9 never gave the plugin, a lint whose floor could not notice them, two dead files including one of my own failing orphans, and five of the audit&rsquo;s own checks wrong before they were right. Parity 50,718. Core 215, stress 50, coverage clean.'],
+  ['16:40', '<b>NINTH COURSE — scheduled work cancelled, carried out by hand instead.</b> The round turned almost immediately away from the compressor and toward the instruments watching it. A parity run printed a confident all-bit-exact from a binary the linker had failed to replace; the gate now verifies its own check count. A mutation tester was built and five of its twelve mutants walked straight through the entire 198-test suite.'],
+  ['17:05', '<b>Four holes closed, one mutant reclassified.</b> Nothing compared L against R. Nothing checked reported latency against the real delay. The splitter&rsquo;s separation rule had no test that could reach it. The transient-split test was looking through a linked detector that absorbed the error to 6&times;10<sup>&minus;5</sup>. The fifth survivor was an equivalent mutant and my own mistake, and is kept in the list marked as such.'],
+  ['17:20', '<b>Discharge, ninth course.</b> RIGOR 206 + 114 + 27 + 18 + 39 + 35 baselines + <b>42,486 parity</b>, all green. Mutation: 11 killed, 0 survived, 1 equivalent. The browser instrument was found running an older engine than the tests and is now refreshed by a tool that refuses to ship a stale or law-breaking embed. Nothing outside RIGOR/ touched.'],
+  ['15:10', '<b>Discharge.</b> RIGOR 198 + 114 + 27 + 18 + 39 + 35 baselines + <b>36,998 parity</b>, all green, sync idempotent. Fourteen orders carried out, two refused on measurement, four deferred with reasons. Nothing outside RIGOR/ touched — <code>shared/</code>, both siblings and AUDIO_INTERCHANGE.md verified unchanged by checksum. Items 21&ndash;40 remain for the ninth course.']
+];
+var nb = document.getElementById('notes');
+NOTES.forEach(function(n){
+  var d = document.createElement('div');
+  d.className = 'note';
+  d.innerHTML = '<div class="t">'+n[0]+'</div><div class="b">'+n[1]+'</div>';
+  nb.appendChild(d);
+});
+
+/* ============================================================
+   orders
+   ============================================================ */
+var SOLO = [
+  ['Core scaffold — state model, sanitizer, parameter ranges', 'invR stored rather than ratio, so &infin;:1 is an exact zero. isFinite guards throughout, never <code>|| default</code> — 0 is legal for threshold, knee, hold, mix, link and makeup.'],
+  ['Soft-knee gain computer with C&sup1; continuity proven', 'Both junctions asserted, plus the hard-knee boundary case and a 40,500-point NaN sweep. This is where the day&rsquo;s two defects were found.'],
+  ['Peak and RMS detection', 'Peak runs a follower with instant attack and a 2 ms decay, which stops the target rippling at every zero crossing. RMS is a running mean-square one-pole.'],
+  ['Attack/release envelope and the step-response harness', 'Attack defined as time-to-63.2%-of-target-GR. Measured: 10 ms → 10.00, 50 ms → 50.08, 1 ms → 1.00.'],
+  ['Auto-release — dual time constant, blended by d/(d+3)', 'Transients diverge the fast and slow envelopes and the fast one wins; sustained material lets them converge. The same soft-saturating shape AUTOPSY used for its dynamic bands.'],
+  ['Hold counter and range clamp', 'Exact integer and clamp operations, so they cost the parity gate nothing.'],
+  ['Sidechain highpass/lowpass, plus listen', 'Butterworth Q written as an explicit literal so the C++ twin cannot disagree about what M_SQRT1_2 rounds to.'],
+  ['Lookahead delay line and the host-latency hook', 'In from the first commit at a 0 ms default. Changing it clears the line rather than glitching through, because latency is a host event, not a smoothable parameter.'],
+  ['Parallel mix, dry tapped after the delay', 'Proven by assertion: mix = 0 with 5 ms lookahead returns the dry delayed by exactly 240 samples, bit-for-bit.'],
+  ['Stereo link, 0–100%', 'Proven both ways: at 100% both channels take identical gain reduction; at 0% the quiet channel keeps more of its level.'],
+  ['The four topologies — Fresh, Settling, Spasm, Repose', 'Four signal paths. Settling runs a feedback detector and smooths level instead of gain, with attack that speeds up the harder it is hit, as a real optical cell does.'],
+  ['Analytic auto-makeup', 'The gain computer at 0 dBFS, negated. Never measured from the signal — a measured estimator would make output depend on playback history and break byte-stable regression.'],
+  ['Core harness, 77 checks', 'Five separate bitwise null tests: 1:1 ratio, threshold above signal, mix = 0, bypass, and range = 0 must each return the input unchanged to the last bit.'],
+  ['Regression harness and eight blessed baselines', 'idle · fresh · settling · spasm · repose · lookahead+mix · sidechained · external.'],
+  ['Two-embed sync and the browser shell', 'necromath then core, with the order asserted by a test because the core closes over NM. Accessible mirrored controls throughout.'],
+  ['The stiffening curve display', 'Drawn from the core&rsquo;s own transferAt, so the browser and the plugin cannot disagree about what the curve is.'],
+  ['The chart — scrolling history, the flatline, draggable threshold', 'Drag the gold line to set threshold directly.'],
+  ['Sources, case files, Case A/B, undo lineage, shortcuts sheet', 'Panel sliders commit without rebuilding the rack — the exact bug AUTOPSY shipped in v0.4 and had to fix mid-drag.'],
+  ['<b>RigorCore.h</b> and the parity gate', '<b>7,759 checks, all bit-exact on the first compile.</b> Gain computer grid, time constants, sidechain coefficients, transfer curves, and seven rendered cases including the feedback canary.'],
+  ['JUCE scaffold, CI workflow, README', '22-parameter APVTS, a real sidechain bus, latency reported only when it changes, and -ffp-contract=off enforced in CMake.']
+];
+
+var SOLO2 = [
+  ['Correct the shared gain computer in <code>necrodyn.js</code>', 'It computed reduction by differencing <code>kneeOut(x) - x</code>. Beyond losing the last bits, that returns exactly 0 whenever the true reduction is smaller than one ulp of <em>x</em> — silently discarding real gain reduction near the knee.'],
+  ['Prove ND and RIGOR now agree', '171,288 sampled points across threshold, knee, ratio and level. Zero disagreements, zero non-finite, zero positive gain reduction.'],
+  ['<b>Trace and clear the CASKET cross-contamination</b>', 'Bed 3 was already failing on arrival: <em>lead</em> overshooting the lid by 103% and clamping 17,756 times per 48,000 samples. After the shared fix: overshoot 7.1e-13, 74 hits, and the drifted hash restored to its original blessed value.'],
+  ['Denormal guard through the envelope and filter state', 'Applied identically in the C++ twin — it changes the arithmetic, so it is part of the contract, not an optimisation the port may skip.'],
+  ['<b>Delta listening</b>', 'Hear only what was removed. Exactly silent when idle, because the gain is then exactly 1 — and wet + delta reconstructs the dry path to within 1e-16.'],
+  ['<b>Mid/side placement</b>', 'An exact matrix, the same algebra AUTOPSY proved. Verified: on mono material M/S is identical to L/R, and at 1:1 the round trip is within one ulp.'],
+  ['<b>True-peak metering</b>, 4&times; polyphase', 'The fs/4 @45&deg; case reads -3.01 on a sample meter and 0.00 dBTP on this one. Worst error across three inter-sample cases: 0.064 dB.'],
+  ['Pin the tap count, because more is worse', '8 taps: -0.049 dB. 12: +0.451. 16: +0.613. The window narrows the passband and unity-DC normalisation then overshoots. Asserted so it cannot be &ldquo;improved&rdquo; silently.'],
+  ['<b>LUFS</b> — momentary, short-term, integrated', 'With the two-stage BS.1770 gate: absolute at -70, then relative at -10 LU below the ungated mean.'],
+  ['K-weighting for five sample rates, not one', 'Designed parametrically instead of pasted from the standard&rsquo;s 48 kHz coefficient table, so 44.1, 88.2, 96 and 192 k are correct too. EBU 3341 case 1 reads -22.99 against -23.0.'],
+  ['Release-curve shaping', 'Blends the exponential recovery toward a constant dB-per-sample ramp. curve = 0 is bit-identical to the plain one-pole, so it costs nothing unused.'],
+  ['Auto-threshold suggestion', 'From a 200-bin level histogram rather than the peak, so one stray transient does not decide the answer. Pure function: same material, same number.'],
+  ['Sidechain analyser tap', 'A rolling window of the filtered detector signal, exposed for the UI to draw.'],
+  ['Core harness 77 &rarr; <b>125</b>', 'Delta nulls, M/S equivalence, true-peak accuracy, LUFS against the EBU reference, curve nulls, denormals, auto-threshold, and the v0.1 bitwise null test re-run against every new feature.'],
+  ['Regression 8 &rarr; <b>12 baselines</b>', 'delta &middot; midside &middot; curved &middot; msdelta. <b>All eight v0.1 hashes survived the feature work untouched</b>, which is the evidence that none of it disturbed the proven paths.'],
+  ['Port every new component to <code>RigorCore.h</code>', 'K-weighting, true-peak taps, loudness gating, delta, M/S, curve, denormals and auto-threshold — mirrored operation for operation.'],
+  ['Parity 7,759 &rarr; <b>10,636 bit-exact</b>', 'Five figures. True-peak taps are <em>derived</em> in both languages rather than table-pasted, so the twin re-computes them instead of trusting a literal.'],
+  ['Plugin to 25 parameters, with Case A/B in the processor', 'Held in the processor rather than the editor, so the comparison survives the window being closed — which is the entire point of an A/B.'],
+  ['<b>A bespoke JUCE editor</b>', 'Replaces the generic parameter list: custom rotaries, the stiffening curve, the chart with the flatline, and the true-peak and LUFS readouts. Caught myself binding the mid/side toggle to the wrong parameter — a choice parameter needs a combo box, not a checkbox.'],
+  ['Browser UI for all of it', 'Delta, placement, release curve, share-as-URL with clipboard copy, auto-threshold button, dBTP and LUFS on the chart, D and P keys. UI harness 38 &rarr; 68.']
+];
+
+var SOLO3 = [
+  ['Reconcile the two lineages onto the shared substrate', 'Attending\u2019s decision. The surviving core builds on <code>necrodyn</code>; everything else was ported onto it rather than the other way round.'],
+  ['Diagnose the three failures in the surviving harness', 'Two turned out to be test defects: a necromath check written with <code>Math.cos</code>, and a soft-knee expectation that cannot be met because 0 dBFS lies outside any legal knee. The third is peak-follower ripple at low frequency, not a bug.'],
+  ['Port delta listening', 'Exactly silent when idle; wet + delta reconstructs the dry path to 5.6e-17.'],
+  ['Port mid/side placement', 'Exact matrix. On mono material M/S is now BIT-IDENTICAL to L/R, not merely close.'],
+  ['Port the release curve', 'Blends the exponential recovery toward a constant dB-per-sample ramp. At 0 it is bit-identical to the plain one-pole.'],
+  ['Port the denormal guard', 'Mirrored operation-for-operation in the twin, because it changes the arithmetic.'],
+  ['Port true-peak metering', '4&times; polyphase. The tap count is empirical and pinned by assertion — more taps measurably makes it worse.'],
+  ['Port LUFS with the two-stage BS.1770 gate', 'Momentary, short-term and integrated. K-weighting designed for five sample rates.'],
+  ['Add the correlation meter', 'Mono-compatibility at a glance: +1.00 on identical channels, 0.00 on decorrelated noise.'],
+  ['Port the deterministic FFT and spectrum', 'Twiddles through necromath so the twin lands on the same bits.'],
+  ['Port auto-threshold and loudness match', 'Both pure functions. Loudness match is the only honest way to compare two settings by ear — without it the louder one always wins.'],
+  ['<b>Build the Linkwitz-Riley crossover</b>', 'LR4 with the allpass correction on the low band. Proven flat to <b>0.0007 dB</b> by sine sweep, so the proof does not depend on the analyser.'],
+  ['<b>Build the multiband wrapper</b>', '1\u20133 bands, each a full engine. Character and timing stay global; threshold offset, gain, mute and solo are per band.'],
+  ['Make one band cost nothing', 'At <code>bands = 1</code> the splitter is bypassed entirely. BIT-IDENTICAL to the single engine for all four styles — which is what let every old baseline stay blessed.'],
+  ['Fix the wrapper\u2019s own priming bug', 'It primed its inner engines at construction, so the first real state glided in from the defaults instead of snapping. That alone broke the bit-identity.'],
+  ['Extend the core harness to 120', 'Crossover flat-sum, multiband nulls, solo-beats-mute, all-muted-is-silent, and the v0.3 boundary sweeps.'],
+  ['Seven new regression baselines, 17 total', 'delta &middot; midside &middot; curved &middot; msdelta &middot; band2 &middot; band3 &middot; bandSolo. The ten existing hashes never moved.'],
+  ['<b>Rebuild the C++ twin from scratch</b>', 'On <code>necrodyn.h</code>, matching the surviving engine operation for operation — including the peak follower, which cost 7,507 mismatches before it was written the same way round.'],
+  ['<b>Parity gate to 22,036 bit-exact</b>', 'Gain computer, one-poles, sidechain sections, K-weighting at five rates, true-peak taps, transfer curves, auto threshold, the splitter, ten rendered cases with meters, three multiband cases with per-band reduction.'],
+  ['Repair the instrument and stop it rotting again', 'The control rack still named v0.2 fields and was reading undefined while every harness passed. Realigned, and a UI assertion added that every control key must resolve against real state.']
+];
+
+var SOLO4 = [
+  ['<b>Rebuild the plugin processor</b> onto the ND state', 'It was still writing <code>s.sc.on</code> and <code>s.lookahead</code> \u2014 fields this core does not have. The plugin could not have compiled.'],
+  ['Take the parameter layout to 41', 'Including band count, both crossovers, and threshold offset, gain, mute and solo per band.'],
+  ['Drive the plugin from <code>rigor::Multi</code>', 'So the plugin gets multiband for free and runs exactly the code the parity gate proves.'],
+  ['Rebuild the editor against the new interface', 'The output trace is now derived from input plus gain reduction, because the processor publishes GR rather than a second peak meter.'],
+  ['Move Case A/B fully into the processor', 'A comparison that does not survive closing the window is not an A/B.'],
+  ['<b>Write a plugin lint that needs no compiler</b>', 'Every editor binding must name a real parameter; no parameter wired twice; every state field the processor writes must exist; every method the editor calls must be declared; the twin must mirror the core; laws 1 and 2 must hold in CMake, CI and the header.'],
+  ['Fix the six gaps it found', 'The twin was missing <code>bandMakeupDb</code>, <code>releaseMs</code>, and the whole of this round\u2019s state \u2014 <code>detOs</code>, <code>relSync</code>, <code>bpm</code>. Work that looked finished was not.'],
+  ['<b>Tempo-synced release</b>', 'Eleven divisions from 1/32 to two bars, resolved against BPM.'],
+  ['Keep the clock out of the DSP', 'The processor reads the playhead and writes BPM into the STATE; the DSP never asks anyone for the time. That is the only reason a tempo feature can coexist with byte-stable regression.'],
+  ['<b>Oversampled (true-peak) detection</b>', 'The detector runs on the 4&times; interpolated peak, so the compressor reacts to an inter-sample peak before it becomes a sample peak. Reuses the meter\u2019s taps.'],
+  ['Prove it with the case that embarrasses a sample detector', '3 dB over threshold, peaks exactly between samples: the sample detector reads <b>0.000 dB</b>, the interpolating one <b>-2.46</b>. Theory says -2.63; the rest is follower droop.'],
+  ['Keep the null test intact through all of it', 'True-peak detection on, 1:1 ratio, still bit-identical to the input.'],
+  ['Analytic per-band makeup', 'The gain computer at 0 dBFS for that band\u2019s effective threshold, negated. Pure, so it cannot make output depend on playback history.'],
+  ['<b>Measure the CPU budget</b> instead of hoping', 'A separate script, deliberately not instrumentation inside the engine \u2014 a timer in the audio path both lies and destroys determinism.'],
+  ['Publish the figure', '1 band 70&times; realtime &middot; 3 bands 16&times; &middot; 3 bands with everything 13&times;. Roughly nine instances of the worst case at 70% load.'],
+  ['Multiband rack in the browser', 'Band count, both crossovers, and a strip per band. Band 3 hides itself at two bands.'],
+  ['Release-sync and true-peak controls in both faces', 'Same parameters, same names, both bodies.'],
+  ['Teach the UI harness to read array addressing', '<code>band.2.gain</code>. The assertion that every control resolves against real state is only worth having if it can see every control.'],
+  ['Core harness to 137, three new baselines', 'Tempo sync purity, the true-peak detection demonstration, per-band makeup ordering. The seventeen existing hashes never moved.'],
+  ['<b>Parity to 24,833</b>, bit-exact on first compile', 'And a §7 entry in the shared contract recording the tempo-in-state decision.']
+];
+
+var SOLO5 = [
+  ['<b>Build a fuzzer</b>', 'Seeded and reproducible, so a failure can be re-run rather than described.'],
+  ['Fuzz the sanitiser with 1,600 hostile inputs', 'NaN, Infinity, empty strings, objects where numbers belong, malformed band arrays. It may never throw, and every field must land inside its range.'],
+  ['Assert the sanitiser is idempotent', 'Sanitising a sanitised state must change nothing, or a case file drifts every time it is opened and saved.'],
+  ['Fuzz the signal path across eight hostile materials', 'Full-scale noise, Nyquist square, impulse train, DC step, digital silence, inter-sample peaks, denormal-adjacent, 19 kHz.'],
+  ['<b>Find the crossover ceiling bug</b>', 'Both crossovers pinned at 20 kHz with no separation; the splitter then designed a section at 23,760 Hz — past 0.45&middot;fs at 48 k and past Nyquist below it.'],
+  ['Fix it by pushing the LOWER crossover down', 'Raising the upper one and clamping it back is what left them equal in the first place. Order of operations, again.'],
+  ['Mirror the fix in the twin', 'And add two parity cases that press the ceiling, so the gate covers the setting that broke.'],
+  ['Fuzz the null test itself', '4,000 random states with everything varied EXCEPT the things that make it a null. Bit-identical every time.'],
+  ['<b>Get the analytic bound wrong six times</b>', 'Flat constant &rarr; forgot mid/side &rarr; forgot the crossover rings &rarr; measured the ringing on the wrong signal &rarr; forgot sidechain-listen meets band gain &rarr; used global auto makeup instead of per-band. The engine was right every single time.'],
+  ['Measure the ringing properly', 'A step gives 1.062&times;. Noise across six crossover pairs gives <b>1.727&times;</b>. Measuring the easy case and calling it the bound is its own mistake.'],
+  ['<b>Redesign the assertion instead of patching it</b>', 'A bound that re-derives the signal path is a second implementation of it, with its own bugs and none of the tests. Split into a loose guarantee over the whole space and a tight one over a knowable subspace.'],
+  ['Verify the tight bound has teeth', 'It runs at 98% of its allowance. A bound at 5% would pass everything and prove nothing.'],
+  ['Sweep five sample rates', 'EBU 3341 case 1 reads -23 LUFS at 44.1, 48, 88.2, 96 and 192 k — the K-weighting really is designed rather than pasted.'],
+  ['Verify latency scales with rate', 'It is reported in samples, so 5 ms means a different number at every rate.'],
+  ['Test how a HOST actually calls it', '32, 127 and whole-buffer blocks must agree exactly. 127 on purpose: a power of two would hide an alignment bug.'],
+  ['Prove setState every block is a no-op', 'Hosts do this constantly. A smoothing reset here would be audible and nothing else would have caught it.'],
+  ['<b>Draw the sidechain analyser</b>', 'The FFT and the tap have existed since the third course with nothing rendering them. Now there is a spectrum showing what the detector hears.'],
+  ['Mark the corners and the splits on it', 'Sidechain highpass and lowpass in red, crossovers in blue, so the filter and the bands are visible against the signal they act on.'],
+  ['Draw per-band gain reduction over its own frequency range', 'A number in a corner does not tell you WHICH band is working.'],
+  ['Repair a factory case, and forbid the failure', 'One case still used a pre-ND field name and had been silently falling back to defaults since the merge. A UI assertion now rejects the old names outright.']
+];
+
+var SOLO6 = [
+  ['<b>Find the version disagreement</b>', 'Core said 0.1, twin said 0.3. Two files that are supposed to be the same program, disagreeing about which program they are.'],
+  ['Find the assertion that was hiding it', 'The plugin lint asserted a hardcoded <code>&quot;0.3&quot;</code> labelled &ldquo;matches the JS core&rdquo;. It passed for two rounds while they disagreed.'],
+  ['Unify both to 0.5 and make the lint DERIVE', 'It now reads the core&rsquo;s actual version and compares. An assertion that names its expected value is restating itself, not checking.'],
+  ['<b>Port the FFT to the twin</b>', 'Core DSP using necromath twiddles that had never been gated — a gap that existed only because nobody thought to add it.'],
+  ['Gate the raw real and imaginary output', 'Not just the magnitude: a bit-reversal or twiddle-order slip hides behind a magnitude. Bit-exact on first compile; parity to 26,022.'],
+  ['<b>Write <code>migrateCase</code></b>', 'Pre-merge case files were being silently reduced to defaults. Translates by shape rather than by a version number, because the files needing it predate versions.'],
+  ['Prove the migration is idempotent and non-destructive', 'Loading twice must not rescale twice, and a current file must pass through untouched. A migration that mangles current files is worse than none.'],
+  ['Wire every external load path through it', 'File picker, whole-page drop, URL hash. The undo stack and A→B copy deliberately do NOT migrate — they deserialise state this session wrote.'],
+  ['Loudness-matched A/B, and five more factory cases', 'The set now demonstrates multiband, true-peak detection and tempo sync instead of only the basics.'],
+  ['<b>Rewrite the architecture document</b>', 'It was still the v0.1 sketch describing a lineage that no longer exists. A stale document that reads as current is worse than no document. Plus <code>docs/CASE_FORMAT.md</code> for the file format.']
+];
+
+var SOLO7 = [
+  ['<b>Build <code>rigor_audit.js</code></b>', 'The properties a HOST depends on, which the other harnesses miss because they call the engine politely.'],
+  ['Latency compensation, end to end', 'Six lookahead settings; the reported number must line the audio back up bit-exactly, and the delay line must start from silence rather than stale memory.'],
+  ['Multiband delay consistency', 'All three bands share one lookahead setting, so they must share one delay. A one-sample mismatch would smear the sum.'],
+  ['Automation sweeps at audio rate', 'Nine continuous parameters swept every 64 samples. Worst step 2.4&times; the signal&rsquo;s own slew — not a click.'],
+  ['Parameter TRANSITIONS', 'A new random state every block, 300 runs. Style switches rebuild the engine, band-count changes reallocate, lookahead clears the delay line — a different failure surface from static fuzzing.'],
+  ['<b>Find the crossover denormals</b>', 'Six filter chains per channel ringing into ~1e-314 after every decay. Inaudible and worth 50–100&times; CPU for as long as the track is silent.'],
+  ['Give RIGOR its own guarded biquad', 'The shared one is CASKET&rsquo;s and unguarded. A RIGOR-local need is met in RIGOR rather than by changing shared code.'],
+  ['Mirror the guard in the twin', 'And confirm it moved no regression hashes — the fix only touches the silent tail.'],
+  ['Denormal decay, end to end', 'Every style at 1 and 3 bands must reach EXACT zero after the signal stops. Not small. Zero.'],
+  ['Extreme sample rates: 22.05 k and 384 k', 'Where the crossover Nyquist guard and the true-peak taps would break. Crossovers above Nyquist are clamped, not designed.'],
+  ['<b>Find the migration corrupting current files</b>', 'It sniffed values: &ldquo;is it 1 or less? must be the old scale.&rdquo; <code>link = 0.11</code> is a legal 0.11% and became 11%. <b>A saved session would reopen LOUDER than it was closed.</b>'],
+  ['Key the migration on a STRUCTURAL marker', 'A file is old only if it carries <code>lookahead</code> or an <code>sc</code> block. Values are never used to guess intent.'],
+  ['Correct the format document', 'It described the value-sniffing rule as though it were sound. Documenting a bad rule clearly does not make it good.'],
+  ['Plugin state round trip', '200 random states through serialise, store, restore — identical numbers AND bit-identical audio. Host sessions depend on it and nothing checked it.'],
+  ['Fix two bad assertions of my own', 'Both comparing an allpass output to its input. Then a second wrong version — &ldquo;lookahead shifts the output by L&rdquo; — which is false because the gain deliberately leads the audio.'],
+  ['Find the assertion that IS true', 'At 1:1 the gain is exactly 1, so lookahead can only delay. That isolates the delay from the gain and passes to the bit.'],
+  ['<b>Every factory case becomes a baseline</b>', 'Fifteen presets: the settings most likely to be used and least likely to be tested. Read out of the instrument so the list cannot drift. Baselines 20 &rarr; 35.'],
+  ['<b>Measure the four styles — and find there are three</b>', 'Fresh and Spasm render BIT-IDENTICALLY on identical settings. Three topologies, four presets. The documentation had said four since the first sketch.'],
+  ['Assert the topology COUNT, derived not named', 'From the style table rather than written down, so the claim cannot drift from the code again. And correct the README, the architecture doc, and a new measured-styles document.'],
+  ['Write the listening protocol', 'Six tests, one hour, and it says up front which comparisons are pointless so that hour is not spent on them.']
+];
+
+var NEXT = [
+  ['<b>Give Spasm a real topology</b>', 'Its own peak-follower decay — 2 ms against Fresh&rsquo;s 15 — would track transients far more tightly. Small change, changes how a style SOUNDS, which is why it waits for ears.'],
+  ['A Kaiser window for the true-peak taps', 'The tap count is pinned at 8 because more is worse with a Blackman. A chosen beta removes that ceiling and lets the meter get properly accurate.'],
+  ['Detection at 2&times; and 8&times;', 'Currently fixed at 4&times;. The taps generalise; the question is whether 8&times; is audibly better or merely slower, and that should be measured rather than assumed.'],
+  ['Per-band delta as one control', 'Delta plus band solo already does it, as two switches. One control that says &ldquo;play me what band 2 removed&rdquo; is a different and better thing.'],
+  ['Crossover drag-swap', 'Dragging one crossover past the other currently clamps. It should swap, the way every multiband tool does.'],
+  ['Spectrum on the OUTPUT too', 'Seeing what the detector hears is half of it. Seeing what the compressor did to the spectrum is the other half.'],
+  ['Gain-reduction CSV export', 'So a setting can be analysed offline rather than watched.'],
+  ['Harden the worklet analyser path', 'The spectrum works from the ScriptProcessor fallback; the worklet needs to post its tap for the fast path to be live.'],
+  ['CPU budget for the C++ twin', 'The measured figure is the JS engine. The twin is what ships, and its number is the one that decides an instance count.'],
+  ['Keyboard and accessibility audit', 'Every control reachable and adjustable without a mouse, and the accessible panel checked against the canvas rather than assumed to match.'],
+  ['Reduced-motion and eco-pause verification', 'Both implemented, neither tested.'],
+  ['A preset browser with tags', 'Fifteen cases in a flat list is where a personal tool stops and a product starts.'],
+  ['Undo across parameter automation', 'The undo lineage covers discrete actions. It does not know what a host did.'],
+  ['A/B/C/D rather than A/B', 'Two slots is enough to compare; four is enough to decide.'],
+  ['Case-file diffing', '&ldquo;What is different between these two settings?&rdquo; is a question the format can answer and currently does not.'],
+  ['Sidechain from a band', 'Let band 3 duck band 1. The routing already exists internally; only the exposure is missing.'],
+  ['Program-dependent knee', 'The knee is static. Widening it under heavy reduction is what several classic designs do and nobody documents.'],
+  ['Transient / sustain split detection', 'Two detectors with different time constants, blended by which is winning — a different way to get punch than a fast attack.'],
+  ['A hold-then-release envelope shape', 'Currently hold is a counter and release is a curve. Making hold part of the curve would let it taper rather than switch.'],
+  ['Oversample the audio path, optionally', 'Deliberately absent because RIGOR has no hard corners. If saturation is ever added, this arrives with it.'],
+  ['Saturation as an explicit stage', 'ND already has a C&sup1; soft clip that CASKET uses. Adding it here is a decision about identity, not difficulty.'],
+  ['Multiband beyond three bands', 'The splitter generalises. Whether four or five bands is useful or just a spec-sheet number is a listening question.'],
+  ['Linear-phase crossover mode', 'An FIR project wearing a compressor&rsquo;s costume, and the latency would undo the point of lookahead. Listed because &ldquo;far-fetched&rdquo; was invited.'],
+  ['A spectral-domain detector', 'Compress by what the ear weights rather than by broadband level. The K-weighting filter is already here and doing exactly this for the meter.'],
+  ['Auto-ratio from material', 'The auto-threshold already reads the level distribution. The same histogram could suggest a ratio.'],
+  ['A &ldquo;match this reference&rdquo; mode', 'Analyse a reference file&rsquo;s dynamics and propose settings that move toward it. Ambitious, measurable, and honest about being a suggestion.'],
+  ['Offline render mode', 'Process a file to a file at full quality with no realtime constraint — which is where lookahead could be arbitrarily long.'],
+  ['Null-test any two case files automatically', 'Render both, subtract, report the difference in dB. Turns &ldquo;are these the same?&rdquo; into a number.'],
+  ['Automated regression on real stems', 'Once there are stems, they become baselines, and the hashes start covering material rather than noise.'],
+  ['A golden-ears blind A/B harness in the browser', 'Randomised, scored, logged. The only way to find out whether a change is an improvement or a preference.'],
+  ['Property-based tests for the crossover', 'Assert the flat sum holds for RANDOM crossover pairs rather than the six I picked.'],
+  ['A parity gate for the UI helpers', 'UIH is pure and untested against anything but itself. The plugin editor does the same arithmetic in C++.'],
+  ['Mutation testing on the harnesses', 'Deliberately break the core and confirm a test fails. Six bad assertions this session says the harnesses deserve auditing too.'],
+  ['A performance regression gate', 'The bench prints a number nobody compares. Fail CI when it drops by more than a threshold.'],
+  ['Memory-allocation audit in the audio path', 'The engine should allocate nothing after construction. It probably does not; nothing proves it.'],
+  ['SIMD the per-sample loop', 'Two channels doing identical work is the obvious candidate, and the C++ twin is where it would live.'],
+  ['A second twin — a Rust or WASM port', 'A third implementation would catch anything two agreeing implementations share. Far-fetched, and the strongest possible test.'],
+  ['Signed and notarised installers', 'Unglamorous, entirely non-negotiable for a stranger to install it, and blocked on a licensing decision rather than on work.'],
+  ['A written specification of the DSP', 'Complete enough that someone could reimplement RIGOR from it and pass the parity gate. That is the real test of whether it is understood.'],
+  ['THE LIMITER, revisited', 'CASKET exists and its seal path is the one place a safety argument runs through a decimation filter. Worth its own session — with permission, since it is not this ward.']
+];
+
+var BEN = [
+  ['Answer the three parked design questions', '&sect;13 of the architecture: does Fresh cap at 30:1 and let the limiter own infinity? Does RIGOR get a spectrum analyser behind the sidechain filter? Do the styles ship as Fresh/Settling/Spasm/Repose, or as Clean/Opto/Punch/Bus with the morgue names as subtitles?'],
+  ['The listen test — now with delta', 'Open <code>rigor.html</code>, press play, cycle 1–4, then press <b>D</b>. Delta is the fastest way to hear what a setting is actually doing. The question no harness can answer: do the four styles <em>feel</em> different, or have I built four presets wearing topologies&rsquo; clothes?'],
+  ['Decide whether the CASKET seal wants revisiting', 'The lid is held and the clamp is back to catching only rounding, so nothing is broken now. But <em>lead</em> is the only style shipping with <code>seal: true</code>, and the seal is the one path where the safety argument runs through a decimation filter rather than straight algebra. Worth its own session, not a mid-session detour.'],
+  ['Push both repositories to GitHub', 'Neither plugin has ever been compiled by anything. Both were written compile-first because there is no JUCE in the sandbox. The first real AU/VST3 build happens on the CI runners, and it is the last unproven link in the chain.'],
+  ['Drop reference stems into the folder', 'A dry vocal, a drum bus, a bass DI, a rough mix. The ten factory cases were tuned against deterministic noise, which is all that was available; real material will move several of them.'],
+  ['Decide the distribution target', 'Free tool, Patreon perk, or something sold? Not a branding question — JUCE&rsquo;s GPL and commercial licences differ, and the answer changes what can legally be built downstream. Worth settling before the plugin scaffold hardens.']
+];
+
+var PRO = [
+  ['Oversampling, done properly', 'Polyphase 2&times;/4&times; with real anti-imaging filters and latency accounting. Correctly absent here; the limiter cannot ship without it.'],
+  ['Multiband operation', 'Linkwitz-Riley crossovers into independent RIGOR instances. The largest single feature gap against the professional tier.'],
+  ['Full external sidechain routing', 'The bus exists and the core accepts it. What remains is the host-side routing, which every DAW does differently.'],
+  ['Mid/side and dual-mono processing', 'AUTOPSY already contains the exact M/S matrix, already parity-proven. Inheritance rather than invention.'],
+  ['Pixel-match the plugin face to the browser', 'The editor is now bespoke rather than generic, but the two faces are cousins, not twins. Closing that gap is a design job, not a DSP one.'],
+  ['A preset browser with tags and four-way compare', 'Ten factory cases and a two-slot A/B is where a personal tool stops and a product starts.'],
+  ['Loudness-matched A/B', 'Now that LUFS is measured, Case A and Case B can be level-matched automatically — which is the only honest way to compare two compressor settings by ear.'],
+  ['A performance pass with a published CPU budget', 'SIMD across the stereo pair, denormal handling, and a stated figure. Professionals need to know how many instances a session survives.'],
+  ['Signed and notarised installers — AU/VST3/AAX, macOS and Windows', 'Unglamorous, entirely non-negotiable. An unsigned plugin is one a stranger cannot install.'],
+  ['THE LIMITER — the third body', 'Inherits this detector wholesale, finally justifies oversampling, and closes the trilogy.']
+];
+
+function render(id, data, cid){
+  var ul = document.getElementById(id), n = 0;
+  data.forEach(function(row, i){
+    var li = document.createElement('li');
+    li.innerHTML = '<span class="box">&#10007;</span>' +
+      '<span class="no">' + String(i+1).padStart(2,'0') + '.</span>' +
+      '<span><span class="t">' + row[0] + '</span><span class="why">' + row[1] + '</span></span>' +
+      '<span class="init"></span>';
+    li.addEventListener('click', function(){
+      li.classList.toggle('done');
+      n += li.classList.contains('done') ? 1 : -1;
+      document.getElementById(cid).textContent = n;
+    });
+    ul.appendChild(li);
+  });
+}
+var SOLO8 = [
+  ['<b>Finish round 8, which had been left half-administered</b>', 'Spasm&rsquo;s 2 ms peak follower was already in the core, the twin and the core harness. <code>rigor_sync.js</code> had NOT been run, eight regression baselines were unblessed, and every document still said the opposite. All eight drifted hashes were Spasm cases and no others — which is exactly the signature that change should leave, and is why they could be blessed with confidence rather than hope.'],
+  ['<b>A Kaiser window for the true-peak taps — REFUSED</b>', 'Designed at beta 4/6/8/9/10/12 and measured against Blackman across 48 frequencies &times; 16 phases. It ties on rms (0.0334 at 12 taps) and wins 0.0009 dB of worst-case overshoot. Not worth a second window function in the parity surface. <b>The ceiling it was meant to lift does not exist:</b> the old &ldquo;more taps is worse&rdquo; reading was measuring edge Gibbs from a cold delay line, not filter quality, and Kaiser tracks Blackman to 0.006 dB at every length — which is the tell.'],
+  ['<b>Replace the true-peak assertion that could not fail honestly</b>', 'One case (fs/4 @45&deg;) cannot distinguish a good filter from two errors cancelling, and that is precisely what it was doing: &minus;0.194 dB of steady-state error partly cancelled by +0.145 dB of onset overshoot, reading &minus;0.049 and passing. Replaced with a swept assertion whose target is derived (a unit cosine peaks at exactly 1.0) and whose floor is derived from TP_OS, so raising the oversampling tightens the test automatically.'],
+  ['<b>Detection at 2&times; and 8&times;, not only 4&times;</b>', 'A SET, not a range — 3 is not a cheaper 4. The offsets nest, so more phases can never report a lower peak; that is asserted as an invariant rather than hoped for. It matters only on isolated transients: on a sustained tone the sample index already sweeps the offsets densely and 8 phases agree with 4 exactly. 4&times; reproduces every prior baseline bit-for-bit.'],
+  ['<b>Hold that tapers into release</b>', 'Hold was a cliff — frozen for N samples, then full-speed release. The coefficient now eases in across the hold. At taper 0 the branch is <em>skipped entirely</em> rather than evaluated with a unity coefficient, which is the difference between bit-identical and nearly.'],
+  ['<b>Program-dependent knee — REFUSED</b>', 'Built, measured, removed, and the measurement left in the source so nobody proposes it a third time. A knee only has influence within W/2 of the threshold; heavy reduction means the level is far ABOVE that, where the knee has cancelled out of the expression entirely. To reach a level 27 dB over at 8:1 the knee would have to open to ~54 dB, past its own ceiling, at which point it has stopped being a knee and become a second ratio.'],
+  ['<b>A CPU budget for the twin</b>', 'The published figure was the JS number with &ldquo;the C++ twin is materially faster&rdquo; appended — a hope, not a measurement. It is <b>47&times; realtime worst case</b> against the JS core&rsquo;s 13&times;, compiled with the same <code>-ffp-contract=off</code> the parity gate requires. 8&times; detection costs 18% over 4&times;; 2&times; saves 14%.'],
+  ['<b>Reduced motion was switching the instrument OFF</b>', 'The real defect of the round. <code>if (!reduce) frame();</code> meant a user with prefers-reduced-motion set got a frozen gain-reduction meter and a frozen chart — worse accessibility than the animation was. It now throttles to ~10 fps, and the decision lives in a pure helper so the harness can check it without a browser.'],
+  ['Text alternatives on all three canvases', 'They were the only output with no text form at all. The chart&rsquo;s label also names the keyboard equivalent for its one mouse-only gesture, which is the Threshold slider.'],
+  ['A keyboard and accessibility audit', 'Static — it checks markup and source, not a rendered page, and says so rather than glossing it. Accessible name on every button, no positive tabindex, every literal label pointing at an element that exists.'],
+  ['<b>Crossover drag-swap</b>', 'Dragging one crossover past the other clamped, so the handle stuck to its neighbour and the gesture died. It swaps now, and every result is round-tripped through the real sanitiser — a UI that lets go somewhere the core will not accept is a UI that lies.'],
+  ['<b>A/B case diffing</b>', 'Per band and per field, because &ldquo;band differs&rdquo; is not an answer anyone can act on. A rename is not a setting. A derived assertion walks every scalar the sanitiser produces, so a field added later cannot slip past the differ unnoticed — the round&rsquo;s own two new fields were the first thing it caught.'],
+  ['Gain-reduction CSV export', 'Seconds rather than sample index, so the file means the same thing at every rate. The time column is derived from the actual frame spacing rather than pretending each entry is a sample.'],
+  ['<b>The fuzzer&rsquo;s output bound, derived at last</b>', 'Adding two fields to the random state reshuffled the sequence and immediately found a 3-band case at 2.116 against a 2.04 allowance. Neutralising the new fields on the same sequence reproduced it exactly — so the bound was wrong, not the engine. <b>That is the seventh fitted output bound in this file&rsquo;s history and the seventh time the engine was right.</b> Replaced with the triangle inequality over the real splitter&rsquo;s band peaks: at unity staging every band gain is &le;1, so the sum cannot exceed the sum of band peaks. Holds at 98% across 4,000 cases.'],
+  ['<b><code>tests/rigor_styles.js</code> — the generator the document claimed to have</b>', 'STYLES_MEASURED.md has said &ldquo;generated by tests/rigor_styles.js&rdquo; since round 7. No such file existed. It does now, and it checks every style pair BOTH ways — same path and same render — flagging disagreement. It immediately surfaced that a DC step reads Fresh and Spasm as identical even now that they differ, because a step never lets the follower decay. A step response is not a sufficient probe of a compressor&rsquo;s identity, and believing it was is how the old claim survived five rounds.'],
+  ['Update the chart, the README, and the styles document', 'Chart rev 09. README to v0.6, vital signs re-counted from the code rather than carried forward: 198 core, 114 UI, 43 host parameters, parity 36,998.']
+];
+
+var SOLO9 = [
+  ['<b>The parity gate was reporting green from a stale binary</b>', 'The worst finding of the round and it was found by accident. The linker could not overwrite the old executable, the previous build ran, and it printed <em>&ldquo;36,998 checks, all bit-exact&rdquo;</em> for a test that did not contain the new cases. A run that proves nothing looks exactly like a run that proves everything. The header now emits <code>EXP_CHECKS</code> alongside the truth values and the binary refuses to pass when the two disagree about what the test <em>is</em>. Proven to bite by building against a deliberately wrong count.'],
+  ['<b><code>tests/rigor_mutate.js</code> — breaking the core on purpose</b>', 'Twelve surgical mutations, each one a mistake actually made in this project: an operator boundary, a swapped sign, an order of operations, a reversed clamp. A mutant that dies means the suite would have caught that bug. <b>Five survived the full 198 tests.</b> Every mutation carries a sentence saying what a survivor would MEAN, because a mutation that cannot be described that way is not worth running.'],
+  ['<b>Hole 1: nothing compared the left channel against the right</b>', 'The right channel could attack with the release coefficient and 198 tests stayed green. Every stereo source would have drifted image on transients. Closed with a test that runs the same burst on L alone and on R alone and demands the outputs be bit-identical.'],
+  ['<b>Hole 2: reported latency was never checked against the real delay</b>', 'Lookahead could read a sample early and the host would silently misalign the track. Now an impulse is timed at three settings including the <em>smallest non-zero one</em>, which is where an off-by-one hides — a legal value that is also a boundary value.'],
+  ['<b>Hole 3: the splitter&rsquo;s separation rule had no test of its own</b>', 'The rule exists twice: once in <code>sanitizeState</code> and once in the splitter. Because the sanitiser always runs first, the splitter&rsquo;s copy was unreachable through <code>setState</code> and the mutant was invisible. It is still real defence — the splitter also clamps to fs&nbsp;&times;&nbsp;0.45, which the sanitiser knows nothing about. <b>A rule with two copies needs two tests, or the second copy is decoration.</b>'],
+  ['<b>Hole 4: the transient split, hidden behind a linked detector</b>', 'The blend weights could be swapped and the test could not see it. With the channels linked the detector takes max(L,&nbsp;R), and on identical material that maximum absorbed almost the whole error: the mutant moved the output by 6&times;10<sup>&minus;5</sup>. Unlinked, the same mutant moves it by 0.64. <b>A test can be pointed at exactly the right line and still be looking through a setting that hides the answer.</b>'],
+  ['<b>The fifth survivor was my error, not the suite&rsquo;s</b>', 'I mutated <code>if (inLin !== 1) { x *= inLin; }</code> into an unconditional multiply, expecting to expose an untested fast path. It cannot: the guard skips the multiply only when the gain is exactly 1.0, and multiplying by exactly 1.0 is bit-exact. The mutant IS the original program. It stays in the list, marked <em>equivalent</em>, because a surviving mutant has two meanings and the first thing to check is whether the mutation was a real change at all. The tester now also reports an equivalent mutant that DIES, which would mean a test is asserting something false.'],
+  ['<b>My first transient-split test asserted the impossible</b>', 'It demanded that the split detector reach a transient FASTER than the unsplit one. Both followers are lowpasses, so blending toward either can only be slower — the test was wrong, not the engine, for the eleventh time in this project. Replaced with the convergence RATE, derived from the two declared coefficients: a blend riding a 1.5&nbsp;ms follower has caught up within 10&nbsp;ms, and one riding a 60&nbsp;ms follower physically cannot.'],
+  ['<b>The browser instrument was shipping an older engine than the tests</b>', 'The core had gained the transient split and the external sidechain; the embedded copy in <code>rigor.html</code> had not. Caught by the byte-comparison in the UI harness, which is the only reason it was caught at all.'],
+  ['<b><code>tools/embed.js</code> — so that cannot happen quietly again</b>', 'Refreshes the three inline blocks and enforces the interchange laws at the point of writing rather than discovering them later: it REFUSES to embed a file containing a literal closing script tag, and refuses if the blocks are out of order, because each depends on the one before it. <code>--check</code> exits non-zero on a stale instrument.'],
+  ['<b>An external sidechain input on the engine, for real</b>', 'I had written a comment claiming the inner engine already accepted one. It did not. Caught before anything was built on top of it; the input is real now and the false comment is gone.'],
+  ['Per-band delta', '&ldquo;Play me only what band 2 removed.&rdquo; Delta plus solo could approximate it as two switches; this is one control and a different thing. Per-band delta overrides both mute and solo, because it is a monitoring mode rather than a mix decision.'],
+  ['Sidechain from a band', 'Band 3 ducking band 1 is the classic use. One band&rsquo;s signal drives every band&rsquo;s detector.'],
+  ['Transient / sustain split detection', 'Two followers at 1.5&nbsp;ms and 60&nbsp;ms, blended by which one is currently winning — a different route to punch than a fast attack. <b>The bitwise null test survives at split 100</b>, which is the property that matters: a new detector path must not disturb the identity cases.'],
+  ['<b><code>tests/rigor_tools.js</code> — questions you ask ABOUT a setting</b>', 'A null test that renders two case files against the same material and answers &ldquo;are these actually the same?&rdquo; with a number rather than an argument. An auto-ratio suggester. An offline render.'],
+  ['<b>The auto-ratio suggester was measuring the wrong thing</b>', 'It histogrammed |x| directly, which sounds reasonable and is not: for uniform noise the median-to-90th span of the raw waveform is about 5&nbsp;dB <em>no matter how dynamic the music is</em>. A 6&nbsp;dB request then demanded an infinite ratio on ordinary material. Rebuilt on a 20&nbsp;ms RMS envelope, which is what dynamic range means to a listener and what a compressor actually rides. The demo material reads 22.4&nbsp;dB and the suggestions became sane: 1.2:1, 1.4:1, 2.2:1.'],
+  ['The twin caught up in one pass', 'Per-band delta, band sidechain, transient split and the external sidechain input all mirrored into <code>RigorCore.h</code>, with four new parity cases covering them. <b>Bit-exact on the first attempt</b> — which is what the necromath discipline is for.'],
+  ['Parity extended to 42,486 checks', 'Up from 36,998. Every new path this round is inside the gate.'],
+  ['The suite re-counted from the code', '206 core &middot; 114 UI &middot; 27 plugin &middot; 18 fuzz &middot; 39 audit &middot; 35 regression baselines &middot; 42,486 parity. All green, and the mutation tester now reports <b>11 killed, 0 survived, 1 equivalent</b>.'],
+  ['<b>Nothing outside RIGOR written by this round</b>', 'The standing instruction held: every file this course wrote is under <code>RIGOR/</code>. <code>shared/</code> is verifiably untouched, which is the one that matters, since RIGOR compiles against it. <b>But CASKET was being written to WHILE this round ran</b> — <code>casket_core.js</code> and its parity header both changed at times interleaved with RIGOR&rsquo;s own edits, and AUDIO_INTERCHANGE.md moved too. Not this chat. Flagged rather than assumed harmless: this is the same concurrent-editing collision that cost a lineage merge earlier in the project.']
+];
+
+var AUDIT = [
+  ['<b>CRITICAL &mdash; one non-finite sample hung the audio thread forever</b>', 'A &plusmn;Infinity input sample &mdash; which any upstream plugin can produce, and which an uninitialised buffer produces for free &mdash; reached the peak follower, then <code>ND.linToDb</code>, then <code>NM.log10</code>, which iterates and never converges. Not a click: the thread stops. Reproduced at every style, every block size, single band and multiband; <b>only bypass survived</b>, because bypass never touches the detector. <code>ND.linToDb</code> has always guarded the LOW end (0, negative and denormal all clamp to &minus;600 dB) which is exactly why digital silence was never a problem and why nobody looked at the other end.'],
+  ['<b>Why 198 tests missed it</b>', 'The fuzzer hammers the STATE &mdash; random parameters, hostile combinations, nonsense in every field. It had never once handed the engine a bad SAMPLE. Every NaN assertion in the project was about the output, not the input. The gap was not depth, it was direction.'],
+  ['<b>The guard, in three places</b>', 'Engine input, external sidechain, and &mdash; separately &mdash; the multiband wrapper BEFORE the splitter, because an Inf entering a crossover biquad becomes part of that filter&rsquo;s state permanently and the band engines&rsquo; own guards would be on the wrong side of the wound. Non-finite becomes silence rather than a clamp to some large finite value: there is no honest magnitude to assign to NaN, and a huge one would slam the detector and duck the whole track for the length of the release. <b>No baseline moved</b> &mdash; every legal sample is finite.'],
+  ['<b>REFERRED OUT, not fixed: the defect is in shared/</b>', '<code>NM.log</code>, <code>NM.log10</code> and <code>NM.exp</code> loop forever on non-finite arguments; the two log functions also loop on 0 and on negatives, which ND happens to guard before they arrive. RIGOR is not permitted to change shared code and the guard belongs in the plugin anyway &mdash; but <b>AUTOPSY, CASKET and NECROPHONE all use the same substrate.</b> Needs Ben&rsquo;s permission and should be looked at across all four at once.'],
+  ['<b>Round 9 shipped three parameters no host could reach</b>', '<code>deltaBand</code>, <code>scBand</code> and <code>tsSplit</code> went into the core, the twin and the browser instrument, and never into the plugin. Now declared, applied, and covered.'],
+  ['<b>The plugin lint could not have caught it</b>', 'It asserted <code>declared.length &gt;= 25</code>. Thirty-five were declared, so a floor of 25 passed comfortably while three were missing. <b>A floor cannot notice something absent; it can only notice a catastrophe.</b> Same species as the version assertion that named its own expected value and passed for two rounds while the files disagreed. Replaced with a derived check &mdash; every field in <code>defaultState()</code> maps to a declared parameter or sits in an explicit list with a reason &mdash; and proven to bite by removing three parameters in turn.'],
+  ['<b>Bypass, sidechain-listen and hostile input had NO parity coverage</b>', 'Found by the new coverage census. Six parity cases added, including poisoned input through the feedback topology and through the multiband splitter, so the new guard is verified arithmetic in the twin rather than assumed. <b>Parity 36,998 &rarr; 50,718, bit-exact.</b>'],
+  ['<b><code>tests/_fz_probe.js</code> &mdash; a failing orphan nobody referenced</b>', 'Twenty kilobytes of pre-round-8 fuzzer still carrying the <em>fitted output bound that round 8 disproved</em>, and it failed when run. My own scratch litter, left in the tests directory where it could be mistaken for a harness. Deleted.'],
+  ['<b><code>tools/embed.js</code> duplicated a tool that already existed</b>', 'Round 9 built a second embed tool without noticing <code>rigor_sync.js</code> had done the job since the beginning &mdash; the exact &ldquo;a rule with two copies&rdquo; defect that same round had just flagged elsewhere, committed by the person flagging it. CI and the README always named the original. Its two genuine additions, a <code>--check</code> mode and an explicit law 4 order assertion, are folded in; the duplicate is gone.'],
+  ['<b><code>tests/rigor_stress.js</code> and <code>tests/rigor_coverage.js</code></b>', 'Stress hands RIGOR what a host actually can: poisoned samples across ten configurations, recovery, determinism, and block boundaries landing inside the control interval. Coverage is a census rather than a correctness test &mdash; for every state field, is it sanitised, read, ported, reachable from a host, reachable from the browser, and named by any harness? <code>--strict</code> fails on an unexplained gap, so the NEXT field added has to be decided about rather than defaulted into.'],
+  ['<b>Twelve parameters are automatable but have no knob</b>', '<code>hold_taper</code>, <code>detect</code>, <code>det_os_x</code>, the three from round 9, and all six band mute/solo controls. They work and automation reaches them; the bespoke plugin editor has no control for them. A feature gap rather than a defect, now on the record in the lint so anything new that lands without a control fails until somebody chooses &mdash; and so the list cannot go stale.'],
+  ['<b>Five of the audit&rsquo;s own checks were wrong first</b>', 'The coverage tool used <code>[\.\b]</code> &mdash; inside a character class <code>\b</code> is BACKSPACE, not a word boundary &mdash; and reported five heavily-used exports as dead. My law-3 check matched each embed block <em>including</em> its terminating tag and then searched for terminating tags. The stress test first demanded a poisoned engine be IDENTICAL to one that never saw poison, then asserted a fitted 1e-9 floor; recovery means the difference DECAYS, and the bound has to come from the slowest legal path &mdash; auto-release runs a second follower at 8&times; the release, so <code>e^(&minus;5/8) = 0.535</code> is the least legal decay over five constants. Settling lands at 0.436. The scBand test asserted the wrong direction twice, because without a band sidechain the low band is compressing hard against its OWN steady tone. <b>Tally: about sixteen bad assertions of mine against eight real bugs.</b> New corollary: an assertion measured across a time window must account for the time constants of the thing it measures.']
+];
+
+var SOLO9 = [
+  ['<b>THE SUBSTRATE HANG IS CLOSED &mdash; and it was never only about infinity</b>', 'The tenth course referred <code>NM.log</code>, <code>NM.log10</code> and <code>NM.exp</code> out: they iterate and never return on non-finite arguments, so <code>ND.linToDb(&plusmn;Inf)</code> hangs the audio thread. Now guarded, with the IEEE answers rather than merely a return. <b>The referral understated it.</b> <code>twoPow</code> loops <code>k = floor(x/LN2)</code> times, so a perfectly LEGAL FINITE argument of 1e308 asks it for 1.4e308 iterations &mdash; a hang with no infinity anywhere in sight. Found because the verification snapshot written to prove the fix inert <em>hung on its own first run</em>.'],
+  ['<b>Proven inert rather than asserted inert</b>', 'Every guard is a COMPARISON; no arithmetic changed, so for any argument that was already legal the original op order runs untouched. Demonstrated instead of claimed: a snapshot of <b>30,075 arguments &times; 6 functions = 180,450 values</b> taken before the edit and compared bit-for-bit after, by raw 64-bit pattern rather than <code>===</code>, which cannot tell &minus;0 from 0 and calls NaN unequal to itself. All identical. The JS and C++ twins then agreed bit-for-bit on all twenty guard cases.'],
+  ['<b>The blast radius, measured read-only across the siblings</b>', 'The attending&rsquo;s condition was fix-and-verify-RIGOR-only, so nothing outside was written &mdash; but running their existing suites costs nothing and is the whole safety net. <b>AUTOPSY: 70 core, 68 UI, hashes unmoved, and its parity gate recompiled against the modified header still reads 9,292 bit-exact. CASKET: 186 core, 76 UI, hashes unmoved.</b> And a correction to the audit&rsquo;s guess: <b>NECROPHONE was never exposed at all</b> &mdash; zero references to <code>shared/</code> and no hand-rolled transcendental of its own.'],
+  ['<b>THE BYPASS WAS LYING, and every A/B with lookahead on was invalid</b>', 'Flagged by CASKET&rsquo;s session in round 6 and left alone as out of its remit. <code>latencySamples()</code> reports the lookahead in every state and <b>bypass is a state</b> &mdash; measured: at <code>look = 10 ms</code> the promise was 480 samples and the bypassed impulse came out at sample <b>0</b>. A host compensating by the reported figure moved the audio 10 ms EARLIER the instant you pressed bypass. Enough to comb against a parallel path, more than enough to read as a tone change.'],
+  ['<b>&hellip; and the same bug had a second half nobody had noticed</b>', 'The delay line was not being FED while bypassed, so it held stale samples across the toggle. Measured: after un-bypassing at <code>look = 10 ms</code>, <b>the first 480 samples out were digital silence.</b> A dropout, every single time you left bypass. Both halves fixed by pushing bypassed audio through the line; now asserted at five lookahead settings, with the expectation DERIVED from <code>latencySamples()</code> rather than named.'],
+  ['<b>NEW FINDING: multiband bypass was not a bypass</b>', 'At 2 or 3 bands the &ldquo;bypassed&rdquo; signal still ran through the crossover and was re-summed &mdash; magnitude-flat to 0.06 dB, but carrying the LR4 phase response and <b>not bit-transparent</b>, which breaks the suite&rsquo;s null-test law. First attempt to measure it read 1.16 in error and was <em>my</em> mistake: an LR4 pair is magnitude-flat and emphatically not linear-phase, so comparing its sum against a pure delay will always look catastrophic. RMS answered the question honestly.'],
+  ['<b>Shipped as a SWITCH, on the attending&rsquo;s call, because both answers are useful</b>', 'New <code>bypassSplit</code>. Off (default): bypass is dry and bit-transparent at every band count &mdash; &ldquo;what is this plugin doing to my track?&rdquo; On: bypass still splits and re-sums &mdash; &ldquo;what is the COMPRESSION doing?&rdquo;, with the crossover on both sides of the A/B so it cancels out. Inert at 1 band, and inert while compressing; both pinned by parity cases rather than trusted. The wrapper carries its own dry delay line, fed on every sample whether bypassed or not, because repeating the un-primed half of the bug one level up would have been a poor showing.'],
+  ['<b>The advice function finally obeys the law the suite already had</b>', '<code>suggestThreshold</code> was the one advice function in the suite that returned a number and trusted it, and the interchange log had it off by a &ldquo;systematic and monotone in ratio&rdquo; 0.10 to 0.19 dB with no explanation. <b>The explanation is the shape.</b> It took the CENTRE of whichever histogram bin held the 90th percentile &mdash; 200 bins over 80 dB is 0.4 dB wide, so up to 0.2 dB of bias fed straight through &mdash; and a threshold error <em>e</em> becomes a reduction error of <code>e &times; (1 &minus; invR)</code>, which runs 0.50, 0.75, 0.875, 0.95 across those four ratios. Normalise either row by its first entry and both read 1.00, 1.50, 1.75, 1.90. <b>One quantisation error wearing four hats.</b> Interpolating within the bin took the worst error to <b>0.0032 dB</b>, checked against a p90 computed by sorting raw samples so the test cannot pass by agreeing with the code it audits.'],
+  ['<b>The falling-ceiling question, answered NO with a structural reason</b>', 'CASKET&rsquo;s smoothed lid could not track a ceiling automated downward and needed tighten-fast/loosen-slow. The interchange log passed the question here. RIGOR does not need it: <code>thresh</code> is smoothed but <b>bounds nothing</b> &mdash; a compressor threshold is where reduction begins, not a ceiling it promises &mdash; and <code>range</code>, the one parameter that does bound something, <b>is not smoothed at all</b>. 74% of a range move lands in the first control block where <code>SMOOTH = 0.25</code> would cap it at 25%. The residual overshoot when range is automated down belongs to the RELEASE envelope, proven by the fact that it scales with it (0.52 dB at 1 ms, 7.46 dB at 800 ms); snapping it would trade a controlled release for a click.'],
+  ['<b>Two hazards recorded rather than tidied away</b>', 'First: <b>another session was live in this tree throughout.</b> It moved the entire audio suite into an <code>UNDERTAKING/</code> folder mid-edit and back again, ran RIGOR&rsquo;s own mutation tester, and wrote CASKET files &mdash; all while this round was working. Nothing was lost, because every edit was verified present after each move, but this is the fourth concurrency incident this project has logged and the tree must be re-checked, not assumed. Second: <b>my symmetry assertion was wrong before it was right.</b> It compared gain-reduction settling times and read 10 blocks down against 205 up, which looks exactly like an asymmetry and is nothing of the kind &mdash; lowering a threshold means MORE reduction, reached at the ATTACK rate, and raising it means less, reached at the RELEASE rate. Reading the smoothed threshold off the probe instead gives 30 and 30. <b>Tally: about eighteen bad assertions of mine against ten real bugs.</b> Suspect the assertion first.']
+];
+
+render('list-solo',  SOLO,  'c-solo');
+render('list-solo2', SOLO2, 'c-solo2');
+render('list-solo3', SOLO3, 'c-solo3');
+render('list-solo4', SOLO4, 'c-solo4');
+render('list-solo5', SOLO5, 'c-solo5');
+render('list-solo6', SOLO6, 'c-solo6');
+render('list-solo7', SOLO7, 'c-solo7');
+render('list-solo8', SOLO8, 'c-solo8');
+render('list-solo9', SOLO9, 'c-solo9');
+render('list-solo9', SOLO9, 'c-solo9');
+render('list-audit', AUDIT, 'c-audit');
+render('list-next',  NEXT,  'c-next');
+render('list-ben',   BEN,   'c-ben');
+render('list-pro',   PRO,   'c-pro');
+
+})();
+</script>
+</body>
+</html>
