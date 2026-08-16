@@ -11,29 +11,35 @@ and never touches their source.
   assertions (§3.2), build-flag boundary (§4), Masterbox-side bypass rules (§5), latency
   ownership (§6), write territory (§8).
 
-## What's here
+## Modules
 | File | What |
 |---|---|
-| `spike.js` | The chaining spike. Proves the signal/preset contract end-to-end: AUTOPSY → RIGOR → CASKET holds the ceiling exactly, and the idle chain nulls to 1 ULP. |
-| `translate.js` | The translator (step 2). Masterbox `MasteringSettings` → an `underworld.chain` preset (§2). **All three cores mapped** — AUTOPSY (tone shelves + 10-band Match-EQ, mid bells folded), RIGOR (3-band comp mirroring Masterbox's exact formulas), CASKET (ceiling/drive). The full vocabulary map with reasons is the header comment. |
-| `translate.test.js` | The three §3.2 assertions — fixpoint, clamping-reported, rendered + null — PLUS render proofs that each mapping does what it claims (EQ boosts the right band, comp reduces level), each with a control that proves it bites. |
-| `diagnostics/casket_null.js` | Repro for the §10 finding: CASKET's DC blocker + soft knee break a bit-exact null even below the lid. |
+| `translate.js` | The translator. Masterbox `MasteringSettings` → an `underworld.chain` preset (§2). All three cores mapped — AUTOPSY (tone shelves + 10-band Match-EQ + DynEq→per-band dynamics), RIGOR (3-band comp mirroring Masterbox's formulas), CASKET (ceiling/drive/width). Plus the DELIVERY table and `fromDelivery`. Full vocabulary map with reasons is the header comment. |
+| `chain.js` | The orchestrator — renders AUTOPSY→RIGOR→CASKET, compensates each core's latency once, reports the total (§6). Masterbox's own DSP is absent by construction (§5). |
+| `calibrate.js` | Drives CASKET to a target LUFS through the real chain (damped passes, Masterbox `learnMaster` shape); records what was achieved in `report`. |
+| `explain.js` | `report.explain[]` — every claim carries measured evidence (§3.3). |
+| `describe.js` | Plain language ("warm, wide, punchy, lo-fi, club") → settings. |
+| `album.js` | Master a set of tracks to one consistent loudness and tone. |
+| `preset-io.js` | Read/write `.underworld.chain` — sanitise slabs on read (§2.1), preserve unknown fields (§2.3). |
+| `meter-reconcile.js` | Surfaces when two BS.1770 meters disagree, never silently picks one (§9.3). |
+| `wav.js` + `cli.js` | Offline CLI: a WAV in → mastered WAV + preset + report. |
+| `spike.js` | The original contract proof (kept as a smoke test). |
+| `*.test.js` | 99 assertions, every check paired with a control that proves it bites. |
+| `diagnostics/` | Repro scripts for findings (e.g. the CASKET-null knee/dc probe). |
 
 ## Run
 ```bash
-node underworld/spike.js
-node underworld/translate.test.js
+node underworld/cli.js mix.wav --delivery club --comp 0.4     # master a file
+for f in underworld/*.test.js; do node "$f"; done              # the whole suite
 ```
 
-## Per-core "idle / do nothing" (discovered by the spike)
+## Per-core "idle / do nothing" (spike-verified)
 - **AUTOPSY** — default state (no bands on) is passthrough.
-- **RIGOR** — `ratio:1` (or `mix:0`) is unity (`AUDIO_INTERCHANGE.md §4`).
-- **CASKET** — lid **above** signal **+ `knee:0` + `dc:false`**. Lid-above-signal alone is
-  *not* enough: the DC blocker and the soft knee each perturb the signal below the lid.
-  See `../UNDERWORLD_INTERCHANGE.md §10`.
+- **RIGOR** — `bands:1, ratio:1` is unity (`AUDIO_INTERCHANGE.md §4`).
+- **CASKET** — lid **above** signal **+ `knee:0` + `dc:false`** (`../UNDERWORLD_INTERCHANGE.md §10`).
 
 ## Status
-JS prototype against the trilogy's **reference** cores. This is exploration, not the
-product. The C++/plugin seam is gated on interchange **§7** (build the seam after the
-trilogy's first compile) and **§9.1** (link the cores vs. host them as plugins) — not
-started, and both are Ben's calls.
+JS prototype against the trilogy's **reference** cores — exploration, not the product. It
+masters a real WAV to a delivery target today. The C++/plugin seam is still gated on
+interchange **§7** (build after the trilogy's first compile) and **§9.1** (link the cores
+vs. host them as plugins) — both Ben's calls.
