@@ -22,12 +22,19 @@
 # --- deny everything, including directory contents -------------------------
 /*
 !/.gitignore
+!/.gitattributes
 
 # --- admit the estate ------------------------------------------------------
 !/shared/
 !/AUTOPSY/
 !/RIGOR/
 !/CASKET/
+
+# --- admit the estate's tooling --------------------------------------------
+# tools/counts.js derives every live number in the docs from the gates that
+# produce them; tools/counts.json is its cache and must be tracked, or CI
+# would re-run the slow harnesses on every push.
+!/tools/
 
 # --- admit the estate's documents, by exact name ---------------------------
 !/AUDIO_INTERCHANGE.md
@@ -104,3 +111,8 @@ Thumbs.db
 
 # The Underworld charter (Masterbox↔trilogy boundary law) — admitted to the allowlist
 !/UNDERWORLD_CHARTER.md
+# ...and its engineering annex (preset schema, build boundary, module collision).
+# The charter states the law; this one states the mechanics. Both or neither.
+!/UNDERWORLD_INTERCHANGE.md
+# The Underworld's own code (the consumer side): spike + translator + diagnostics.
+!/underworld/
