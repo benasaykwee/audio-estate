@@ -1,0 +1,29 @@
+name: UNDERWORLD
+
+# LAYOUT NOTE. Like the trilogy workflows, this belongs at the ESTATE ROOT, because
+# underworld/ reaches outside itself (../AUTOPSY, ../RIGOR, ../CASKET, ../shared) through the
+# cores' public API only (LAW 0). The full repo checkout satisfies those relative requires.
+
+on:
+  push:
+    paths: ['underworld/**', '.github/workflows/underworld.yml']
+  pull_request:
+    paths: ['underworld/**']
+
+jobs:
+  seam-suite:
+    name: seam suite + C++ skeleton
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      # the whole JS seam suite (currently 200+ assertions across the .test.js files)
+      - name: run seam suite
+        run: node underworld/run-tests.js
+      # the C++ translator skeleton must compile with the trilogy's mandatory flag (§4 LAW 1)
+      - name: compile C++ translator skeleton
+        run: |
+          c++ -std=c++17 -ffp-contract=off -Wall -Wextra underworld/cpp/demo.cpp -o /tmp/uw_cpp
+          /tmp/uw_cpp

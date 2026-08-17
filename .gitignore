@@ -117,3 +117,5 @@ Thumbs.db
 !/UNDERWORLD_INTERCHANGE.md
 # The Underworld's own code (the consumer side): spike + translator + diagnostics.
 !/underworld/
+# The Underworld CI workflow
+!/.github/workflows/underworld.yml

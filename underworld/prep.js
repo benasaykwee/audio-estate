@@ -20,4 +20,13 @@ function gainStage(L, R, targetPeakDb) {
   return { L: oL, R: oR, trimDb: +(20 * Math.log10(g)).toFixed(2) };
 }
 
-module.exports = { removeDc, gainStage };
+// Replace any non-finite input sample with 0 before it reaches the DSP — a bad sample from
+// upstream should never become a NaN in the master.
+function sanitizeInput(L, R) {
+  const oL = new Float64Array(L.length), oR = new Float64Array(R.length);
+  let fixed = 0;
+  for (let i = 0; i < L.length; i++) { const l = L[i], r = R[i]; oL[i] = Number.isFinite(l) ? l : (fixed++, 0); oR[i] = Number.isFinite(r) ? r : (fixed++, 0); }
+  return { L: oL, R: oR, fixed };
+}
+
+module.exports = { removeDc, gainStage, sanitizeInput };

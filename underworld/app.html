@@ -47,6 +47,9 @@ button.go:disabled{ opacity:.4; cursor:default; }
 .ab button.on{ border-color:var(--gild); color:var(--gild-bright); box-shadow:0 0 0 3px rgba(232,176,75,.12); }
 .ab .play{ background:linear-gradient(180deg,var(--styx),#2b8c85); color:#04201d; border:none; font-weight:700; }
 .ab .dl{ margin-left:auto; color:var(--gild-bright); text-decoration:none; font-family:var(--mono); font-size:13px; }
+.viz{ margin-top:20px; display:grid; gap:16px; }
+.viz canvas{ width:100%; height:auto; background:var(--void-2); border:1px solid var(--rule-soft); border-radius:10px; }
+.vlab{ font-family:var(--mono); font-size:10px; letter-spacing:.12em; color:var(--ash-2); margin-top:5px; }
 .err{ color:var(--oxblood); font-family:var(--mono); font-size:13px; margin-top:12px; }
 .hint{ color:var(--ash-2); font-family:var(--mono); font-size:11px; margin-top:8px; }
 @media(prefers-reduced-motion:reduce){ h1{background-position:30% 0} }
@@ -83,9 +86,14 @@ button.go:disabled{ opacity:.4; cursor:default; }
     <div class="rows">
       <div class="k">Target</div><div class="v" id="rTarget">—</div>
       <div class="k">Achieved</div><div class="v ok" id="rAchieved">—</div>
+      <div class="k">Gain reduction</div><div class="v" id="rGr">—</div>
+      <div class="k">Correlation</div><div class="v" id="rCorr">—</div>
       <div class="k">Meters</div><div class="v" id="rMeters">—</div>
       <div class="k">Safety</div><div class="v" id="rSafety">—</div>
-      <div class="k">Passes</div><div class="v" id="rPasses">—</div>
+    </div>
+    <div class="viz">
+      <div><canvas id="spec" width="560" height="120"></canvas><div class="vlab">TONAL BALANCE · input (grey) → mastered (gold) · 50Hz→14kHz</div></div>
+      <div><canvas id="hist" width="560" height="70"></canvas><div class="vlab">LOUDNESS OVER TIME</div></div>
     </div>
     <div class="ab">
       <button class="play" id="play">▶ Play</button>
@@ -112,6 +120,24 @@ $('comp').addEventListener('input', () => $('compNum').textContent = (+$('comp')
 
 function b64ToBlob(b64) { const bin = atob(b64); const arr = new Uint8Array(bin.length); for (let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i); return new Blob([arr], {type:'audio/wav'}); }
 
+function drawSpectrum(sp) {
+  const c = $('spec'), x = c.getContext('2d'), W = c.width, H = c.height, n = sp.out.length, bw = W / n, min = -60, max = 6;
+  x.clearRect(0, 0, W, H);
+  const y = (db) => H - ((Math.min(max, Math.max(min, db)) - min) / (max - min)) * H;
+  const bars = (arr, fill, inset) => { arr.forEach((b, i) => { const bx = i * bw + inset, w = bw - inset * 2; x.fillStyle = fill; x.fillRect(bx, y(b.db), w, H - y(b.db)); }); };
+  bars(sp.in, 'rgba(125,113,150,.55)', bw * 0.12);
+  bars(sp.out, 'rgba(232,176,75,.85)', bw * 0.28);
+}
+function drawHistory(hist) {
+  const c = $('hist'), x = c.getContext('2d'), W = c.width, H = c.height;
+  x.clearRect(0, 0, W, H);
+  if (!hist || hist.length < 2) { x.fillStyle = '#7d7196'; x.font = '11px monospace'; x.fillText('(clip too short for a loudness trace)', 12, H / 2); return; }
+  const lu = hist.map((p) => p.lufs), lo = Math.min(...lu) - 1, hi = Math.max(...lu) + 1;
+  x.strokeStyle = '#54d2c6'; x.lineWidth = 2; x.beginPath();
+  hist.forEach((p, i) => { const px = i / (hist.length - 1) * W, py = H - (p.lufs - lo) / (hi - lo) * H; i ? x.lineTo(px, py) : x.moveTo(px, py); });
+  x.stroke();
+}
+
 $('go').addEventListener('click', async () => {
   if (!bytes) return;
   $('err').textContent = ''; $('go').disabled = true; $('go').textContent = 'Crossing…';
@@ -127,9 +153,11 @@ $('go').addEventListener('click', async () => {
     const rep = j.report;
     $('rTarget').textContent = `${j.target.lufs} LUFS  /  ${j.target.ceilingDbTp} dBTP`;
     $('rAchieved').textContent = `${rep.achieved.lufs} LUFS  /  ${rep.achieved.truePeakDb} dBTP  ${rep.calibration.reachedTarget ? '✓' : '(missed)'}`;
+    $('rGr').textContent = `RIGOR ${rep.gr.rigor} dB · CASKET ${rep.gr.casket} dB`;
+    $('rCorr').textContent = `${rep.stereo.correlationIn} → ${rep.stereo.correlationOut}`;
     const mc = rep.meterCheck; $('rMeters').textContent = `${mc.agree ? 'agree' : 'diverge'} ${mc.spreadDb} dB`; $('rMeters').className = 'v ' + (mc.agree ? 'ok' : 'warn');
     $('rSafety').textContent = rep.safety && rep.safety.trimmedDb ? `trimmed ${rep.safety.trimmedDb} dB` : 'clear';
-    $('rPasses').textContent = `${rep.calibration.passes.length}`;
+    drawSpectrum(rep.spectrum); drawHistory(rep.loudnessHistory);
     $('matchHint').textContent = `A/B: the original is level-matched ${j.matchGainDb > 0 ? '+' : ''}${j.matchGainDb} dB so you hear tone, not loudness.`;
     const mUrl = URL.createObjectURL(b64ToBlob(j.masteredWav)), oUrl = URL.createObjectURL(b64ToBlob(j.abOriginalWav));
     $('aMast').src = mUrl; $('aOrig').src = oUrl; $('dl').href = mUrl; $('dl').download = name + '.mastered.wav';

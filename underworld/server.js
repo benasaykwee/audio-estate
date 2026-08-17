@@ -6,8 +6,8 @@ const http = require('http'), fs = require('fs'), os = require('os'), path = req
 const { readAudio, writeWav } = require('./wav.js');
 const { runPipeline } = require('./cli.js');
 const { guardTruePeak } = require('./safety.js');
-const { reconcileTruePeak } = require('./meter-reconcile.js');
 const { abPair } = require('./ab.js');
+const { fullReport } = require('./report.js');
 
 function masterBuffer(wavBuf, opts) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'uw-srv-'));
@@ -16,7 +16,7 @@ function masterBuffer(wavBuf, opts) {
     const { L, R, sampleRate } = readAudio(inP);
     const { preset, out } = runPipeline(L, R, sampleRate, opts);
     const guard = guardTruePeak(out.L, out.R, preset.target.ceilingDbTp);
-    preset.report.meterCheck = reconcileTruePeak(guard.L, guard.R, sampleRate);
+    preset.report = fullReport(L, R, guard.L, guard.R, preset, out, sampleRate);   // rich report for the viz
     const ab = abPair(L, R, guard.L, guard.R, sampleRate);
     const mP = path.join(dir, 'm.wav'), aP = path.join(dir, 'a.wav');
     writeWav(mP, guard.L, guard.R, sampleRate, opts.bits === 16 ? 16 : 24);
