@@ -15,4 +15,17 @@ function savePreset(name, obj, dir) { fs.writeFileSync(fileFor(name, dir), JSON.
 function loadPreset(name, dir) { return JSON.parse(fs.readFileSync(fileFor(name, dir), 'utf8')); }
 function listPresets(dir) { return fs.readdirSync(dir || '.').filter((f) => /\.underworld\.json$/.test(f)).map((f) => f.replace(/\.underworld\.json$/, '')); }
 
-module.exports = { STARTER_PACK, savePreset, loadPreset, listPresets };
+// Library bundle — all named presets in a folder to one shareable file, and back.
+function exportLibrary(dir) {
+  const lib = { format: 'underworld.library', version: 1, presets: {} };
+  for (const name of listPresets(dir)) lib.presets[name] = loadPreset(name, dir);
+  return lib;
+}
+function importLibrary(bundle, dir) {
+  const b = typeof bundle === 'string' ? JSON.parse(bundle) : bundle;
+  const names = [];
+  for (const name of Object.keys(b.presets || {})) { savePreset(name, b.presets[name], dir); names.push(name); }
+  return names;
+}
+
+module.exports = { STARTER_PACK, savePreset, loadPreset, listPresets, exportLibrary, importLibrary };

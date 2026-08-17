@@ -47,6 +47,10 @@ button.go:disabled{ opacity:.4; cursor:default; }
 .ab button.on{ border-color:var(--gild); color:var(--gild-bright); box-shadow:0 0 0 3px rgba(232,176,75,.12); }
 .ab .play{ background:linear-gradient(180deg,var(--styx),#2b8c85); color:#04201d; border:none; font-weight:700; }
 .ab .dl{ margin-left:auto; color:var(--gild-bright); text-decoration:none; font-family:var(--mono); font-size:13px; }
+.warns{ list-style:none; padding:0; margin:16px 0 0; display:grid; gap:8px; }
+.warns li{ font-family:var(--mono); font-size:12px; padding:9px 12px; border-radius:8px; border:1px solid var(--rule-soft); background:var(--void-2); color:var(--ash); }
+.warns li.warn{ border-color:rgba(198,69,90,.35); color:var(--bone); }
+.warns li b{ color:var(--gild-bright); font-weight:400; margin-right:6px; }
 .viz{ margin-top:20px; display:grid; gap:16px; }
 .viz canvas{ width:100%; height:auto; background:var(--void-2); border:1px solid var(--rule-soft); border-radius:10px; }
 .vlab{ font-family:var(--mono); font-size:10px; letter-spacing:.12em; color:var(--ash-2); margin-top:5px; }
@@ -91,6 +95,7 @@ button.go:disabled{ opacity:.4; cursor:default; }
       <div class="k">Meters</div><div class="v" id="rMeters">—</div>
       <div class="k">Safety</div><div class="v" id="rSafety">—</div>
     </div>
+    <ul id="warns" class="warns"></ul>
     <div class="viz">
       <div><canvas id="spec" width="560" height="120"></canvas><div class="vlab">TONAL BALANCE · input (grey) → mastered (gold) · 50Hz→14kHz</div></div>
       <div><canvas id="hist" width="560" height="70"></canvas><div class="vlab">LOUDNESS OVER TIME</div></div>
@@ -157,6 +162,7 @@ $('go').addEventListener('click', async () => {
     $('rCorr').textContent = `${rep.stereo.correlationIn} → ${rep.stereo.correlationOut}`;
     const mc = rep.meterCheck; $('rMeters').textContent = `${mc.agree ? 'agree' : 'diverge'} ${mc.spreadDb} dB`; $('rMeters').className = 'v ' + (mc.agree ? 'ok' : 'warn');
     $('rSafety').textContent = rep.safety && rep.safety.trimmedDb ? `trimmed ${rep.safety.trimmedDb} dB` : 'clear';
+    $('warns').innerHTML = (rep.warnings || []).map((w) => `<li class="${w.level}"><b>${w.level === 'warn' ? '⚠' : 'ℹ'}</b>${w.msg}</li>`).join('');
     drawSpectrum(rep.spectrum); drawHistory(rep.loudnessHistory);
     $('matchHint').textContent = `A/B: the original is level-matched ${j.matchGainDb > 0 ? '+' : ''}${j.matchGainDb} dB so you hear tone, not loudness.`;
     const mUrl = URL.createObjectURL(b64ToBlob(j.masteredWav)), oUrl = URL.createObjectURL(b64ToBlob(j.abOriginalWav));

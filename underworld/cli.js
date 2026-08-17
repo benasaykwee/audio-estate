@@ -81,6 +81,19 @@ function main(argv) {
     console.log('');
     return;
   }
+  if (o.bounce) {
+    const { bounceAll } = require('./bounce.js');
+    const src = readAudio(inPath);
+    const dels = String(o.bounce).split(',').map((d) => d.trim()).filter(Boolean);
+    const b = inPath.replace(/\.(wav|aiff?)$/i, ''), bits = o.bits === 16 ? 16 : 24;
+    console.log(`\n  THE UNDERWORLD — bounced ${inPath} to ${dels.length} targets`);
+    for (const r of bounceAll(src.L, src.R, src.sampleRate, dels, buildMs(o))) {
+      const f = `${b}.${r.delivery}.wav`; writeWav(f, r.L, r.R, src.sampleRate, bits);
+      console.log(`  ${r.delivery.padEnd(12)} ${r.achievedLufs} LUFS / ${r.ceilingDbTp} dBTP -> ${f}`);
+    }
+    console.log('');
+    return;
+  }
   const { L, R, sampleRate } = readAudio(inPath);
   const { preset, out } = runPipeline(L, R, sampleRate, o);
   // final independent true-peak guard before the file is written
@@ -106,6 +119,9 @@ function main(argv) {
   console.log(`  safety      : ${guard.wasOver ? `trimmed ${guard.trimDb} dB (independent meter read ${guard.truePeakDb})` : 'clear'}`);
   console.log(`  meters      : ${r.meterCheck.agree ? 'agree' : 'DIVERGE'} ${r.meterCheck.spreadDb} dB (CASKET ${r.meterCheck.readings.casketMeter} · indep ${r.meterCheck.readings.independent})`);
   console.log(`  clamped     : ${r.clamped.length ? r.clamped.map(c => c.field).join(', ') : 'none'}`);
+  { const { warnings } = require('./report.js'); const { correlation, monoCompatDb, inputStats } = require('./measure.js');
+    const w = warnings(r, out.gr || { rigor: 0, casket: 0 }, r.meterCheck, { monoCompatOutDb: monoCompatDb(guard.L, guard.R) }, inputStats(L, R));
+    if (w.length) { console.log('  warnings    :'); w.forEach((x) => console.log(`    ${x.level === 'warn' ? '!' : '·'} ${x.msg}`)); } }
   console.log(`  output      : ${bits}-bit ${fmt.toUpperCase()}  ·  latency ${out.latency} smp`);
   console.log(`  -> ${outFile}\n  -> ${outJson}${abFile ? '\n  -> ' + abFile : ''}${htmlFile ? '\n  -> ' + htmlFile : ''}\n`);
 }
