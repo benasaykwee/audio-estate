@@ -19,11 +19,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      # the whole JS seam suite (currently 200+ assertions across the .test.js files)
+      # the whole JS seam suite (200+ assertions, incl. the JS<->C++ parity harness which
+      # compiles the C++ CLI itself)
       - name: run seam suite
         run: node underworld/run-tests.js
-      # the C++ translator skeleton must compile with the trilogy's mandatory flag (§4 LAW 1)
-      - name: compile C++ translator skeleton
+      # the C++ host path builds via CMake with the trilogy's mandatory flag (§4 LAW 1) and
+      # runs its own unit tests
+      - name: build & test the C++ host path
         run: |
-          c++ -std=c++17 -ffp-contract=off -Wall -Wextra underworld/cpp/demo.cpp -o /tmp/uw_cpp
-          /tmp/uw_cpp
+          cmake -S underworld/cpp -B /tmp/uwcpp
+          cmake --build /tmp/uwcpp
+          ctest --test-dir /tmp/uwcpp --output-on-failure
