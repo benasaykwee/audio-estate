@@ -20,9 +20,12 @@ struct MasteringSettings {
     double matchStrength = 1.0;
     double compAmount = 0.0, punch = 0.3, width = 1.0;
     double makeupDb = 0.0, ceilingDbTp = -1.0, targetLufs = -14.0;
+    double dqAmount = 0.0, dqThrLow = -32, dqThrMid = -32, dqThrHigh = -32;   // dynamic EQ
+    double sideAir = 0.0, midBody = 0.0;                                      // M/S EQ (§9.2)
 };
 
-struct EqBand { bool on = false; std::string type = "bell"; double freq = 1000, gain = 0, q = 1.0; std::string place = "st"; };
+struct Dyn { bool on = false; double range = 0, thresh = -30, att = 10, rel = 150; };
+struct EqBand { bool on = false; std::string type = "bell"; double freq = 1000, gain = 0, q = 1.0; std::string place = "st"; Dyn dyn; };
 struct AutopsyState { std::vector<EqBand> bands; };                 // -> AUTOPSY.setState
 struct RigorState { int bands = 3; double xover[2] = {200, 3000}, thresh = -18, ratio = 2, attack = 10, release = 150, knee = 6; };
 struct CasketState { double lid = -1, drive = 0, targetLufs = -14, msSide = 0; bool ms = false; };
@@ -66,9 +69,20 @@ inline AutopsyState translateAutopsy(const MasteringSettings& s) {
     bell[nearest(3000)] += s.eqHighMid;
 
     AutopsyState a;
-    a.bands.push_back({std::fabs(s.eqLow) > 0.01,  "lowshelf",  100,  clampd(s.eqLow, -30, 30),  0.7, "st"});
-    a.bands.push_back({std::fabs(s.eqHigh) > 0.01, "highshelf", 8000, clampd(s.eqHigh, -30, 30), 0.7, "st"});
-    for (int b = 0; b < 10; ++b) a.bands.push_back({std::fabs(bell[b]) > 0.01, "bell", freqs[b], clampd(bell[b], -30, 30), 2.0, "st"});
+    a.bands.push_back({std::fabs(s.eqLow) > 0.01,  "lowshelf",  100,  clampd(s.eqLow, -30, 30),  0.7, "st", {}});
+    a.bands.push_back({std::fabs(s.eqHigh) > 0.01, "highshelf", 8000, clampd(s.eqHigh, -30, 30), 0.7, "st", {}});
+    for (int b = 0; b < 10; ++b) a.bands.push_back({std::fabs(bell[b]) > 0.01, "bell", freqs[b], clampd(bell[b], -30, 30), 2.0, "st", {}});
+
+    // Dynamic EQ -> per-band dynamics on three bells (mirrors auto/translate.js).
+    if (s.dqAmount > 0) {
+        double range = -std::min(24.0, std::max(0.0, 6.0 * std::min(1.0, s.dqAmount)));
+        auto setDyn = [&](double hz, double thr) { int bi = 2 + nearest(hz); a.bands[bi].on = true; a.bands[bi].dyn = {true, range, thr, 10, 150}; };
+        setDyn(120, s.dqThrLow); setDyn(1000, s.dqThrMid); setDyn(6000, s.dqThrHigh);
+    }
+    // M/S EQ (§9.2): side air -> side high shelf, mid body -> mid bell, in the first off slots.
+    auto placeMS = [&](double want, const EqBand& band) { if (want == 0) return; for (auto& b : a.bands) if (!b.on) { b = band; return; } };
+    if (s.sideAir != 0) placeMS(s.sideAir, {true, "highshelf", 10000, clampd(s.sideAir, -30, 30), 0.7, "s", {}});
+    if (s.midBody != 0) placeMS(s.midBody, {true, "bell", 250, clampd(s.midBody, -30, 30), 1.0, "m", {}});
     return a;
 }
 
