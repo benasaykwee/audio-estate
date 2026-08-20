@@ -5,8 +5,35 @@ listens, decides, and drives **AUTOPSY** (EQ) → **RIGOR** (comp) → **CASKET*
 by emitting a chain preset and orchestrating a render. One button lays out the tools;
 the user can still open any slab and carve by hand.*
 
-**Status:** proposed — not yet built. This document exists so its founding constraint
-cannot be lost before the first line of code.
+**Status:** the seam is **built** — `underworld/` is a working tool (JS + a C++ host-path
+skeleton, 200+ tests) that masters audio by driving the trilogy's reference cores. The
+eventual real-time plugin is the open piece (see §9.1). The founding constraint below held
+through all of it.
+
+---
+
+## Who is who — three things, not two
+
+Read this before the law, because LAW 0's shorthand ("Masterbox consumes them") is easy to
+misread. There are **three distinct things**, and conflating the first and third is the
+mistake this section exists to prevent:
+
+- **Masterbox** — the auto-mastering *assistant*: a brain that analyses a mix and decides
+  settings, **plus its own complete DSP** (a 14-module chain — its own EQ, compressor,
+  true-peak limiter). It ships standalone (browser app + AU/VST3, at
+  `DRAWING PROGRAM/masterbox-plugin/`) and needs nothing else. **Masterbox never touches the
+  trilogy** — it already has its own processors.
+- **The trilogy** — AUTOPSY / RIGOR / CASKET: sealed, bit-exact, reference-grade *manual*
+  plugins. Sharper scalpels, driven by hand.
+- **The Underworld** — *this project* (`underworld/`): the **seam**, with **no DSP of its
+  own**. It takes Masterbox's *brain* and, in place of Masterbox's own processors, drives the
+  trilogy — translating the brain's decisions into the trilogy's preset language and
+  orchestrating a render. A conductor, not an instrument.
+
+So the trilogy's actual consumer is **The Underworld**, not Masterbox. LAW 0's phrase names
+the *direction* (the trilogy must never depend upward); read "Masterbox consumes them" as
+*"The Underworld, driving on Masterbox's brain, consumes them — and Masterbox-the-standalone
+never does."*
 
 ---
 

@@ -266,6 +266,20 @@ before they were visible in the code.
 ## 10. THE LOG
 *Every change to the seam. Newest first. If you edit this file, add a line.*
 
+### 2026-08-16 (Masterbox side) — naming: Masterbox ≠ The Underworld (the consumer is The Underworld)
+
+A clarification, not a change: the shorthand in LAW 0 ("Masterbox consumes them") can read as
+if *Masterbox itself* drives the trilogy. It does not. **Masterbox** is a standalone
+auto-mastering tool with a brain **and its own complete DSP** — it never touches the trilogy.
+**The Underworld** (`underworld/`) is the seam with **no DSP of its own** that takes
+Masterbox's *brain* and drives the trilogy in place of Masterbox's own processors. So the
+trilogy's actual consumer is **The Underworld**; LAW 0's phrase names the one-way *direction*,
+not the identity of the caller. Full "who is who" now lives in `UNDERWORLD_CHARTER.md`
+(authoritative). `AUDIO_INTERCHANGE.md §5.1` already states this correctly ("an external
+consumer: Masterbox… the proposed integration is THE UNDERWORLD…"), so nothing in the
+trilogy's own doc needed editing. Recorded because a session skimming only LAW 0's quoted
+sentence could otherwise conflate the two.
+
 ### 2026-08-16 (Cowork side) — §3.2 assertion 3 tightened, as the entry below asked
 
 Accepted the refinement below and rewrote §3.2(3): the idle recipe is now stated as
