@@ -51,9 +51,9 @@ requires it to be correctly rounded, so the two already agree.
 ## The gates
 
 Every project holds its C++ twin bit-exact against its JavaScript.
-<!--c:estate.parity-->93,847<!--/c--> parity checks across the three gates,
-plus <!--c:estate.assertions-->1,073<!--/c--> assertions and
-<!--c:estate.baselines-->54<!--/c--> byte-stable render baselines.
+<!--c:estate.parity-->108,282<!--/c--> parity checks across the three gates,
+plus <!--c:estate.assertions-->1,475<!--/c--> assertions and
+<!--c:estate.baselines-->67<!--/c--> byte-stable render baselines.
 
 **Those numbers are generated, not typed.** `tools/counts.js` compiles and runs
 every gate, rewrites the figures between the markers in these documents, and CI
@@ -64,8 +64,8 @@ date below is when the figure last *changed*, not when someone last looked.
 | | parity checks | measured |
 |---|---|---|
 | AUTOPSY | <!--c:autopsy.parity-->9,292<!--/c--> | <!--c:measured-->2026-08-16<!--/c--> |
-| RIGOR | <!--c:rigor.parity-->61,694<!--/c--> | <!--c:measured-->2026-08-16<!--/c--> |
-| CASKET | <!--c:casket.parity-->22,861<!--/c--> | <!--c:measured-->2026-08-16<!--/c--> |
+| RIGOR | <!--c:rigor.parity-->62,642<!--/c--> | <!--c:measured-->2026-08-16<!--/c--> |
+| CASKET | <!--c:casket.parity-->23,013<!--/c--> | <!--c:measured-->2026-08-16<!--/c--> |
 
 **All of them compile with `-ffp-contract=off`, and that flag is the whole
 gate.** Without it, GCC fuses `a*b+c` into a single FMA with one rounding where

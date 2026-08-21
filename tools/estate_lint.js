@@ -100,6 +100,22 @@ if (exists('.gitignore')) {
     }
     if (gi.indexOf(rule) >= 0) ok(f + ' is admitted by the allowlist');
     else no(f + ' is NOT admitted by the allowlist', 'add `' + rule + '` to .gitignore, or it will never run');
+
+    /* A workflow and the directory it runs in must be admitted TOGETHER.
+       PALLBEARER arrived on 2026-08-18 with a root workflow and neither the
+       workflow nor its sources in the allowlist — so the job could not run,
+       and if it had been admitted alone it could only have failed. Half-done
+       in both directions at once, and invisible until something checked. */
+    var wds = {};
+    read(wfDir + '/' + f).split('\n').forEach(function (l) {
+      var m = /working-directory:\s*([A-Za-z0-9_.\/-]+)/.exec(l);
+      if (m && m[1] !== '.') wds[m[1].split('/')[0]] = 1;
+    });
+    Object.keys(wds).forEach(function (d) {
+      if (gi.indexOf('!/' + d + '/') >= 0) ok('  …and ' + d + '/, the directory it runs in, is admitted too');
+      else no(f + ' runs in ' + d + '/ but that directory is NOT in the repository',
+              'a workflow without its sources is a job that can only fail');
+    });
   });
 
   /* 4. The two files that must never be committed. */
@@ -170,6 +186,46 @@ PROJECTS.forEach(function (p) {
   if (!exists(f)) { no(f + ' is missing'); return; }
   if (read(f).indexOf('</' + 'script') >= 0) no(f + ' contains a literal closing script tag (LAW 3)');
   else ok(f + ' is safe to embed (LAW 3)');
+});
+
+/* ---------------------------------------------------------------------------
+   6b. LAW 2 in the HARNESSES, not just the engine.
+
+   The nightly deep fuzz reported 1,076 samples over the lid on 2026-08-18.
+   The engine was innocent: it had clamped every one of them to exactly its
+   own ceiling, `ND.dbToLin(Tdb)`, and the harness compared them against
+   `Math.pow(10, Tdb/20)` — one ulp lower. A limiter's whole job is to land
+   ON the lid, so the boundary is not a rare case here, it is the design
+   target. LAW 5 with the boundary being the point of the program.
+
+   The rule is narrow on purpose. `Math.pow(10, -23/20)` to generate a test
+   signal at some level is fine, and rewriting those would change generated
+   material and move blessed hashes. What is forbidden is deriving a
+   THRESHOLD the engine's output is compared against from anything but ND.
+   ------------------------------------------------------------------------- */
+PROJECTS.forEach(function (p) {
+  var dir = p + '/tests';
+  if (!exists(dir)) return;
+  var offenders = [];
+  fs.readdirSync(path.join(ROOT, dir)).filter(function (f) {
+    return /\.js$/.test(f) && !/__probe|__mut/.test(f);
+  }).forEach(function (f) {
+    read(dir + '/' + f).split('\n').forEach(function (line, i) {
+      if (line.trim()[0] === '*' || line.trim().indexOf('//') === 0) return;
+      /* a dB→linear conversion bound to a name that reads like a ceiling */
+      if (/\b(lid|lidLin|ceil|ceiling|thresh\w*)\s*=\s*Math\.pow\s*\(\s*10\s*,/.test(line) ||
+          /Math\.pow\s*\(\s*10\s*,[^)]*\b(lid|margin)\b[^)]*\)/.test(line)) {
+        offenders.push(dir + '/' + f + ':' + (i + 1));
+      }
+    });
+  });
+  if (offenders.length) {
+    no(p + ' derives a lid threshold with Math.pow instead of ND (LAW 2)',
+       offenders.join(', ') + ' — the engine clamps with ND.dbToLin; comparing ' +
+       'against anything else is off by an ulp exactly where it matters.');
+  } else {
+    ok(p + '\'s harnesses take every lid threshold from ND (LAW 2)');
+  }
 });
 
 /* ---------------------------------------------------------------------------

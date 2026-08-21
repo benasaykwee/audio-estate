@@ -87,6 +87,16 @@ var SPEC = {
       { file: 'tests/rigor_plugin_test.js' }
     ]
   },
+  pallbearer: {
+    dir: 'PALLBEARER',
+    parity: 'tests/core_parity.cpp',
+    regression: 'tests/pallbearer_regression.js',
+    harnesses: [
+      { file: 'pallbearer_test.js' },
+      { file: 'tests/pallbearer_plugin_test.js' },
+      { file: 'tests/underworld_handoff.js' }
+    ]
+  },
   casket: {
     dir: 'CASKET',
     parity: 'tests/core_parity.cpp',
@@ -101,11 +111,18 @@ var SPEC = {
       { file: 'tests/casket_seal_margin.js' },
       { file: 'tests/casket_plugin_test.js' },
       { file: 'tests/casket_host.js' },
+      { file: 'tests/casket_audit.js' },
       { file: 'tests/casket_album.js', slow: true },
       { file: 'tests/casket_rate.js', slow: true }
     ]
   }
 };
+/* casket_coverage.js is deliberately NOT in the list above. It is a --strict
+   gate (a pass/fail census of watched vs unwatched state fields), not a
+   fixed-count assertion harness — the same reason casket_fuzz.js,
+   casket_automation.js, casket_tools_fuzz.js, casket_soak.js and
+   casket_mutate.js aren't listed either. It still runs every push, in
+   casket.yml, alongside the ones that are. */
 
 /* --- parsing ---------------------------------------------------------------
    Two summary dialects are in use and neither is going to be normalised for
@@ -272,7 +289,17 @@ var DOCS = [
   'CASKET_ARCHITECTURE.md',
   'CASKET/README.md',
   'AUTOPSY/README.md',
-  'RIGOR/README.md'
+  /* RIGOR/README.md deliberately NOT here — added 2026-08-18. RIGOR grew its
+     own generator, rigor_counts.js, which owns RIGOR/README.md's numbers
+     under a DIFFERENT marker syntax (`<!-- COUNTS:KEY BEGIN -->`, not this
+     file's `<!--c:key-->`). Listing the file here cost nothing while it held
+     zero of THIS format's markers, but that was luck: an editor adding one
+     `<!--c:...-->` span to RIGOR/README.md without knowing rigor_counts.js
+     already owns that file would have created the exact two-systems-one-file
+     collision the estate's counts tooling exists to prevent. One file, one
+     generator — RIGOR's is that generator for RIGOR/README.md.
+     See rigor_counts.js's own header for its half of this. */
+  'PALLBEARER/README.md'
 ];
 
 var SPAN = /<!--c:([a-z.]+)-->([\s\S]*?)<!--\/c-->/g;

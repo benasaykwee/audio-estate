@@ -21,14 +21,25 @@ CLAUDE/
   RIGOR/                    compressor                  (Pro-C lineage)
   CASKET/                   true-peak brickwall limiter (Pro-L lineage)
   NECROPHONE-repo/          four-engine synthesizer
+  PALLBEARER/               physically modelled bass    (MODO Bass lineage)
 ```
 
 | | depends on NM | depends on ND | C++ twin | parity checks |
 |---|---|---|---|---|
 | NECROPHONE | own copy | — | yes | (its own gate) |
 | AUTOPSY | **shared** | own copies (sealed) | yes | **<!--c:autopsy.parity-->9,292<!--/c-->** |
-| RIGOR | **shared** | **shared** | yes | **<!--c:rigor.parity-->61,694<!--/c-->** |
-| CASKET | **shared** | **shared** | yes | **<!--c:casket.parity-->22,861<!--/c-->** |
+| RIGOR | **shared** | **shared** | yes | **<!--c:rigor.parity-->62,642<!--/c-->** |
+| CASKET | **shared** | **shared** | yes | **<!--c:casket.parity-->23,013<!--/c-->** |
+| PALLBEARER | **shared** | — *(no dynamics stage, deliberately)* | yes | **<!--c:pallbearer.parity-->13,335<!--/c-->** |
+
+*PALLBEARER joined 2026-08-16, got its twin the same day, and is **now DERIVED like the
+other three** — `tools/counts.js` compiles its gate at `-O2 -ffp-contract=off`, runs it,
+and rewrites the figure above. The previous edition of this row carried 9,095 as a
+hand-typed number with a footnote admitting it could go stale; it went stale within a
+day, exactly as §1 predicts, when the v0.3 DSP round took it to 13,335. That is the
+whole argument for the generator, demonstrated on the newest project rather than
+recounted about an old one. It has no ND dependency on purpose: an instrument that needs
+compression should be handed to RIGOR, not grow a second compressor.*
 
 *This row is **DERIVED**, as of 2026-08-16. `tools/counts.js` compiles and runs
 all three gates at `-O2 -ffp-contract=off` and rewrites the figures between the
@@ -173,6 +184,231 @@ There is an external consumer: **Masterbox**, a separate mastering tool with an 
 ## 7. THE LOG
 *Every change that crossed a project boundary. Newest first. If you touch `shared/`, you add a line.*
 
+### 2026-08-18 — the nightly said 1,076 samples got out; the harness was wrong about the lid
+
+`shared/` untouched; blast radius CASKET's harnesses, with a new LAW 2 rule for
+all of them. **The engine was innocent and the test was broken**, which is the
+better outcome and the more embarrassing one.
+
+**What the first-ever nightly run reported:**
+
+```
+✗ 1076 samples over the lid (peak -0.7562 vs -0.76)
+  seed 17183 style velvet lid -0.30 margin -0.46 drive 8.4
+  lining 1 vigil 7.42 dust off @ 44100 Hz blk 7
+```
+
+**What was actually true**, from the reproduction:
+
+```
+Tdb                 -0.7562227341142583
+engine lidLin       0x3fed54f167a58519   ← ND.dbToLin
+harness Math.pow    0x3fed54f167a58518   ← one ulp LOWER
+max |output|        0x3fed54f167a58519   ← exactly the engine's lid
+output === engine lid ?  true
+```
+
+Every one of those 1,076 samples was the safety clamp doing its job perfectly.
+The harness derived its ceiling with `Math.pow(10, dB/20)` while the engine
+clamps with `ND.dbToLin` — **a LAW 2 violation in a test rather than in an
+engine**, and nobody had thought to apply the law there.
+
+**Why it took a 20,000-state nightly to surface.** The two spellings differ by
+an ulp roughly seven times in ten across the fuzzer's lid range, and in only 29
+of 20,000 probes does the engine's value land ABOVE the harness's — the only
+direction that produces a false alarm. That rare direction then has to coincide
+with an output sitting exactly ON the lid, which needs **`lining 1`** (no
+oversampling, so the detector is exact on the samples themselves and the
+limiter can land precisely on the ceiling) and **partial channel linking**
+(`link 83`; at 100 the deeper channel's reduction pushes the other one under).
+Change either and it vanishes. The push path's 1,500 states never reached it.
+
+**This is LAW 5 with the boundary being the entire point of the program.** A
+limiter's job is to land on the lid. "A legal value that is also a boundary
+value" is not an edge case here, it is the design target, so any comparison
+against the ceiling must use the ceiling's own arithmetic.
+
+**Fixed:** eleven lid thresholds across seven CASKET harnesses now take their
+ceiling from `ND.dbToLin`. Deliberately NOT changed: `Math.pow(10, -23/20)` and
+friends that generate a test signal at some level — those are not thresholds,
+and rewriting them would change generated material and move blessed hashes.
+
+**Guarded:** `tools/estate_lint.js` now fails if any harness in any project
+derives something named like a ceiling from `Math.pow`. All three pass.
+
+**Also fixed, because a fuzzer nobody can re-run is decoration:** seeds are
+`1000 + iteration`, so reproducing the reported seed 17183 meant re-running the
+16,183 cases ahead of it — about three minutes to reach a case that takes
+milliseconds. `casket_fuzz.js` gained `--seed=N[,N]` and `--from=N`. The
+reproduction then took one command, and the whole 20,000 now pass.
+
+**And the lint caught something none of this was looking for:** PALLBEARER had
+arrived with a root workflow, and neither the workflow nor `PALLBEARER/` was in
+the allowlist — so its sources were not in the repository AND its job could
+never run. Half-done in both directions. Both admitted, and the lint now
+asserts that a workflow and the directory it runs in are admitted *together*,
+which is the invariant NECROPHONE's excluded `build.yml` is the deliberate
+exception to.
+
+**The rule:** *the laws apply to the test as well as to the thing under test.*
+LAW 2 was written about engines. The one place it was never applied is the one
+place that decides whether an engine is judged correct.
+
+---
+
+### 2026-08-17 — PALLBEARER v0.3: the twin keeps up, and the newest number becomes DERIVED
+
+`shared/` untouched again. Ten more solo items on the fifth member.
+
+**The five DSP changes, done as ONE round on purpose** so the baselines were re-blessed
+once rather than five times: sympathetic coupling through a bridge bus, hand momentum in
+the fingering brain, pickup coil resonance, position-shift noise, and a mean-reverting
+drift walk under the per-note jitter. All eleven regression hashes moved, deliberately,
+and the before/after is in `tests/regression_baseline.json`'s history.
+
+**The coupling model was wrong the first time, in an instructive way.** v0.2 nudged an
+envelope; v0.3 routes each string's bridge output into every other string's delay line.
+The first attempt still measured nothing, because the render loop skips silent strings
+and **a skipped string cannot receive anything.** An idle string on a real bass is not
+absent — it is tuned, undamped and waiting. `prime()` sets a string up at its open pitch
+without exciting it, and idle strings now run whenever coupling is on. That is also why
+coupling is the expensive feature: measured at **2.6× the single-string reference**,
+because every string computes every sample whether it was played or not.
+
+**§1's PALLBEARER row is now DERIVED.** `tools/counts.js` gained a `pallbearer` entry and
+rewrites the figure between markers like the other three. The previous edition of that row
+carried **9,095** hand-typed with a footnote admitting it could go stale — and it went
+stale inside a day, to **13,335**, exactly as §1 predicts. The argument for the generator,
+demonstrated on the newest project rather than recounted about an old one. Estate totals
+as measured today: **107,182** parity checks, **1,324** assertions, **65** baselines.
+
+**The estate's first instrument-shaped plugin.** `IS_SYNTH TRUE`, `NEEDS_MIDI_INPUT TRUE`,
+no input bus, sample-accurate MIDI, and a **version stamp in the state from day one** —
+NECROPHONE's round-15 note is emphatic that a stamp cannot be added retroactively, so it
+costs nothing now and is impossible later. A future state version is refused rather than
+half-loaded. `tests/pallbearer_plugin_test.js` reads `Parameters.h` as TEXT and proves all
+**37** parameters agree on id, range, default and — the dangerous one — **enum option
+order**, since hosts store choice parameters as an index and a reorder silently rewrites
+every saved session. It also checks each parameter is actually READ by the processor, a
+failure no other gate can see: a parameter can exist, appear in the host, be automated,
+and do nothing.
+
+**A cost gate that does not cry wolf.** The first version took the median of five and
+failed one run in three on a shared box for no reason. It now takes the **minimum of
+seven** — noise on a shared machine is strictly additive, so the fastest observation is
+the closest estimate of true cost — warms every case rather than only the reference, and
+allows 50% drift. That is a coarse net by design: it catches a doubling, not a 20% slip,
+and saying so is better than a tight number nobody trusts.
+
+**Verified:** 188 assertions · 38 plugin-parity · 11 baselines byte-stable · 94,241 fuzz
+cases · 13,335 parity checks bit-exact at **-O0, -O2 AND -O3** · 25 handoff checks · CPU
+gate clean over five consecutive runs · embed byte-identical. Without LAW 1: **8,693 of
+13,335 fail, worst 14,301,684 ulp.** AUTOPSY, RIGOR and CASKET regressions all still clean.
+
+### 2026-08-16 (later the same day) — PALLBEARER gets its twin, and the fixture breaks LAW 2
+
+`shared/` still untouched. PALLBEARER went from "no C++ twin, 120 assertions instead"
+to a full member in one pass: `pallbearer-juce/Source/PallbearerCore.h`, an emitter, and
+a gate. **9,095 parity checks, bit-exact**, including **3,822 samples of rendered audio**
+across seven patch configurations — not just isolated arithmetic but the whole instrument
+running: fingering, excitation, dice, loop filter, dispersion, pickups, buzz, body, drive.
+
+**LAW 1 measured on this project, not quoted from another.** Compiled without
+`-ffp-contract=off`: **6,379 of 9,095 checks fail, worst 825,202 ulp**, and the first
+mismatch is `midiToFreq` at 1 ulp — the error enters at the very first transcendental and
+compounds through the feedback loop from there. With the flag it is bit-exact at **-O0,
+-O2 and -O3 alike**, which is the useful half of the result: the flag, not the
+optimisation level, is what matters.
+
+**Determinism had to come first.** `Math.random` in the excitation made a parity gate
+impossible, so every stochastic term now runs off a 32-bit xorshift seeded per note.
+JS bitwise ops coerce to int32 and `>>> 0` yields uint32, so `uint32_t` in C++ has
+exactly those bits. This also bought round-robin variation for free — two hits of one
+note differ, which is what a sample library spends disk space on.
+
+**The finding worth carrying: THE FIXTURE ITSELF BROKE LAW 2.** On the first run 1,108
+checks failed, every one of them in the attack-layer section, while all 3,822 rendered
+audio samples were already bit-exact. The core was fine. The *test data* was built with
+`Math.exp`/`Math.sin` on the JS side and `std::exp`/`std::sin` on the C++ side — 1–2 ulp
+of v8-versus-libm drift, precisely what LAW 2 forbids. Rebuilt with no transcendental at
+all: waveform from the portable xorshift, envelope from repeated multiplication by a
+plain double literal. **A parity fixture must be at least as portable as the thing it
+tests**, and that belongs in §8's checklist as much as anything about `shared/`.
+
+**Porting is a code review.** Transcribing the JS into C++ surfaced a real bug the JS
+harness had missed: `hardJit` was computed from the humanize amount and then never used,
+so attack hardness never varied note to note. An unused local is easy to skim past in JS
+and impossible to ignore when you are writing the same lines in a language that warns
+about it. Fixed in the JS first, then mirrored — the direction the rule requires.
+
+**Also landed:** attack-layer renderer (the hybrid and sampled paths now make sound),
+velocity-brightness, fret buzz and release noise, a three-mode body (air + two wood
+modes), playable articulations, 11 byte-stable regression baselines, an 86,648-case fuzz
+harness, and a handoff test that runs the instrument through `chain.js` into all ten
+delivery targets.
+
+**Verified:** 160 assertions · 11 baselines byte-stable · 86,648 fuzz cases clean ·
+9,095 parity checks bit-exact at -O0/-O2/-O3 · 25 handoff checks · embed byte-identical.
+
+⚠️ **One correction to the entry below.** It said the C++ gates "were not executed" here
+because there is no toolchain. **There is** — `g++ 11.4.0` at `/usr/bin/g++`. The earlier
+check ran `which g++ clang++`, and `which` returns non-zero when *any* argument is
+missing, so the absent `clang++` masked a present `g++`. The claim was honestly made and
+wrong; the tool was the liar. Worth knowing before anyone else concludes this sandbox
+cannot compile.
+
+### 2026-08-16 — PALLBEARER joins as a fifth consumer of NM
+
+`shared/` **untouched** — this is additive, a new reader of `necromath.js`, nothing
+written. Blast radius therefore nil, and the §8 checklist was worked rather than
+assumed. **Measured, not restated:** `autopsy_test.js` 70/70; the regression baselines
+for all three re-run and byte-stable — AUTOPSY `placed 37eaf519` / `dynamic 61ee467f`,
+RIGOR `factory_Synced_Pump 9546323d` / `factory_Inter_Sample_Catcher 6dce7f6d`, CASKET
+`sealedDust 632de9e6` / `midside e3938d5d`.
+
+**What was NOT run, and why the distinction matters here.** The C++ parity gates were
+not executed: this sandbox has no toolchain, and running them is what CI is for. They
+are unaffected because `shared/` was not written and no existing core was touched — but
+"unaffected by reasoning" and "measured green" are different claims, and §1's whole
+thirteenth-round lesson was that restating a number is not measuring it. Anyone wanting
+the parity figures should take them from CI, not from this entry.
+
+**What it is.** A physically modelled bass. Waveguide string with fractional-delay
+tuning, stiffness dispersion, pickup-position comb filtering, body resonance, and a
+fingering brain that chooses strings the way a player would. Lineage is MODO Bass
+rather than Trilian, because a 34 GB sample library is a recording project and a
+physics engine is a DSP project — and this estate does DSP.
+
+**Its position in the contract, stated plainly rather than aspirationally:**
+
+- **Consumes NM, shared.** Same reason as everyone else: bit-identical JS↔C++ output is
+  the entire value, and a fork would drift. `pallbearer_sync.js` embeds NM ahead of the
+  core and the harness asserts LAW 4 by byte position.
+- **Does not consume ND, and should not.** It has no dynamics stage. An instrument that
+  wants compression gets handed to RIGOR. Adding a second compressor to the estate to
+  save one hop would be the kind of duplication §8 exists to prevent.
+- **Has no C++ twin yet, so it has no parity gate.** §1's row says so. In its place are
+  **120 assertions**, including measured tuning error (worst 0.089 cents across the
+  range) and measured per-partial decay. That is not equivalent to parity and is not
+  claimed to be — it is what exists until `PallbearerCore.h` does.
+- **Interchanges as audio and as JSON.** Renders 48 kHz stereo WAV straight into the
+  Underworld's chain; exports its patch as the flat sanitised parameter object.
+
+**One finding worth carrying to the other projects.** The AudioWorklet loads a
+concatenated NM+core via `addModule` as a **module**, where a top-level `var NM` is
+module-scoped and never reaches `globalThis`, and there is no `require`. A core that
+declares `var NM = globalThis.NM || require(...)` hoists a local undefined, shadows the
+real NM, and holds null — **passing every node test and producing silence only in the
+browser.** PALLBEARER names its local `_NM` so `typeof NM` can walk up the scope chain,
+and its harness reproduces module scope inside a function body to gate it. NECROPHONE
+uses its own NM copy and a different embed path so it is not exposed today, but anyone
+moving a `*_core.js` onto shared NM inside a worklet will meet this.
+
+**Verified:** 120/120 assertions green across three consecutive runs (the suite has
+randomised excitation, so a single green run proves less than it appears to);
+`pallbearer_sync.js --check` byte-identical; both embedded blocks parse under
+`vm.Script`; AUTOPSY/RIGOR/CASKET suites unchanged.
+
 ### 2026-08-16 (thirteenth round) — the counts are DERIVED now, and the tool found two bugs in itself
 
 `shared/` untouched; blast radius every document in the estate. This closes the
@@ -180,7 +416,7 @@ request the previous §1 footnote made in writing.
 
 **`tools/counts.js` generates every live number in these documents.** Figures
 are wrapped in HTML comments, which render as nothing:
-`<!--c:casket.parity-->22,861<!--/c-->`. The script compiles and runs all three
+`<!--c:casket.parity-->23,013<!--/c-->`. The script compiles and runs all three
 gates at `-O2 -ffp-contract=off`, runs the asserting harnesses, and rewrites
 what sits between the markers. CI regenerates and then runs
 `git diff --exit-code` — the same shape as the parity gate emitting its header
