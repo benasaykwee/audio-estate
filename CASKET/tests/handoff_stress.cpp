@@ -47,6 +47,18 @@ struct Payload {
         return p;
     }
     bool consistent() const {
+        /* HARDENED 2026-08-21, and this is the whole reason this file was
+           red on macOS and Windows. An all-zero Payload used to PASS every
+           check below, because 0 == 0*2 and 0 == 0*0 and (char)0 == (char)0
+           all hold trivially. That made this struct blind to a slot nobody
+           had published into yet.
+
+           `of()` is only ever called with n >= 1, so seed == 0 can only mean
+           "pristine, never written". Rejecting it here is what lets the small
+           arms see the startup race that, until today, only the Hist-sized
+           arm could — and that arm got blamed for a tear that was really an
+           empty slot being read before the writer's first publish landed. */
+        if (seed == 0) return false;
         if (twice != seed * 2) return false;
         if (square != seed * seed) return false;
         if (asDouble != (double)seed) return false;
@@ -131,6 +143,21 @@ static void run(const char* label, H& h, int publishEveryUs, int readEveryUs,
                 long long& reads, long long& torn, long long& missed) {
     stop.store(false);
     reads = torn = missed = 0;
+
+    /* SEED BEFORE EITHER THREAD EXISTS — added 2026-08-21.
+       Without this the reader can start polling before the writer's first
+       publish lands, read the zero-initialised slot, and be told `true` by a
+       Handoff that is behaving perfectly correctly: seq is 0, nothing has
+       moved, the snapshot is real. The reader then judges that empty snapshot
+       against a rule written for published data and records a TEAR.
+
+       On a quiet machine the writer wins the start and this never shows. On a
+       loaded runner the writer's thread start is delayed and the reader logs
+       thousands of them, which is exactly what turned macos-14 and
+       windows-latest red on the first estate push while ubuntu stayed green.
+       One publish on the main thread, before anything is racing, removes the
+       window entirely. */
+    h.publish(Payload::of(1));
 
     std::thread writer([&h, publishEveryUs] {
         long long n = 1;
@@ -288,6 +315,25 @@ int main() {
     traceFoldSection();
     displaySection();
 
+    /* THE HARNESS CAN SEE AN UNPUBLISHED SLOT — added 2026-08-21.
+       The seeding above removes the startup window; this proves the removal
+       was not the only thing standing between this file and a false verdict.
+       A pristine Handoff hands over a perfectly coherent zero snapshot, and
+       the payload rule must REJECT it. Before today it accepted it, which is
+       how a red CI job pointed at the audio/UI seam for a fault that lived
+       in this file. Same shape as the control arms below: a check that
+       cannot demonstrate it sees the bad case is not evidence of the good
+       one. */
+    {
+        std::printf("  THE STARTUP WINDOW: a slot nobody has published into\n\n");
+        Handoff<Payload> fresh;
+        Payload p{};
+        bool got = fresh.read(p);
+        fok(got, "a never-published Handoff still hands over a readable snapshot");
+        fok(!p.consistent(), "and the payload rule REJECTS it — an empty slot is not a moment");
+        std::printf("\n");
+    }
+
     std::printf("CASKET — Handoff<T> under two threads\n\n");
     std::printf("  UNTHROTTLED: writer as fast as the machine allows. Millions of\n");
     std::printf("  publishes a second against an audio thread's ~93. Judged on\n");
@@ -349,6 +395,10 @@ int main() {
         std::atomic<bool> bstop{false};
         long long breads = 0, btorn = 0, bmissed = 0;
         Handoff<BigPayload> bh;
+        /* Same seeding as run(), and for the same reason. This arm is the one
+           that reported "the fence does not hold at this size" for a fault
+           that was never about size or about the fence. */
+        bh.publish(BigPayload::of(1));
         std::thread bw([&] {
             double n = 1;
             while (!bstop.load(std::memory_order_relaxed)) { bh.publish(BigPayload::of(n)); n += 1; }

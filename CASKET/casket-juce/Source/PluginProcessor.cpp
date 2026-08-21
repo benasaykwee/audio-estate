@@ -149,6 +149,20 @@ void CasketProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     traceAcc = emptyTrace();
     lastTrace = traceAcc;
     tracePub.publish(traceAcc);
+
+    /* histPub was the one publisher this seeding did not cover — added
+       2026-08-21. Benign in itself: an unpublished Hist reads as zero bins,
+       which is exactly what draws "listening...", and casket_host.js already
+       asserts that. It is here for symmetry, because the same asymmetry in
+       tests/handoff_stress.cpp (every arm seeded except the Hist-sized one)
+       is what put a startup artefact on CI's books as a torn 6 KB payload
+       and sent a session hunting a memory-ordering bug that did not exist.
+       Three publishers, three seeds, no reader ever sees an empty slot. */
+    {
+        casket::Hist h;
+        engine.histogram(h);
+        histPub.publish(h);
+    }
 }
 
 bool CasketProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {
