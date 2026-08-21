@@ -160,7 +160,7 @@ somebody compiled the gate to settle it.
 | | |
 |---|---|
 | Core harness | **233** |
-| UI-logic harness | 114 |
+| UI-logic harness | 176 |
 | Plugin lint | 28 |
 | Fuzzer | 18 |
 | **Audits** (latency, automation, transitions, extremes, advice) | **46** |
@@ -168,7 +168,7 @@ somebody compiled the gate to settle it.
 | **Coverage census** (every field: sanitised / read / ported / exposed / tested) | no unexplained gaps |
 | **Mutation** (the core broken on purpose) | **11 killed, 0 survived, 1 equivalent** |
 | Regression baselines | **35**, byte-stable — every factory case included |
-| **Parity gate** | **61,694 bit-exact** |
+| **Parity gate** | **62,642 bit-exact** |
 | Host parameters | 47 |
 | State fields | 38 |
 <!-- COUNTS:VITALS END -->

@@ -184,8 +184,305 @@ ok(broken.length === 0, 'every control key resolves against the real state' +
    (broken.length ? ' — BROKEN: ' + broken.join(', ') : ''));
 
 /* ============================================================
+   THE SAME RULE, APPLIED TO THE SECOND PLACE STATE IS NAMED.
+
+   Round 9 added the assertion above after the control rack was found
+   naming v2 fields against an ND core. The rack is not the only place
+   the instrument names a state field: the keyboard handler does it too,
+   and it was never covered — so `state().sc.listen` survived there and
+   threw a TypeError on every press of L from the lineage merge until it
+   was found by hand in round 12. `sc` is not an object in this lineage.
+
+   A rule enforced in one of the two places it applies is decoration in
+   the other. This scans every `state().X` and `state().X.Y` reference in
+   the app block and resolves it against defaultState(), so any field
+   renamed in the core fails here instead of silently in a browser
+   console nobody has open.
+   ============================================================ */
+(function () {
+  /* Strip comments before scanning. The first run of this check failed on
+     `sc.listen` — inside the comment that documents the fix. A scan that
+     cannot tell code from prose reports defects that are not there, and
+     the eventual response to a check that cries wolf is to edit real code
+     until it stops, which is worse than not having it.
+
+     Block comments go entirely. Line comments go ONLY when they start a
+     line, because `https://` inside a string mid-line would otherwise eat
+     the rest of that line and hide a real reference — a false negative,
+     which is the failure this check exists to prevent. */
+  var app = (blocks[3] || '')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/^[ \t]*\/\/.*$/gm, ' ');
+  var st2 = R.defaultState(), bad = [], seen = {};
+  /* deliberately also matches the assignment form, since the bug that
+     motivated this was a write and not a read */
+  var re = /state\(\)\.([A-Za-z_$][\w$]*)(?:\.([A-Za-z_$][\w$]*))?/g, m2;
+  while ((m2 = re.exec(app)) !== null) {
+    var head = m2[1], tail = m2[2], key = head + (tail ? '.' + tail : '');
+    if (seen[key]) continue;
+    seen[key] = 1;
+    var good2 = Object.prototype.hasOwnProperty.call(st2, head);
+    /* `band` and `xover` are arrays reached by index, not by name — a
+       word after them is a method call, not a field */
+    if (good2 && tail && head !== 'band' && head !== 'xover')
+      good2 = st2[head] !== null && typeof st2[head] === 'object' &&
+              Object.prototype.hasOwnProperty.call(st2[head], tail);
+    if (!good2) bad.push(key);
+  }
+  ok(Object.keys(seen).length >= 8,
+     'the scan actually found state references to check (' +
+     Object.keys(seen).length + ') — a regex that matches nothing passes vacuously');
+  ok(bad.length === 0,
+     'every state field named OUTSIDE the control rack resolves too' +
+     (bad.length ? ' — BROKEN: ' + bad.join(', ') : ''));
+  /* prove it bites: the exact defect it was written for must fail it */
+  var probe = 'state().sc.listen = !state().sc.listen;';
+  var pm = /state\(\)\.([A-Za-z_$][\w$]*)(?:\.([A-Za-z_$][\w$]*))?/.exec(probe);
+  ok(pm && !Object.prototype.hasOwnProperty.call(st2, pm[1]),
+     'and the check is proven to catch `state().sc.listen`, the defect that prompted it');
+})();
+
+/* ============================================================
    ROUND 8 — the redraw budget, drag-swap, diffing, CSV
    ============================================================ */
+/* ============================================================
+   ROUND 12 — the worklet analyser tap (item 8)
+
+   The spectrum existed from round 5 and only ever drew on the
+   ScriptProcessor fallback. On the worklet the engine is on the audio
+   thread, so the analyser needs the tap POSTED to it. Nothing asserted
+   that, which is why it stayed half-built through four rounds while
+   looking finished.
+   ============================================================ */
+/* ============================================================
+   ROUND 12 — four case slots (item 14)
+   ============================================================ */
+/* ============================================================
+   ROUND 12 — the preset browser, and the two-loader bug (item 12)
+   ============================================================ */
+/* ============================================================
+   ROUND 12 — undo reaches the slot that was actually written (item 13)
+   ============================================================ */
+console.log('\n— undo across writes it did not make (item 13) —');
+(function () {
+  var app = blocks[3] || '';
+  ok(/function pushUndoFor\(slot\)/.test(app),
+     'there is a way to snapshot a slot that is not the active one');
+
+  /* THE DEFECT: Copy and level-match both write to prevWhich, and both
+     used pushUndo(), which snapshots `which` onto which's stack. Copy was
+     therefore irreversible and level-match undid the wrong case. Derived
+     by reading each handler rather than by trusting that it was fixed. */
+  [['btnCopy', 'overwrites the comparison case'],
+   ['btnMatch', 'changes the comparison case\'s makeup']].forEach(function (p) {
+    var body = new RegExp("el\\('" + p[0] + "'\\)\\.addEventListener\\('click', function \\(\\) \\{([\\s\\S]*?)\\n\\}\\);")
+                 .exec(app);
+    ok(!!body, 'found the ' + p[0] + ' handler');
+    if (!body) return;
+    var src = body[1];
+    ok(/pushUndoFor\(prevWhich\)/.test(src),
+       p[0] + ' snapshots the slot it writes — it ' + p[1]);
+    ok(!/pushUndo\(false\)|pushUndo\(true\)/.test(src),
+       'and no longer snapshots the ACTIVE slot, which recorded the wrong case entirely');
+  });
+
+  /* pushUndoFor must push the target's state onto the TARGET's stack.
+     Executed, not read: swapping either of those two for `which` still
+     parses, still runs, and is exactly the bug being fixed. */
+  var src2 = (/function pushUndoFor\(slot\) \{[\s\S]*?\n\}/.exec(app) || [])[0];
+  ok(!!src2, 'found pushUndoFor in the shipped source');
+  var sandbox = { undos: { A: [], B: [] }, cases: { A: { m: 'a' }, B: { m: 'b' } },
+                  which: 'A', JSON: JSON };
+  vm.createContext(sandbox);
+  new vm.Script(src2 + '\npushUndoFor("B");').runInContext(sandbox);
+  ok(sandbox.undos.B.length === 1 && sandbox.undos.A.length === 0,
+     'it pushes onto the TARGET stack, not the active one');
+  ok(sandbox.undos.B[0] === JSON.stringify({ m: 'b' }),
+     'and pushes the TARGET case, not the active one');
+  new vm.Script('pushUndoFor("nope");').runInContext(sandbox);
+  ok(sandbox.undos.B.length === 1, 'an unknown slot is ignored rather than throwing');
+
+  ok(/undos = \{ A: \[\], B: \[\], C: \[\], D: \[\] \}/.test(app),
+     'and every slot has a stack for it to push onto');
+})();
+
+console.log('\n— the preset browser and its tags (item 12) —');
+(function () {
+  var app = blocks[3] || '';
+  var F = UIH.FACTORY;
+  ok(F.every(function (f) { return Array.isArray(f.tags) && f.tags.length > 0; }),
+     'every factory case carries at least one tag');
+
+  var vocab = {};
+  F.forEach(function (f) { f.tags.forEach(function (t) { vocab[t] = (vocab[t] || 0) + 1; }); });
+  ok(Object.keys(vocab).length >= 8,
+     'the tag vocabulary is worth filtering by (' + Object.keys(vocab).length + ' tags)');
+  var singletons = Object.keys(vocab).filter(function (t) { return vocab[t] === 1; });
+  ok(singletons.length <= Object.keys(vocab).length / 2,
+     'and most tags group more than one case — a tag used once is a second name, ' +
+     'not a category (' + singletons.length + ' singletons)');
+  ok(F.every(function (f) { return f.tags.every(function (t) { return /^[a-z-]+$/.test(t); }); }),
+     'tags are lowercase and unpunctuated, so a filter cannot miss on case');
+  ok(/Object\.keys\(seen\)\.sort\(\)/.test(app),
+     'the filter row derives its vocabulary from the cases rather than keeping a second list');
+
+  /* ---- THE BUG THIS SECTION EXISTS FOR ----
+     The instrument loaded factory cases with sanitizeState while the
+     regression harness loaded the SAME entries with loadCase. sanitizeState
+     drops keys it does not know, so three presets carrying the pre-ND
+     `sc: {on,hp,lp}` block shipped with their sidechain filter switched
+     off — and the baselines, computed through loadCase, blessed a sound
+     the instrument never made. Two paths, one tested. */
+  var drift = F.filter(function (f) {
+    var a2 = R.sanitizeState(JSON.parse(JSON.stringify(f.s)));
+    var b2 = R.loadCase(JSON.parse(JSON.stringify(f.s)));
+    return JSON.stringify(a2) !== JSON.stringify(b2);
+  });
+  ok(drift.length === 0,
+     'every factory case loads IDENTICALLY through sanitizeState and loadCase — ' +
+     'the instrument and the regression harness cannot describe different sounds' +
+     (drift.length ? ' — DRIFTS: ' + drift.map(function (f) { return f.name; }).join(', ') : ''));
+  ok(!/sc: \{/.test(JSON.stringify(F)),
+     'and no entry still carries the pre-ND nested sc block');
+  ok(/setStateObj\(RIGOR\.loadCase\(/.test(app),
+     'the instrument loads factory cases through loadCase, the same door the harness uses');
+
+  /* the presets whose whole identity is their sidechain filter must
+     actually have one — named, so a silent regression cannot hide */
+  [['Vocal', 120], ['Mix Glue', 60], ['Kick Ducks Bass', 40]].forEach(function (p) {
+    var f = F.filter(function (x) { return x.name.indexOf(p[0]) === 0; })[0];
+    ok(!!f, 'found the "' + p[0] + '" case');
+    if (!f) return;
+    var s2 = R.loadCase(JSON.parse(JSON.stringify(f.s)));
+    ok(s2.scOn === true && s2.scHp === p[1],
+       '"' + f.name + '" ships with its sidechain highpass ON at ' + p[1] +
+       ' Hz (' + s2.scOn + ', ' + s2.scHp + ') — it is the reason the preset exists');
+  });
+})();
+
+console.log('\n— A / B / C / D (item 14) —');
+(function () {
+  var app = blocks[3] || '';
+  var sl = (/var SLOTS = \[([^\]]*)\]/.exec(app) || [])[1] || '';
+  var slots = sl.split(',').map(function (s) { return s.replace(/['"\s]/g, ''); })
+                .filter(Boolean);
+  ok(slots.length === 4, 'there are four slots (' + slots.join(' ') + ')');
+
+  /* everything below is DERIVED from SLOTS rather than from the literal
+     letters, so adding a fifth slot cannot leave half the instrument
+     wired for four */
+  var missing = slots.filter(function (k) {
+    return app.indexOf("el('btn" + k + "')") < 0 && !new RegExp("id=\"btn" + k + "\"").test(html);
+  });
+  ok(missing.length === 0, 'every slot has a button in the markup' +
+     (missing.length ? ' — MISSING: ' + missing.join(', ') : ''));
+  var noUndo = slots.filter(function (k) {
+    return !new RegExp('undos = \\{[^}]*\\b' + k + ':').test(app);
+  });
+  ok(noUndo.length === 0, 'and its own undo stack — a shared one would let ' +
+     'exhuming in C reach back into A' +
+     (noUndo.length ? ' — MISSING: ' + noUndo.join(', ') : ''));
+  var noMemo = slots.filter(function (k) {
+    return !new RegExp('lufsMemo = \\{[^}]*\\b' + k + ':').test(app);
+  });
+  ok(noMemo.length === 0, 'and its own loudness reading, so level-matching ' +
+     'generalises rather than staying an A/B feature' +
+     (noMemo.length ? ' — MISSING: ' + noMemo.join(', ') : ''));
+
+  /* the four defaults should not be four copies of one sound — the point
+     of the starting points is that stepping through them is a real
+     comparison. Derived from the STYLE table, not from a list here. */
+  var styles = (app.match(/style: '(\w+)'[\s\S]{0,200}?meta: \{ name: 'Case/g) || [])
+                 .map(function (m) { return /style: '(\w+)'/.exec(m)[1]; });
+  ok(styles.length === 4, 'four starting cases are defined (' + styles.length + ')');
+  ok(new Set(styles).size === 4,
+     'and they use four DIFFERENT styles — stepping A→B→C→D is a pass ' +
+     'through every topology, which is the comparison the listening ' +
+     'protocol asks for (' + styles.join(', ') + ')');
+  styles.forEach(function (s) {
+    ok(R.STYLES.indexOf(s) >= 0, 'starting style "' + s + '" is a real style');
+  });
+
+  /* THE REGRESSION THIS SECTION EXISTS FOR: the old code held caseA and
+     caseB as two bare variables, and every binary action named them
+     directly. A leftover reference would still parse, still run, and
+     silently act on the wrong slot. */
+  ok(!/\bcaseA\b|\bcaseB\b|\bundoA\b|\bundoB\b/.test(app),
+     'no bare caseA/caseB/undoA/undoB survives — a leftover would act on ' +
+     'the wrong slot without erroring');
+  ['btnCopy', 'btnMatch', 'btnDiff'].forEach(function (b) {
+    var body = new RegExp("el\\('" + b + "'\\)\\.addEventListener\\('click', function \\(\\) \\{([\\s\\S]*?)\\n\\}\\);")
+                 .exec(app);
+    ok(!!body, 'found the ' + b + ' handler');
+    if (body) ok(/prevWhich/.test(body[1]),
+      b + ' acts on the comparison slot rather than a hardcoded B');
+  });
+  ok(/pairLabel/.test(app) && /btnDiff'\)\.textContent|el\('btnDiff'\)\.textContent/.test(app),
+     'and the three binary buttons print which pair they will act on');
+})();
+
+console.log('\n— the worklet analyser tap (item 8) —');
+(function () {
+  /* The array ends with `].join('\n');`, NOT with `];`. My first version
+     of this regex looked for the latter, never matched inside the array,
+     and ran on to the end of the file — so the "process() part" contained
+     bootSP's buffers and the no-allocation assertion failed against code
+     that is not in the worklet at all. Terminate on the real delimiter. */
+  var wrap = (/var WORKLET_WRAP = \[([\s\S]*?)\]\.join\(/.exec(blocks[3] || '') || [])[1] || '';
+  ok(wrap.length > 0, 'found the worklet source');
+  ok(!/bootSP|createScriptProcessor/.test(wrap),
+     'and the extraction stops at the end of the array — the regex that did not ' +
+     'made every check below read the wrong code');
+  ok(/this\.e\.scTap\(/.test(wrap) && /this\.e\.outTap\(/.test(wrap),
+     'the worklet reads BOTH taps — a spectrum with one trace live and one dead is worse than none');
+  ok(/postMessage\(\{[^}]*sc:[^}]*out:/.test(wrap.replace(/\n/g, ' ')),
+     'and posts them with the meters, on one message rather than a second schedule');
+
+  /* THE RULE THAT ACTUALLY MATTERS: nothing may be allocated on the audio
+     thread. Derived by splitting the blob at the constructor boundary
+     rather than by eyeballing it. */
+  var ctorEnd = wrap.indexOf('process(inputs');
+  ok(ctorEnd > 0, 'found the process() boundary in the worklet');
+  var ctorPart = wrap.slice(0, ctorEnd), procPart = wrap.slice(ctorEnd);
+  ok(/new Float64Array\(2048\)/.test(ctorPart),
+     'the tap arrays are allocated in the constructor');
+  /* Stated precisely rather than sweepingly. There IS one pre-existing
+     allocation in process(): `new Float32Array(n)` for a disconnected
+     input. It is not mine, it only fires when nothing is patched in, and
+     an assertion that quietly papered over it with a string replace —
+     which is what I wrote first — would have been an assertion arranged to
+     pass. The rule being enforced is about the TAP buffers. */
+  ok(!/new Float64Array/.test(procPart),
+     'process() allocates no tap buffer — posting by reference structured-clones ' +
+     'without detaching, so the audio thread allocates nothing per tick');
+  ok(!/this\.(tsc|tou)\s*=/.test(procPart),
+     'and never reassigns them, which is the other way an allocation sneaks in');
+
+  /* the main thread must read the ENVELOPE, not the old bare-meters shape */
+  ok(/meters = d\.m \|\| d/.test(blocks[3] || ''),
+     'the main thread reads the message shape rather than assuming it');
+
+  /* copyTap, executed rather than eyeballed — pulled from the shipped
+     source so this cannot pass against a copy that has drifted */
+  var src = (/function copyTap\(src, o\) \{[\s\S]*?\n\}/.exec(blocks[3] || '') || [])[0];
+  ok(!!src, 'found copyTap in the shipped source');
+  var copyTap = new vm.Script('(' + src.replace('function copyTap', 'function') + ')')
+                  .runInNewContext({});
+  var o8 = new Float64Array(4);
+  ok(copyTap(null, o8) === 0, 'no tap yet reads as zero rather than throwing');
+  ok(copyTap(new Float64Array(0), o8) === 0, 'and an empty tap likewise');
+  var srcArr = new Float64Array([1, 2, 3, 4, 5, 6]);
+  var got8 = copyTap(srcArr, o8);
+  ok(got8 === 4, 'a short destination takes what fits (' + got8 + ')');
+  /* OLDEST-FIRST is the contract the core's taps publish. Taking the head
+     instead of the tail would show a stale spectrum that still looks
+     plausible — the exact failure a display bug hides behind. */
+  ok(o8[0] === 3 && o8[3] === 6,
+     'and takes the MOST RECENT samples, oldest-first — [3,4,5,6] not [1,2,3,4]');
+  var o9 = new Float64Array(8), got9 = copyTap(srcArr, o9);
+  ok(got9 === 6, 'a long destination is filled only as far as the tap goes (' + got9 + ')');
+})();
+
 console.log('\n— reduced motion and the eco pause (item 11) —');
 (function () {
   var U = UIH;

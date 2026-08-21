@@ -115,7 +115,7 @@ RigorAudioProcessor::RigorAudioProcessor()
     : AudioProcessor(BusesProperties()
         .withInput("Input", juce::AudioChannelSet::stereo(), true)
         .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
-      apvts(*this, nullptr, "RIGOR", createLayout())
+      apvts(*this, &undoMgr, "RIGOR", createLayout())
 {
     for (int i = 0; i < rigor::MAX_BANDS; ++i) bGr[(size_t)i].store(0.f);
 }
@@ -251,7 +251,10 @@ void RigorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
 
 void RigorAudioProcessor::recallCase(int slot)
 {
-    if (slot < 0 || slot > 1) return;
+    if (slot < 0 || slot >= NUM_CASES) return;
+    /* a case recall is one discrete action and must be one undo step, not
+       however many parameters happened to differ between the two slots */
+    undoMgr.beginNewTransaction("recall case");
     caseSlot[curCase] = apvts.copyState().createCopy();
     caseValid[curCase] = true;
     if (caseValid[slot]) apvts.replaceState(caseSlot[slot].createCopy());

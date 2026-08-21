@@ -13,7 +13,15 @@ name: RIGOR
 
 on:
   push:
+    paths: ['RIGOR/**', 'shared/**', '.github/workflows/rigor.yml']
   pull_request:
+    paths: ['RIGOR/**', 'shared/**', '.github/workflows/rigor.yml']
+
+# ADDED 2026-08-18. Every trilogy workflow used to trigger on every push with
+# no filter, so a CASKET-only commit still paid for AUTOPSY's, RIGOR's and
+# PALLBEARER's own harnesses AND their 10x-billed macOS plugin builds, for no
+# reason found in any of their triggers. shared/** stays in the filter
+# deliberately — RIGOR's own tests import it directly.
 
 jobs:
   harnesses:

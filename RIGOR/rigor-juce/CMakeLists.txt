@@ -11,6 +11,7 @@ FetchContent_MakeAvailable(JUCE)
 
 juce_add_plugin(Rigor
   COMPANY_NAME "Ben Asaykwee"
+  BUNDLE_ID "com.benasaykwee.rigor"
   PLUGIN_MANUFACTURER_CODE Basy
   PLUGIN_CODE Rgor
   FORMATS AU VST3 Standalone

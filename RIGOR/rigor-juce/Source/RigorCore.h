@@ -544,6 +544,7 @@ public:
         dTAPS = tpTaps();
         meter.init(fs);
         scRing.assign(4096, 0.0);
+        outRing.assign(4096, 0.0);
         applyTargets(); rebuild(); snapAll(); control();
     }
 
@@ -570,6 +571,12 @@ public:
         m.lufsM = meter.lufsM; m.lufsS = meter.lufsS; m.lufsI = meter.lufsI;
         m.corr = meter.corr;
         return m;
+    }
+    /* most recent OUTPUT samples, oldest first — same contract as scTap */
+    int outTap(double* out, int n) const {
+        int k = n < 4096 ? n : 4096;
+        for (int i = 0; i < k; i++) out[i] = outRing[(size_t)((outw - k + i + 4096) & 4095)];
+        return k;
     }
     int scTap(double* out, int n) const {
         int k = n < 4096 ? n : 4096;
@@ -608,6 +615,7 @@ public:
                 if (st.bypass) {
                     outL[s] = lookN > 0 ? delL.push(xl) : xl;
                     outR[s] = lookN > 0 ? delR.push(xr) : xr;
+                    outRing[(size_t)outw] = outL[s]; outw = (outw + 1) & 4095;
                     grNow = 0; continue;
                 }
                 if (inLin != 1) { xl *= inLin; xr *= inLin; }
@@ -741,6 +749,7 @@ public:
                     double ll = sl, rr = sr;
                     if (msPlace) { double q = ll + rr; rr = ll - rr; ll = q; }
                     outL[s] = ll; outR[s] = rr;
+                    outRing[(size_t)outw] = ll; outw = (outw + 1) & 4095;
                     meter.push(ll, rr);
                     continue;
                 }
@@ -754,6 +763,7 @@ public:
                 if (mkLin != 1) { yl *= mkLin; yr *= mkLin; }
                 if (msPlace) { double rl = yl + yr; yr = yl - yr; yl = rl; }
                 outL[s] = yl; outR[s] = yr;
+                outRing[(size_t)outw] = yl; outw = (outw + 1) & 4095;
                 meter.push(yl, yr);
             }
             pos = end;
@@ -832,6 +842,8 @@ private:
         meter.reset();
         std::fill(scRing.begin(), scRing.end(), 0.0);
         scw = 0;
+        std::fill(outRing.begin(), outRing.end(), 0.0);
+        outw = 0;
     }
     struct P { double c = 0, t = 0; };
     static void smoothP(P& p) {
@@ -912,6 +924,12 @@ private:
     Meter meter;
     std::vector<double> scRing;
     int scw = 0;
+    /* OUTPUT ring — mirrors the JS exactly, including being written on the
+       bypass path. See rigor_core.js for why this is not folded into the
+       meter: the meter is not pushed while bypassed, and bypass on/off is
+       the comparison an output spectrum exists to serve. */
+    std::vector<double> outRing;
+    int outw = 0;
 };
 
 /* ---------- multiband ----------
@@ -947,6 +965,20 @@ public:
     void reset() {
         for (int k = 0; k < MAX_BANDS; k++) eng[(size_t)k]->reset();
         sp.clear(); meter.reset();
+        std::fill(outRingM.begin(), outRingM.end(), 0.0);
+        outwM = 0;
+    }
+    /* Analyser taps at the wrapper level. scTap delegates unconditionally
+       — the sidechain trace is band 0's detector by definition. outTap
+       delegates ONLY at bands == 1, where eng[0]'s output really is the
+       wrapper's output; above that the sum happens here and eng[0] has
+       never seen the other bands. */
+    int scTap(double* out, int n) const { return eng[0]->scTap(out, n); }
+    int outTap(double* out, int n) const {
+        if (st.bands == 1) return eng[0]->outTap(out, n);
+        int k = n < 4096 ? n : 4096;
+        for (int i = 0; i < k; i++) out[i] = outRingM[(size_t)((outwM - k + i + 4096) & 4095)];
+        return k;
     }
     int latency() const { return eng[0]->latency(); }
     void process(const double* inL, const double* inR, double* outL, double* outR, int n) {
@@ -1012,6 +1044,7 @@ public:
                 }
             }
             outL[i] = yl; outR[i] = yr;
+            outRingM[(size_t)outwM] = yl; outwM = (outwM + 1) & 4095;
             meter.push(yl, yr);
         }
         meter.latch();
@@ -1063,6 +1096,8 @@ private:
     nd::Delay dryL, dryR;
     int dryN = 0;
     std::vector<double> dryBufL, dryBufR;
+    std::vector<double> outRingM = std::vector<double>(4096, 0.0);
+    int outwM = 0;
     int cap = 0;
     double bandGr[MAX_BANDS] = { 0, 0, 0 };
 };

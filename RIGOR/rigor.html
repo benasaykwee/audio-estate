@@ -35,6 +35,15 @@
   .disp h2{margin:0 0 8px;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;
     color:var(--gold);font-weight:normal;display:flex;gap:10px;align-items:baseline}
   .disp h2 span{color:var(--dim);letter-spacing:1px;font-size:10.5px}
+  /* the comparison slot — dimmer than the active one, but visibly marked,
+     so Diff/Copy/Level never act on a slot you have to guess at */
+  button.ref{border-color:rgba(201,162,39,.55);color:var(--gold)}
+  .specbar{display:flex;align-items:center;gap:14px;margin:10px 0 0}
+  .specbar .lgd{display:flex;align-items:center;gap:6px;color:var(--dim);
+    font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase}
+  .specbar .lgd i{width:14px;height:3px;border-radius:2px;display:inline-block}
+  .specbar .minibtn{margin-left:auto;padding:4px 12px;font-size:10.5px;
+    letter-spacing:1.5px;text-transform:uppercase}
   canvas{display:block;width:100%;border-radius:6px;background:#0a0810;touch-action:none}
 
   .styles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
@@ -57,8 +66,28 @@
   #drop{position:fixed;inset:0;background:#08070ce8;display:none;place-items:center;
     z-index:40;font-size:20px;color:var(--gold);letter-spacing:3px}
   #drop.show{display:grid}
-  #help,#diff{position:fixed;inset:0;background:#08070cf2;display:none;place-items:center;z-index:50;padding:20px}
-  #help.show,#diff.show{display:grid}
+  #help,#diff,#browse{position:fixed;inset:0;background:#08070cf2;display:none;place-items:center;z-index:50;padding:20px}
+  #help.show,#diff.show,#browse.show{display:grid}
+  #browse div{max-width:640px;width:100%;max-height:82vh;overflow:auto;
+    background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:22px 24px}
+  #browse h3{margin:0 0 12px;color:var(--gold);font-weight:normal;letter-spacing:3px;
+    font-size:13px;text-transform:uppercase}
+  #browseQ{width:100%;box-sizing:border-box;margin:0 0 12px;padding:8px 10px;
+    background:#0a0810;border:1px solid var(--line);color:var(--bone);
+    font-family:inherit;font-size:13px;border-radius:2px}
+  .tagrow{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+  .tagrow button{padding:3px 10px;font-size:10.5px;letter-spacing:1.2px;
+    text-transform:uppercase;border-radius:11px}
+  .preslist{list-style:none;margin:0;padding:0}
+  .preslist li{border-top:1px solid var(--line)}
+  .preslist li:last-child{border-bottom:1px solid var(--line)}
+  .preslist button{width:100%;text-align:left;border:none;background:none;padding:11px 4px;
+    display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .preslist button:hover{background:#141020}
+  .preslist .pn{color:var(--bone);font-size:13.5px;letter-spacing:.4px}
+  .preslist .pt{color:var(--dim);font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase}
+  .none{color:var(--dim);font-size:13px;margin:14px 0 0;display:none}
+  .none.show{display:block}
   #help div,#diff div{max-width:560px;background:var(--panel);border:1px solid var(--line);
     border-radius:12px;padding:24px 28px}
   #help h3,#diff h3{margin:0 0 12px;color:var(--gold);font-weight:normal;letter-spacing:3px;font-size:13px;
@@ -89,16 +118,18 @@
   <button id="btnFile">Open audio…</button>
   <input type="file" id="file" accept="audio/*" class="hidden" aria-label="Open an audio file">
   <span class="sp"></span>
-  <button id="btnA" class="on">Case A</button>
-  <button id="btnB">Case B</button>
-  <button id="btnCopy">A→B</button>
-  <button id="btnMatch" title="Level-match B to A using the measured LUFS">A=B level</button>
+  <button id="btnA" class="on" aria-label="Case A" aria-pressed="true">A</button>
+  <button id="btnB" aria-label="Case B" aria-pressed="false">B</button>
+  <button id="btnC" aria-label="Case C" aria-pressed="false">C</button>
+  <button id="btnD" aria-label="Case D" aria-pressed="false">D</button>
+  <button id="btnCopy" title="Copy the current case over the comparison case">A→B</button>
+  <button id="btnMatch" title="Level-match the comparison case to the current one using the measured LUFS">A=B level</button>
   <button id="btnUndo">↶ Exhume</button>
   <button id="btnSave">Save case</button>
   <button id="btnOpen">Open case</button>
   <button id="btnShare">Share link</button>
   <button id="btnCsv" title="Export the gain-reduction history as CSV">GR CSV</button>
-  <button id="btnDiff" title="What is different between Case A and Case B?">Diff A/B</button>
+  <button id="btnDiff" title="What is different between the current case and the comparison case?">Diff A/B</button>
   <input type="file" id="caseFile" accept=".json,application/json" class="hidden" aria-label="Open a case file">
   <button id="btnBypass" class="danger">Bypass</button>
   <button id="btnHelp" aria-label="Help">?</button>
@@ -116,8 +147,15 @@
     <h2>The Chart <span id="chartInfo">drag the line to set threshold</span></h2>
     <canvas id="chart" width="1600" height="520" role="img"
             aria-label="Gain reduction history over time. Drag vertically to set the threshold; the Threshold slider does the same thing from the keyboard."></canvas>
+    <div class="specbar">
+      <span class="lgd"><i style="background:#c9a227"></i>detector</span>
+      <span class="lgd"><i style="background:#a07fd0"></i>output</span>
+      <button id="specViewBtn" type="button" class="minibtn"
+              title="Which spectrum traces are drawn (O)"
+              aria-label="Cycle spectrum view: both traces, detector only, or output only">both</button>
+    </div>
     <canvas id="spec" width="1600" height="200" style="margin-top:8px" role="img"
-            aria-label="Sidechain spectrum: what the detector hears, with the sidechain filter corners and crossover splits marked."></canvas>
+            aria-label="Spectrum: the gold trace is what the detector hears after the sidechain filter, the violet trace is what leaves the compressor. Sidechain corners and crossover splits are marked."></canvas>
   </div>
 </div>
 
@@ -136,10 +174,12 @@
     <dt>B</dt><dd>bypass</dd>
     <dt>1 – 4</dt><dd>Fresh · Settling · Spasm · Repose</dd>
     <dt>A / S</dt><dd>Case A / Case B</dd>
+    <dt>[ / ]</dt><dd>step through Case A · B · C · D</dd>
     <dt>M</dt><dd>toggle auto makeup</dd>
     <dt>L</dt><dd>sidechain listen</dd>
     <dt>D</dt><dd>delta — hear only what was removed</dd>
     <dt>P</dt><dd>placement: left/right ↔ mid/side</dd>
+    <dt>O</dt><dd>spectrum: both traces · detector only · output only</dd>
     <dt>drag on chart</dt><dd>set the threshold</dd>
     <dt>Ctrl/Cmd + Z</dt><dd>exhume (undo)</dd>
     <dt>?</dt><dd>this sheet</dd>
@@ -148,8 +188,16 @@
     Grey is what came in. Blue is what leaves. The red band hanging from the ceiling is
     the flatline — gain reduction. The harder RIGOR works, the flatter it reads.</p>
 </div></div>
-<div id="diff" role="dialog" aria-label="Difference between Case A and Case B"><div>
-  <h3>A / B difference</h3>
+<div id="diff" role="dialog" aria-label="Difference between the current case and the comparison case"><div>
+  <h3>Case difference</h3>
+</div></div>
+<div id="browse" role="dialog" aria-label="Preset browser"><div>
+  <h3>Case files</h3>
+  <input id="browseQ" type="search" placeholder="search by name or tag"
+         aria-label="Filter presets by name or tag" autocomplete="off">
+  <div id="browseTags" class="tagrow" role="group" aria-label="Filter by tag"></div>
+  <ul id="browseList" class="preslist"></ul>
+  <p id="browseNone" class="none">Nothing matches that.</p>
 </div></div>
 
 <script type="text/plain" id="nm-src">
@@ -1341,6 +1389,18 @@ var RIGOR = (function (NM, ND) {
     var grNow = 0, grPeak = 0;
     var meter = createMeter(fs);
     var scRing = new Float64Array(4096), scw = 0;
+    /* OUTPUT ring — the second half of the analyser. scRing shows what the
+       detector hears; this shows what left the engine, so the two traces
+       together answer "what did the compressor do to the spectrum?".
+       Deliberately a SEPARATE ring rather than a hook inside createMeter:
+       the meter is not pushed while bypassed, and an output spectrum that
+       goes blank on the one comparison you most want to make (bypass on
+       versus off) would be a feature that fails exactly when used. It is
+       written at all three points the engine emits a sample, bypass
+       included. Writing a ring changes no arithmetic on the audio path,
+       which is why every hash and every parity check must be unmoved —
+       asserted, not assumed. */
+    var outRing = new Float64Array(4096), outw = 0;
     var msPlace = false, deltaOn = false, curveW = 0, linRate = 0, detOs = false;
     /* transient/sustain split: two followers on the same detector signal,
        one fast one slow. When they DISAGREE the material is transient; when
@@ -1411,8 +1471,8 @@ var RIGOR = (function (NM, ND) {
       for (var di = 0; di < TP_TAPS; di++) { dzL[di] = 0; dzR[di] = 0; }
       dzw = 0;
       meter.reset();
-      for (var i = 0; i < 4096; i++) scRing[i] = 0;
-      scw = 0;
+      for (var i = 0; i < 4096; i++) { scRing[i] = 0; outRing[i] = 0; }
+      scw = 0; outw = 0;
     }
 
     function smooth(p) {
@@ -1630,6 +1690,7 @@ var RIGOR = (function (NM, ND) {
           if (st.bypass) {
             outL[s] = lookN > 0 ? delL.push(xl) : xl;
             outR[s] = lookN > 0 ? delR.push(xr) : xr;
+            outRing[outw] = outL[s]; outw = (outw + 1) & 4095;
             grNow = 0;
             continue;
           }
@@ -1789,6 +1850,7 @@ var RIGOR = (function (NM, ND) {
             var ll = sl, rr = sr;
             if (msPlace) { var q = ll + rr; rr = ll - rr; ll = q; }
             outL[s] = ll; outR[s] = rr;
+            outRing[outw] = ll; outw = (outw + 1) & 4095;
             meter.push(ll, rr);
             continue;
           }
@@ -1812,6 +1874,7 @@ var RIGOR = (function (NM, ND) {
           if (msPlace) { var rl = yl + yr; yr = yl - yr; yl = rl; }
 
           outL[s] = yl; outR[s] = yr;
+          outRing[outw] = yl; outw = (outw + 1) & 4095;
           meter.push(yl, yr);
         }
         pos = end;
@@ -1832,6 +1895,14 @@ var RIGOR = (function (NM, ND) {
       for (var i = 0; i < n; i++) out[i] = scRing[(scw - n + i + 4096) & 4095];
       return n;
     }
+    /* most recent OUTPUT samples, oldest first — the same contract as
+       scTap, deliberately, so the analyser can hold both with one code
+       path and the two traces are always the same length and alignment */
+    function outTap(out) {
+      var n = out.length < 4096 ? out.length : 4096;
+      for (var i = 0; i < n; i++) out[i] = outRing[(outw - n + i + 4096) & 4095];
+      return n;
+    }
     function resetMeters() { grPeak = 0; }
 
     applyTargets();
@@ -1841,7 +1912,7 @@ var RIGOR = (function (NM, ND) {
 
     return {
       setState: setState, process: process, reset: reset,
-      meters: meters, resetMeters: resetMeters, scTap: scTap,
+      meters: meters, resetMeters: resetMeters, scTap: scTap, outTap: outTap,
       latency: function () { return lookN; },
       gr: function () { return grNow; },
       _debug: function () {
@@ -1879,6 +1950,12 @@ var RIGOR = (function (NM, ND) {
        repeating the second half one level up would be a poor showing. */
     var dryL = ND.delay(1), dryR = ND.delay(1), dryN = 0;
     var dryBufL = null, dryBufR = null;
+    /* the wrapper keeps its OWN output ring, because at 2+ bands the sum
+       happens here and eng[0] has only ever seen band 0. At bands === 1
+       outTap delegates downward instead of duplicating the write — that
+       path returns before this loop, and eng[0]'s output IS the wrapper's
+       output there, so delegation is not an approximation. */
+    var outRingM = new Float64Array(4096), outwM = 0;
 
     function grow(n) {
       if (n <= cap) return;
@@ -1928,6 +2005,8 @@ var RIGOR = (function (NM, ND) {
     function reset() {
       for (var k = 0; k < MAX_BANDS; k++) eng[k].reset();
       sp.clear(); meter.reset();
+      for (var ri = 0; ri < 4096; ri++) outRingM[ri] = 0;
+      outwM = 0;
     }
     function process(inL, inR, outL, outR) {
       var n = inL.length, k, i2;
@@ -1999,6 +2078,7 @@ var RIGOR = (function (NM, ND) {
           for (k = 0; k < nb; k++) { yl += oL[k][i2] * g[k]; yr += oR[k][i2] * g[k]; }
         }
         outL[i2] = yl; outR[i2] = yr;
+        outRingM[outwM] = yl; outwM = (outwM + 1) & 4095;
         meter.push(yl, yr);
       }
       meter.latch();
@@ -2028,6 +2108,12 @@ var RIGOR = (function (NM, ND) {
              meters: meters,
              latency: function () { return eng[0].latency(); },
              scTap: function (o) { return eng[0].scTap(o); },
+             outTap: function (o) {
+               if (st.bands === 1) return eng[0].outTap(o);
+               var n = o.length < 4096 ? o.length : 4096;
+               for (var i = 0; i < n; i++) o[i] = outRingM[(outwM - n + i + 4096) & 4095];
+               return n;
+             },
              _debug: { eng: eng, sp: sp } };
   }
 
@@ -2235,32 +2321,32 @@ var UIH = {
   },
   /* factory case files — validated against core sanitize in the harness */
   FACTORY: [
-    { name: 'Vocal — Settling', s: { style: 'settling', thresh: -26, ratio: 3, knee: 6, attack: 12, release: 220, autoMakeup: true, sc: { on: true, hp: 120, lp: 16000 }, meta: { name: 'Vocal — Settling' } } },
-    { name: 'Drum Bus — Spasm', s: { style: 'spasm', thresh: -18, ratio: 6, knee: 2, attack: 1.5, release: 60, mix: 0.7, autoMakeup: true, meta: { name: 'Drum Bus — Spasm' } } },
-    { name: 'Mix Glue — Repose', s: { style: 'repose', thresh: -22, ratio: 2, knee: 12, attack: 30, release: 300, autoMakeup: true, sc: { on: true, hp: 60, lp: 18000 }, meta: { name: 'Mix Glue — Repose' } } },
-    { name: 'Bass — Fresh', s: { style: 'fresh', thresh: -24, ratio: 4, knee: 4, attack: 8, release: 110, autoMakeup: true, meta: { name: 'Bass — Fresh' } } },
-    { name: 'Parallel Crush', s: { style: 'spasm', thresh: -42, ratio: 20, knee: 0, attack: 0.3, release: 90, mix: 0.35, makeup: 6, meta: { name: 'Parallel Crush' } } },
-    { name: 'Kick Ducks Bass', s: { style: 'fresh', thresh: -30, ratio: 6, knee: 3, attack: 3, release: 140, sc: { on: true, hp: 40, lp: 200, ext: true }, meta: { name: 'Kick Ducks Bass' } } },
-    { name: 'Peak Catcher', s: { style: 'fresh', thresh: -8, ratio: 1000, knee: 1, attack: 0.05, release: 60, look: 3, detOs: true, meta: { name: 'Peak Catcher' } } },
-    { name: 'Room Squash', s: { style: 'settling', thresh: -44, ratio: 10, knee: 8, attack: 30, release: 500, autoMakeup: true, meta: { name: 'Room Squash' } } },
-    { name: 'Gentle Levelling', s: { style: 'repose', thresh: -34, ratio: 1.5, knee: 18, attack: 60, release: 600, autoMakeup: true, meta: { name: 'Gentle Levelling' } } },
-    { name: 'Untouched', s: { ratio: 1, thresh: -60, meta: { name: 'Untouched' } } },
-    { name: 'Multiband Glue', s: { style: 'repose', bands: 3, xover: [180, 2600], thresh: -30,
+    { name: 'Vocal — Settling', tags: ['vocal','gentle','sidechain'], s: { style: 'settling', thresh: -26, ratio: 3, knee: 6, attack: 12, release: 220, autoMakeup: true, scOn: true, scHp: 120, scLp: 16000, meta: { name: 'Vocal — Settling' } } },
+    { name: 'Drum Bus — Spasm', tags: ['drums','bus','parallel','fast'], s: { style: 'spasm', thresh: -18, ratio: 6, knee: 2, attack: 1.5, release: 60, mix: 0.7, autoMakeup: true, meta: { name: 'Drum Bus — Spasm' } } },
+    { name: 'Mix Glue — Repose', tags: ['mix','bus','gentle','sidechain'], s: { style: 'repose', thresh: -22, ratio: 2, knee: 12, attack: 30, release: 300, autoMakeup: true, scOn: true, scHp: 60, scLp: 18000, meta: { name: 'Mix Glue — Repose' } } },
+    { name: 'Bass — Fresh', tags: ['bass','clean'], s: { style: 'fresh', thresh: -24, ratio: 4, knee: 4, attack: 8, release: 110, autoMakeup: true, meta: { name: 'Bass — Fresh' } } },
+    { name: 'Parallel Crush', tags: ['drums','parallel','extreme','fast'], s: { style: 'spasm', thresh: -42, ratio: 20, knee: 0, attack: 0.3, release: 90, mix: 0.35, makeup: 6, meta: { name: 'Parallel Crush' } } },
+    { name: 'Kick Ducks Bass', tags: ['bass','sidechain','external','creative'], s: { style: 'fresh', thresh: -30, ratio: 6, knee: 3, attack: 3, release: 140, scOn: true, scHp: 40, scLp: 200, meta: { name: 'Kick Ducks Bass' } } },
+    { name: 'Peak Catcher', tags: ['limiting','fast','lookahead','true-peak'], s: { style: 'fresh', thresh: -8, ratio: 1000, knee: 1, attack: 0.05, release: 60, look: 3, detOs: true, meta: { name: 'Peak Catcher' } } },
+    { name: 'Room Squash', tags: ['drums','extreme','creative'], s: { style: 'settling', thresh: -44, ratio: 10, knee: 8, attack: 30, release: 500, autoMakeup: true, meta: { name: 'Room Squash' } } },
+    { name: 'Gentle Levelling', tags: ['vocal','mix','gentle'], s: { style: 'repose', thresh: -34, ratio: 1.5, knee: 18, attack: 60, release: 600, autoMakeup: true, meta: { name: 'Gentle Levelling' } } },
+    { name: 'Untouched', tags: ['utility','reference'], s: { ratio: 1, thresh: -60, meta: { name: 'Untouched' } } },
+    { name: 'Multiband Glue', tags: ['mix','multiband','bus','gentle'], s: { style: 'repose', bands: 3, xover: [180, 2600], thresh: -30,
         ratio: 2, knee: 12, autoMakeup: true,
         band: [{ threshOff: -3, gain: 1 }, {}, { threshOff: 2, gain: -1 }],
         meta: { name: 'Multiband Glue' } } },
-    { name: 'Tame the Low End', s: { style: 'fresh', bands: 2, xover: [140, 2000], thresh: -26,
+    { name: 'Tame the Low End', tags: ['bass','multiband','mix'], s: { style: 'fresh', bands: 2, xover: [140, 2000], thresh: -26,
         ratio: 5, knee: 4, attack: 15, release: 180, autoMakeup: true,
         band: [{ threshOff: -6 }, { threshOff: 8 }],
         meta: { name: 'Tame the Low End' } } },
-    { name: 'De-Ess (band 3 solo)', s: { style: 'spasm', bands: 3, xover: [300, 5500],
+    { name: 'De-Ess (band 3 solo)', tags: ['vocal','multiband','creative'], s: { style: 'spasm', bands: 3, xover: [300, 5500],
         thresh: -34, ratio: 8, knee: 2, attack: 0.5, release: 60,
         band: [{ mute: true }, { mute: true }, { threshOff: -4 }],
         meta: { name: 'De-Ess (band 3 solo)' } } },
-    { name: 'Synced Pump', s: { style: 'spasm', thresh: -28, ratio: 6, knee: 0, attack: 1,
+    { name: 'Synced Pump', tags: ['creative','tempo','drums'], s: { style: 'spasm', thresh: -28, ratio: 6, knee: 0, attack: 1,
         relSync: 5, bpm: 120, curve: 70, autoMakeup: true,
         meta: { name: 'Synced Pump' } } },
-    { name: 'Inter-Sample Catcher', s: { style: 'fresh', thresh: -10, ratio: 20, knee: 1,
+    { name: 'Inter-Sample Catcher', tags: ['limiting','true-peak','lookahead','fast'], s: { style: 'fresh', thresh: -10, ratio: 20, knee: 1,
         attack: 0.05, release: 80, look: 4, detOs: true,
         meta: { name: 'Inter-Sample Catcher' } } }
   ]
@@ -2271,15 +2357,48 @@ if (typeof window !== 'undefined') window.UIH = UIH;
 /* ============================================================
    state, slabs, undo
    ============================================================ */
-var caseA = RIGOR.sanitizeState({ style: 'fresh', thresh: -26, ratio: 4, knee: 6,
-  attack: 10, release: 150, autoMakeup: true, meta: { name: 'Case A' } });
-var caseB = RIGOR.sanitizeState({ style: 'repose', thresh: -30, ratio: 2, knee: 12,
-  attack: 30, release: 350, autoMakeup: true, meta: { name: 'Case B' } });
+/* FOUR SLOTS, NOT TWO. Two is enough to compare; four is enough to decide
+   — you can hold the original, the change, and the two ideas you had while
+   listening, without one of them having to be the thing you overwrite.
+
+   A and B keep their exact previous starting points, so nothing anybody
+   already had in muscle memory moved. C and D take the remaining two
+   styles, which makes the four slots a ready-made pass through all four
+   topologies — the comparison docs/LISTENING_PROTOCOL.md asks for, and the
+   one that answers whether Spasm's 2 ms peak follower is right by ear. */
+var SLOTS = ['A', 'B', 'C', 'D'];
+var cases = {
+  A: RIGOR.sanitizeState({ style: 'fresh', thresh: -26, ratio: 4, knee: 6,
+    attack: 10, release: 150, autoMakeup: true, meta: { name: 'Case A' } }),
+  B: RIGOR.sanitizeState({ style: 'repose', thresh: -30, ratio: 2, knee: 12,
+    attack: 30, release: 350, autoMakeup: true, meta: { name: 'Case B' } }),
+  C: RIGOR.sanitizeState({ style: 'settling', thresh: -28, ratio: 3, knee: 9,
+    attack: 25, release: 300, autoMakeup: true, meta: { name: 'Case C' } }),
+  D: RIGOR.sanitizeState({ style: 'spasm', thresh: -24, ratio: 6, knee: 0,
+    attack: 0.5, release: 80, autoMakeup: true, meta: { name: 'Case D' } })
+};
 var which = 'A';
-var undoA = [], undoB = [];
-function state() { return which === 'A' ? caseA : caseB; }
-function setStateObj(s) { if (which === 'A') caseA = s; else caseB = s; }
-function undoStack() { return which === 'A' ? undoA : undoB; }
+/* THE COMPARISON SLOT. Copy, level-match and diff are all binary questions
+   and now have four possible answers, so they act on the slot you came
+   FROM. With only A and B in play that is exactly the old behaviour; with
+   four it means "compare this against the one I was just listening to",
+   which is the question actually being asked. Every one of those three
+   buttons prints the pair in its own label so it can never be a guess. */
+var prevWhich = 'B';
+var undos = { A: [], B: [], C: [], D: [] };
+function state() { return cases[which]; }
+function setStateObj(s) { cases[which] = s; }
+function undoStack() { return undos[which]; }
+function selectSlot(k) {
+  if (SLOTS.indexOf(k) < 0 || k === which) return;
+  prevWhich = which;
+  which = k;
+  buildRack(); syncStyleButtons(); push();
+}
+function stepSlot(d) {
+  selectSlot(SLOTS[(SLOTS.indexOf(which) + d + SLOTS.length) % SLOTS.length]);
+}
+function pairLabel(join) { return which + join + prevWhich; }
 var lastPush = 0;
 function pushUndo(throttle) {
   var now = Date.now();
@@ -2287,6 +2406,24 @@ function pushUndo(throttle) {
   lastPush = now;
   var u = undoStack();
   u.push(JSON.stringify(state()));
+  if (u.length > 80) u.shift();
+}
+/* UNDO FOR A SLOT THAT IS NOT THE ACTIVE ONE (item 13).
+
+   Two actions write to a case you are not looking at — Copy overwrites the
+   comparison slot, and level-match adjusts its makeup. Both used
+   pushUndo(), which pushes the CURRENT slot's state onto the CURRENT
+   slot's stack. So Copy had no undo at all (it destroyed a case with no
+   way back), and level-match pushed a snapshot of the wrong case onto the
+   wrong stack — pressing Exhume afterwards reverted something you had not
+   changed while leaving the thing you had changed exactly as it was.
+
+   The general shape of item 13: the undo lineage only knew about changes
+   that arrived through its own controls. */
+function pushUndoFor(slot) {
+  var u = undos[slot];
+  if (!u) return;
+  u.push(JSON.stringify(cases[slot]));
   if (u.length > 80) u.shift();
 }
 function undo() {
@@ -2306,11 +2443,40 @@ var meters = { grL: 0, grR: 0, inL: 0, inR: 0, outL: 0, outR: 0,
 /* the most recent source material, so "suggest threshold" has something
    real to analyse rather than guessing from the meters */
 var lastAudio = null;
-var lastEngineForTap = { scTap: function () { return 0; } };
+/* THE WORKLET'S ANALYSER TAP.
+
+   The spectrum used to work only from the ScriptProcessor fallback. On the
+   worklet — the fast path, the one almost everybody actually runs — the
+   engine lives on the audio thread, `spEngine` is null, and the old stub
+   here returned 0 forever, so the analyser drew an empty box and looked
+   like a rendering bug rather than a missing wire.
+
+   The worklet now posts its two taps alongside the meters on the same
+   2048-sample tick, so there is one message and no second schedule. The
+   arrays are allocated ONCE in the constructor and posted by reference:
+   structured clone copies them at post time without detaching, so nothing
+   is allocated on the audio thread, which is the rule that matters here.
+
+   Contract: the worklet's arrays are oldest-first, exactly like the core's
+   scTap and outTap, so this is a copy and never a re-ordering. Both paths
+   feed the same Float64 numbers into the same spectrum function — the fast
+   path and the fallback cannot disagree about what they are showing. */
+var workletTap = { sc: null, out: null };
+function copyTap(src, o) {
+  if (!src || !src.length) return 0;
+  var n = o.length < src.length ? o.length : src.length;
+  for (var i = 0; i < n; i++) o[i] = src[src.length - n + i];
+  return n;
+}
+var lastEngineForTap = {
+  scTap: function (o) { return copyTap(workletTap.sc, o); },
+  outTap: function (o) { return copyTap(workletTap.out, o); }
+};
 
 var WORKLET_WRAP = [
   'class RigorProc extends AudioWorkletProcessor {',
   '  constructor(){ super(); this.e = RIGOR.createEngine(sampleRate); this.n = 0;',
+  '    this.tsc = new Float64Array(2048); this.tou = new Float64Array(2048);',
   '    this.port.onmessage = (ev)=>{ if(ev.data && ev.data.state) this.e.setState(ev.data.state); }; }',
   '  process(inputs, outputs){',
   '    var i = inputs[0], o = outputs[0];',
@@ -2320,7 +2486,9 @@ var WORKLET_WRAP = [
   '    var iR = (i && i[1]) ? i[1] : iL;',
   '    this.e.process(iL, iR, o[0], o[1] || o[0]);',
   '    this.n += n;',
-  '    if(this.n >= 2048){ this.n = 0; this.port.postMessage(this.e.meters()); }',
+  '    if(this.n >= 2048){ this.n = 0;',
+  '      this.e.scTap(this.tsc); this.e.outTap(this.tou);',
+  '      this.port.postMessage({ m: this.e.meters(), sc: this.tsc, out: this.tou }); }',
   '    return true; }',
   '}',
   'registerProcessor("rigor-proc", RigorProc);'
@@ -2339,7 +2507,15 @@ function ensureCtx() {
       URL.revokeObjectURL(url);
       node = new AudioWorkletNode(ctx, 'rigor-proc', { numberOfInputs: 1, numberOfOutputs: 1,
         outputChannelCount: [2] });
-      node.port.onmessage = function (ev) { meters = ev.data; };
+      node.port.onmessage = function (ev) {
+        var d = ev.data;
+        if (!d) return;
+        /* the message is now an envelope rather than the meters object
+           itself — read the shape, do not assume it */
+        meters = d.m || d;
+        if (d.sc) workletTap.sc = d.sc;
+        if (d.out) workletTap.out = d.out;
+      };
       node.connect(gainOut);
       push();
     }).catch(function () { return bootSP(); });
@@ -2659,20 +2835,11 @@ function buildRack() {
   var fac = document.createElement('div');
   fac.className = 'ctl';
   fac.innerHTML = '<label for="facSel">Factory cases <b></b></label>';
-  var fsel = document.createElement('select');
+  var fsel = document.createElement('button');
   fsel.id = 'facSel';
-  fsel.innerHTML = '<option value="">—</option>';
-  UIH.FACTORY.forEach(function (f, i) {
-    var o = document.createElement('option');
-    o.value = i; o.textContent = f.name;
-    fsel.appendChild(o);
-  });
-  fsel.addEventListener('change', function () {
-    if (fsel.value === '') return;
-    pushUndo(false);
-    setStateObj(RIGOR.sanitizeState(UIH.FACTORY[+fsel.value].s));
-    commit(true); syncStyleButtons();
-  });
+  fsel.type = 'button';
+  fsel.textContent = 'Browse ' + UIH.FACTORY.length + ' cases…';
+  fsel.addEventListener('click', openBrowser);
   fac.appendChild(fsel);
   tg.appendChild(fac);
   rack.appendChild(tg);
@@ -2751,8 +2918,19 @@ function syncStyleButtons() {
     b.classList.toggle('on', b.dataset.style === cur);
   });
   el('btnBypass').classList.toggle('on', !!state().bypass);
-  el('btnA').classList.toggle('on', which === 'A');
-  el('btnB').classList.toggle('on', which === 'B');
+  SLOTS.forEach(function (k) {
+    var b = el('btn' + k);
+    if (!b) return;
+    b.classList.toggle('on', which === k);
+    /* the comparison slot is named on the button too — otherwise the only
+       way to know what Diff is about to compare is to remember */
+    b.classList.toggle('ref', which !== k && prevWhich === k);
+    b.setAttribute('aria-pressed', which === k ? 'true' : 'false');
+  });
+  /* the three binary actions state their pair rather than implying it */
+  el('btnCopy').textContent = pairLabel('→');
+  el('btnMatch').textContent = pairLabel('=') + ' level';
+  el('btnDiff').textContent = 'Diff ' + pairLabel('/');
 }
 
 /* ============================================================
@@ -2889,6 +3067,28 @@ function drawChart() {
    only way to know what it heard was to listen to it. This draws it. */
 var specCv = el('spec'), sx = specCv.getContext('2d');
 var TAP = new Float64Array(2048), SPEC = new Float64Array(512), SPEC_SM = new Float64Array(512);
+/* the second trace — what LEFT the engine, against what the detector heard */
+var TAP_O = new Float64Array(2048), SPEC_O = new Float64Array(512), SPEC_O_SM = new Float64Array(512);
+/* Which traces are drawn. Deliberately NOT a state field: it changes no
+   audio, and a case file describes a sound rather than a window layout.
+   Putting it in State would drag a display preference through the C++
+   twin, a 48th plugin parameter, the case format and its migration, for
+   no DSP benefit. It lives here with the other view state. */
+var SPEC_VIEWS = ['both', 'sc', 'out'];
+var specView = 'both';
+function cycleSpecView() {
+  specView = SPEC_VIEWS[(SPEC_VIEWS.indexOf(specView) + 1) % SPEC_VIEWS.length];
+  var b = el('specViewBtn');
+  if (b) b.textContent = specView === 'both' ? 'both' : (specView === 'sc' ? 'detector' : 'output');
+  var cv = el('spec');
+  if (cv) cv.setAttribute('aria-label', SPEC_LABEL[specView]);
+  drawSpectrum();
+}
+var SPEC_LABEL = {
+  both: 'Spectrum: the gold trace is what the detector hears after the sidechain filter, the violet trace is what leaves the compressor. Sidechain corners and crossover splits are marked.',
+  sc:   'Sidechain spectrum: what the detector hears, with the sidechain filter corners and crossover splits marked.',
+  out:  'Output spectrum: what leaves the compressor, with the sidechain filter corners and crossover splits marked.'
+};
 function drawSpectrum() {
   var W = specCv.width, H = specCv.height, padL = 46, padR = 12, padT = 14, padB = 18;
   var w = W - padL - padR, h = H - padT - padB;
@@ -2912,29 +3112,46 @@ function drawSpectrum() {
   }
 
   if (spEngine || node) {
-    var got = 0;
-    try { got = (spEngine ? spEngine : lastEngineForTap).scTap(TAP); } catch (e) { got = 0; }
-    if (got) {
-      RIGOR.spectrum(TAP, SPEC);
+    var eng = spEngine ? spEngine : lastEngineForTap;
+    var sr = (ctx ? ctx.sampleRate : 48000);
+    /* ONE code path for both traces, on purpose. Two copies of this loop
+       would be two places for the smoothing or the frequency mapping to
+       drift apart, and a comparison whose two halves are smoothed
+       differently is a comparison of the smoothing. */
+    var drawTrace = function (grab, buf, spec, sm, hex, rgb, fill) {
+      var got = 0;
+      try { got = grab(eng, buf); } catch (e) { got = 0; }
+      if (!got) return;
+      RIGOR.spectrum(buf, spec);
       /* a raw FFT frame is unreadable; smooth it toward the new one */
-      for (var i = 0; i < SPEC.length; i++)
-        SPEC_SM[i] = SPEC_SM[i] * 0.7 + SPEC[i] * 0.3;
-      var sr = (ctx ? ctx.sampleRate : 48000);
+      for (var i = 0; i < spec.length; i++) sm[i] = sm[i] * 0.7 + spec[i] * 0.3;
       sx.beginPath();
       var started = false;
-      for (i = 1; i < SPEC.length; i++) {
-        var f = i * sr / (SPEC.length * 2);
+      for (i = 1; i < spec.length; i++) {
+        var f = i * sr / (spec.length * 2);
         if (f < fMin || f > fMax) continue;
-        if (!started) { sx.moveTo(X(f), Y(SPEC_SM[i])); started = true; }
-        else sx.lineTo(X(f), Y(SPEC_SM[i]));
+        if (!started) { sx.moveTo(X(f), Y(sm[i])); started = true; }
+        else sx.lineTo(X(f), Y(sm[i]));
       }
-      var g2 = sx.createLinearGradient(0, padT, 0, padT + h);
-      g2.addColorStop(0, 'rgba(201,162,39,.55)');
-      g2.addColorStop(1, 'rgba(201,162,39,.05)');
-      sx.strokeStyle = '#c9a227'; sx.lineWidth = 1.8; sx.stroke();
-      sx.lineTo(X(fMax), padT + h); sx.lineTo(X(fMin), padT + h); sx.closePath();
-      sx.fillStyle = g2; sx.fill();
-    }
+      sx.strokeStyle = hex; sx.lineWidth = 1.8; sx.stroke();
+      if (fill) {
+        var g2 = sx.createLinearGradient(0, padT, 0, padT + h);
+        g2.addColorStop(0, 'rgba(' + rgb + ',.55)');
+        g2.addColorStop(1, 'rgba(' + rgb + ',.05)');
+        sx.lineTo(X(fMax), padT + h); sx.lineTo(X(fMin), padT + h); sx.closePath();
+        sx.fillStyle = g2; sx.fill();
+      }
+    };
+    /* Gold keeps the filled gradient it has always had — it is the older
+       trace and the one people already read. Violet is drawn as a bare
+       line on top of it, because two filled areas hide each other and the
+       whole point is seeing one against the other. */
+    if (specView !== 'out')
+      drawTrace(function (e2, b) { return e2.scTap(b); }, TAP, SPEC, SPEC_SM,
+                '#c9a227', '201,162,39', true);
+    if (specView !== 'sc')
+      drawTrace(function (e2, b) { return e2.outTap ? e2.outTap(b) : 0; },
+                TAP_O, SPEC_O, SPEC_O_SM, '#a07fd0', '160,127,208', specView === 'out');
   }
 
   /* the sidechain filter corners, and the crossover splits */
@@ -3029,35 +3246,132 @@ el('file').addEventListener('change', function (e) { if (e.target.files[0]) load
 el('btnBypass').addEventListener('click', function () {
   pushUndo(false); state().bypass = !state().bypass; commit(false); syncStyleButtons();
 });
-el('btnA').addEventListener('click', function () { which = 'A'; buildRack(); syncStyleButtons(); push(); });
-el('btnB').addEventListener('click', function () { which = 'B'; buildRack(); syncStyleButtons(); push(); });
-el('btnCopy').addEventListener('click', function () {
-  var from = which === 'A' ? caseA : caseB;
-  var to = RIGOR.sanitizeState(JSON.parse(JSON.stringify(from)));
-  if (which === 'A') caseB = to; else caseA = to;
+SLOTS.forEach(function (k) {
+  var b = el('btn' + k);
+  if (b) b.addEventListener('click', function () { selectSlot(k); });
 });
-/* LOUDNESS-MATCHED A/B.
+el('btnCopy').addEventListener('click', function () {
+  /* copies the CURRENT case over the comparison case — the direction the
+     button label states, and the direction that never destroys what you
+     are presently listening to. The overwritten case is snapshotted onto
+     ITS OWN stack first, so switching to it and pressing Exhume brings it
+     back; before this, Copy was the one irreversible action in the app. */
+  pushUndoFor(prevWhich);
+  cases[prevWhich] = RIGOR.sanitizeState(JSON.parse(JSON.stringify(state())));
+});
+/* LOUDNESS-MATCHED COMPARISON.
    Comparing two compressor settings by ear without level-matching them
-   just tells you which is louder. This measures both and puts the
-   offset into the inactive case's makeup. */
-var lufsMemo = { A: null, B: null };
+   just tells you which is louder. This measures both and puts the offset
+   into the COMPARISON case's makeup, leaving the one you are listening to
+   untouched. One reading per slot, so it generalised to four for free. */
+var lufsMemo = { A: null, B: null, C: null, D: null };
 el('btnMatch').addEventListener('click', function () {
-  var b = el('btnMatch');
+  var b = el('btnMatch'), rest = pairLabel('=') + ' level';
   lufsMemo[which] = isFinite(meters.lufsS) && meters.lufsS > -100 ? meters.lufsS : null;
-  if (lufsMemo.A === null || lufsMemo.B === null) {
-    b.textContent = 'play A, then B';
-    setTimeout(function () { b.textContent = 'A=B level'; }, 1800);
+  if (lufsMemo[which] === null || lufsMemo[prevWhich] === null) {
+    b.textContent = 'play ' + which + ', then ' + prevWhich;
+    setTimeout(function () { b.textContent = rest; }, 1800);
     return;
   }
-  var off = RIGOR.loudnessMatch(lufsMemo.A, lufsMemo.B);
-  pushUndo(false);
-  caseB.makeup = Math.max(-24, Math.min(24, caseB.makeup + off));
-  caseB.autoMakeup = false;
+  var off = RIGOR.loudnessMatch(lufsMemo[which], lufsMemo[prevWhich]);
+  /* the makeup change lands on prevWhich, so the snapshot must too */
+  pushUndoFor(prevWhich);
+  cases[prevWhich].makeup = Math.max(-24, Math.min(24, cases[prevWhich].makeup + off));
+  cases[prevWhich].autoMakeup = false;
   commit(true);
   b.textContent = (off >= 0 ? '+' : '') + off.toFixed(1) + ' dB';
-  setTimeout(function () { b.textContent = 'A=B level'; }, 2200);
+  setTimeout(function () { b.textContent = rest; }, 2200);
 });
 
+/* ============================================================
+   THE PRESET BROWSER (item 12)
+
+   Fifteen cases in a flat <select> is where a personal tool stops. Tags,
+   a search box, and a list you can read.
+
+   ONE LOADER, AND IT IS `loadCase`. The instrument used to call
+   sanitizeState here while tests/rigor_regression.js called loadCase on
+   the same entries — two paths, one tested. sanitizeState drops keys it
+   does not recognise, so the three presets still carrying the pre-ND
+   `sc: { on, hp, lp }` block shipped with their sidechain filter SILENTLY
+   OFF: "Vocal — Settling" lost the 120 Hz highpass it is named for, and
+   "Kick Ducks Bass" lost the 40–1000 Hz band that IS the preset. The
+   baselines were computed through loadCase, so the hashes described a
+   sound the instrument never made and the harness stayed green throughout.
+   The entries are now written flat as well, so neither path has anything
+   to migrate — belt and braces, because this cost three presets.
+   ============================================================ */
+function loadFactory(i) {
+  var f = UIH.FACTORY[i];
+  if (!f) return;
+  pushUndo(false);
+  setStateObj(RIGOR.loadCase(JSON.parse(JSON.stringify(f.s))));
+  commit(true); syncStyleButtons();
+}
+var browseTag = '';
+function browseMatches() {
+  var q = (el('browseQ').value || '').trim().toLowerCase();
+  return UIH.FACTORY.map(function (f, i) { return { f: f, i: i }; })
+    .filter(function (e) {
+      var tags = e.f.tags || [];
+      if (browseTag && tags.indexOf(browseTag) < 0) return false;
+      if (!q) return true;
+      return e.f.name.toLowerCase().indexOf(q) >= 0 ||
+             tags.some(function (t) { return t.indexOf(q) >= 0; });
+    });
+}
+function renderBrowser() {
+  var list = el('browseList');
+  while (list.firstChild) list.removeChild(list.firstChild);
+  var m = browseMatches();
+  m.forEach(function (e) {
+    var li = document.createElement('li');
+    var b = document.createElement('button');
+    b.type = 'button';
+    var n = document.createElement('span'); n.className = 'pn'; n.textContent = e.f.name;
+    var t = document.createElement('span'); t.className = 'pt';
+    t.textContent = (e.f.tags || []).join(' · ');
+    b.appendChild(n); b.appendChild(t);
+    /* textContent throughout — a case name is a perfectly good place to
+       hide a script tag, the same reasoning the diff overlay uses */
+    b.addEventListener('click', function () { loadFactory(e.i); closeBrowser(); });
+    li.appendChild(b); list.appendChild(li);
+  });
+  el('browseNone').classList.toggle('show', m.length === 0);
+}
+function buildBrowserTags() {
+  var row = el('browseTags'), seen = {};
+  UIH.FACTORY.forEach(function (f) {
+    (f.tags || []).forEach(function (t) { seen[t] = (seen[t] || 0) + 1; });
+  });
+  while (row.firstChild) row.removeChild(row.firstChild);
+  /* the vocabulary is DERIVED from the cases — a hand-kept tag list would
+     be a second copy, and the second copy is the one that goes stale */
+  ['all'].concat(Object.keys(seen).sort()).forEach(function (t) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = t === 'all' ? 'all ' + UIH.FACTORY.length : t + ' ' + seen[t];
+    b.setAttribute('aria-label', t === 'all' ? 'Show all cases' : 'Filter by tag ' + t);
+    b.classList.toggle('on', browseTag === (t === 'all' ? '' : t));
+    b.addEventListener('click', function () {
+      browseTag = t === 'all' ? '' : t;
+      buildBrowserTags(); renderBrowser();
+    });
+    row.appendChild(b);
+  });
+}
+function openBrowser() {
+  buildBrowserTags(); renderBrowser();
+  el('browse').classList.add('show');
+  el('browseQ').focus();
+}
+function closeBrowser() { el('browse').classList.remove('show'); }
+el('browseQ').addEventListener('input', renderBrowser);
+el('browse').addEventListener('click', function (ev) {
+  if (ev.target === el('browse')) closeBrowser();
+});
+
+el('specViewBtn').addEventListener('click', cycleSpecView);
 el('btnUndo').addEventListener('click', undo);
 el('btnHelp').addEventListener('click', function () { el('help').classList.toggle('show'); });
 el('help').addEventListener('click', function () { el('help').classList.remove('show'); });
@@ -3100,13 +3414,15 @@ el('btnCsv').addEventListener('click', function () {
    interpolated into HTML — a case file is user-supplied data and a case
    name is a perfectly good place to hide a script tag. */
 el('btnDiff').addEventListener('click', function () {
-  var d = UIH.diffCases(RIGOR.sanitizeState(caseA), RIGOR.sanitizeState(caseB));
+  var d = UIH.diffCases(RIGOR.sanitizeState(cases[which]),
+                        RIGOR.sanitizeState(cases[prevWhich]));
   var box = el('diff');
   var inner = box.firstElementChild;
   while (inner.childNodes.length > 1) inner.removeChild(inner.lastChild);
   if (!d.length) {
     var p = document.createElement('p');
-    p.textContent = 'Case A and Case B are identical in every setting the engine reads.';
+    p.textContent = 'Case ' + which + ' and Case ' + prevWhich +
+                    ' are identical in every setting the engine reads.';
     inner.appendChild(p);
   } else {
     var lead = document.createElement('p');
@@ -3186,20 +3502,34 @@ document.addEventListener('keydown', function (e) {
   if (e.key === ' ') { e.preventDefault(); playing ? stop() : play(); }
   else if (k === 'b') { pushUndo(false); state().bypass = !state().bypass; commit(false); syncStyleButtons(); }
   else if (k >= '1' && k <= '4') { pushUndo(false); state().style = RIGOR.STYLES[+k - 1]; commit(true); syncStyleButtons(); }
-  else if (k === 'a') { which = 'A'; buildRack(); syncStyleButtons(); push(); }
-  else if (k === 's') { which = 'B'; buildRack(); syncStyleButtons(); push(); }
+  /* A and S keep their old meanings exactly — four slots should not cost
+     anybody the two shortcuts they already had. C and D are reached by
+     stepping rather than by letter, because the obvious letters are taken:
+     D is delta, and silently stealing it would be a worse trade. */
+  else if (k === 'a') { selectSlot('A'); }
+  else if (k === 's') { selectSlot('B'); }
+  else if (e.key === '[') { stepSlot(-1); }
+  else if (e.key === ']') { stepSlot(1); }
   else if (k === 'm') { pushUndo(false); state().autoMakeup = !state().autoMakeup; commit(true); }
-  else if (k === 'l') { pushUndo(false); state().sc.listen = !state().sc.listen; commit(true); }
+  /* WAS `state().sc.listen`, a pre-ND field name that has thrown a
+     TypeError on every press since the lineage merge — `sc` is not an
+     object in this lineage, the fields are flat. Round 9 added a UI
+     assertion that every CONTROL key resolves against defaultState(); the
+     keyboard handler is a second place state is named and it was not
+     covered, so the same class of defect survived in it. Both are now
+     asserted. */
+  else if (k === 'l') { pushUndo(false); state().scListen = !state().scListen; commit(true); }
+  else if (k === 'o') { cycleSpecView(); }
   else if (k === 'd') { pushUndo(false); state().delta = !state().delta; commit(true); }
   else if (k === 'p') { pushUndo(false); state().place = state().place === 'ms' ? 'lr' : 'ms'; commit(true); }
   else if (e.key === '?') el('help').classList.toggle('show');
-  else if (e.key === 'Escape') el('help').classList.remove('show');
+  else if (e.key === 'Escape') { el('help').classList.remove('show'); closeBrowser(); }
 });
 
 /* boot from a shared case in the URL hash */
 if (location.hash.length > 1) {
   var got = UIH.decodeCase(location.hash.slice(1));
-  if (got) caseA = RIGOR.loadCase(got);
+  if (got) cases.A = RIGOR.loadCase(got);
 }
 
 buildStyles();

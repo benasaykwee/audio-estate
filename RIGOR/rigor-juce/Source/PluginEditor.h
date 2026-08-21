@@ -59,7 +59,8 @@ private:
     juce::String caption;
 };
 
-class RigorAudioProcessorEditor : public juce::AudioProcessorEditor
+class RigorAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                  private juce::Timer
 {
 public:
     explicit RigorAudioProcessorEditor(RigorAudioProcessor&);
@@ -67,13 +68,22 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
 private:
+    /* The undo transaction boundary. Every tick where something has
+       changed closes the current step, so a knob sweep or an automation
+       ramp collapses into one undoable move rather than several hundred.
+       Also the only place the undo/redo buttons learn to grey out. */
+    void timerCallback() override;
     RigorAudioProcessor& proc;
     MorgueLNF lnf;
     CurveView curve;
     ChartView chart;
 
     juce::TextButton styleBtn[4];
-    juce::TextButton caseA{ "CASE A" }, caseB{ "CASE B" }, copyBtn{ "A>B" };
+    /* sized from the processor's own count — the editor cannot be wired
+       for a different number of slots than the processor holds */
+    juce::TextButton caseBtn[RigorAudioProcessor::NUM_CASES];
+    juce::TextButton copyBtn{ "COPY >" };
+    juce::TextButton undoBtn{ "UNDO" }, redoBtn{ "REDO" };
     juce::ToggleButton deltaBtn{ "Delta" },
                        scBtn{ "Sidechain" }, listenBtn{ "Listen" },
                        autoRelBtn{ "Auto rel" }, autoMkBtn{ "Auto makeup" },

@@ -311,15 +311,33 @@ RigorAudioProcessorEditor::RigorAudioProcessorEditor(RigorAudioProcessor& p)
     placeAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         proc.apvts, "place", placeBox);
 
-    caseA.setClickingTogglesState(false);
-    caseB.setClickingTogglesState(false);
-    caseA.onClick = [this] { proc.recallCase(0); syncStyleButtons(); };
-    caseB.onClick = [this] { proc.recallCase(1); syncStyleButtons(); };
-    copyBtn.onClick = [this] { int other = 1 - proc.activeCase();
-                               proc.recallCase(other); proc.recallCase(other); };
-    addAndMakeVisible(caseA);
-    addAndMakeVisible(caseB);
+    for (int i = 0; i < RigorAudioProcessor::NUM_CASES; ++i) {
+        caseBtn[i].setButtonText(juce::String::charToString((juce_wchar)('A' + i)));
+        caseBtn[i].setClickingTogglesState(false);
+        caseBtn[i].onClick = [this, i] { proc.recallCase(i); syncStyleButtons(); };
+        addAndMakeVisible(caseBtn[i]);
+    }
+    /* copy the current case onto the NEXT slot round the ring. Recalling a
+       slot stores the current one first, so recalling twice lands the
+       present settings on the target and returns you to it — the same
+       trick the two-slot version used, now generalised. */
+    copyBtn.onClick = [this] {
+        const int next = (proc.activeCase() + 1) % RigorAudioProcessor::NUM_CASES;
+        proc.recallCase(next); proc.recallCase(next);
+        syncStyleButtons();
+    };
     addAndMakeVisible(copyBtn);
+
+    undoBtn.onClick = [this] { proc.undoStep(); syncStyleButtons(); };
+    redoBtn.onClick = [this] { proc.redoStep(); syncStyleButtons(); };
+    addAndMakeVisible(undoBtn);
+    addAndMakeVisible(redoBtn);
+    /* 4 Hz is deliberate. Faster splits one gesture into several undo
+       steps; slower lets two separate moves merge into one, which is the
+       more annoying failure because it undoes something you did not ask
+       it to. Matches the browser's 600 ms throttle closely enough that
+       the two feel like the same instrument. */
+    startTimerHz(4);
 
     setResizable(true, true);
     setResizeLimits(700, 560, 1600, 1100);
@@ -336,8 +354,20 @@ void RigorAudioProcessorEditor::syncStyleButtons()
     const int cur = (int)proc.currentState().style;
     for (int i = 0; i < 4; ++i)
         styleBtn[i].setToggleState(i == cur, juce::dontSendNotification);
-    caseA.setToggleState(proc.activeCase() == 0, juce::dontSendNotification);
-    caseB.setToggleState(proc.activeCase() == 1, juce::dontSendNotification);
+    for (int i = 0; i < RigorAudioProcessor::NUM_CASES; ++i)
+        caseBtn[i].setToggleState(proc.activeCase() == i, juce::dontSendNotification);
+    undoBtn.setEnabled(proc.canUndo());
+    redoBtn.setEnabled(proc.canRedo());
+}
+
+void RigorAudioProcessorEditor::timerCallback()
+{
+    /* Close the open transaction. Anything the host automated since the
+       last tick becomes ONE undo step; a tick with nothing in it is a
+       no-op inside JUCE, so this does not fill the stack while idle. */
+    proc.markUndoPoint();
+    undoBtn.setEnabled(proc.canUndo());
+    redoBtn.setEnabled(proc.canRedo());
 }
 
 void RigorAudioProcessorEditor::paint(juce::Graphics& g)
@@ -381,9 +411,13 @@ void RigorAudioProcessorEditor::resized()
     placeBox.setBounds(sw2.removeFromLeft(bw).reduced(2));
     bandsBox.setBounds(sw2.removeFromLeft(bw).reduced(2));
     syncBox.setBounds(sw2.removeFromLeft(bw).reduced(2));
-    caseA.setBounds(sw2.removeFromLeft(bw).reduced(2));
-    caseB.setBounds(sw2.removeFromLeft(bw).reduced(2));
-    copyBtn.setBounds(sw2.reduced(2));
+    /* four narrow slot buttons rather than two wide ones — they carry a
+       single letter, so they do not need the width */
+    for (int i = 0; i < RigorAudioProcessor::NUM_CASES; ++i)
+        caseBtn[i].setBounds(sw2.removeFromLeft(bw / 2).reduced(2));
+    copyBtn.setBounds(sw2.removeFromLeft(bw).reduced(2));
+    undoBtn.setBounds(sw2.removeFromLeft(bw).reduced(2));
+    redoBtn.setBounds(sw2.reduced(2));
     r.removeFromBottom(8);
 
     /* dials on a grid that reflows with the window */

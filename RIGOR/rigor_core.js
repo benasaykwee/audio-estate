@@ -787,6 +787,18 @@ var RIGOR = (function (NM, ND) {
     var grNow = 0, grPeak = 0;
     var meter = createMeter(fs);
     var scRing = new Float64Array(4096), scw = 0;
+    /* OUTPUT ring — the second half of the analyser. scRing shows what the
+       detector hears; this shows what left the engine, so the two traces
+       together answer "what did the compressor do to the spectrum?".
+       Deliberately a SEPARATE ring rather than a hook inside createMeter:
+       the meter is not pushed while bypassed, and an output spectrum that
+       goes blank on the one comparison you most want to make (bypass on
+       versus off) would be a feature that fails exactly when used. It is
+       written at all three points the engine emits a sample, bypass
+       included. Writing a ring changes no arithmetic on the audio path,
+       which is why every hash and every parity check must be unmoved —
+       asserted, not assumed. */
+    var outRing = new Float64Array(4096), outw = 0;
     var msPlace = false, deltaOn = false, curveW = 0, linRate = 0, detOs = false;
     /* transient/sustain split: two followers on the same detector signal,
        one fast one slow. When they DISAGREE the material is transient; when
@@ -857,8 +869,8 @@ var RIGOR = (function (NM, ND) {
       for (var di = 0; di < TP_TAPS; di++) { dzL[di] = 0; dzR[di] = 0; }
       dzw = 0;
       meter.reset();
-      for (var i = 0; i < 4096; i++) scRing[i] = 0;
-      scw = 0;
+      for (var i = 0; i < 4096; i++) { scRing[i] = 0; outRing[i] = 0; }
+      scw = 0; outw = 0;
     }
 
     function smooth(p) {
@@ -1076,6 +1088,7 @@ var RIGOR = (function (NM, ND) {
           if (st.bypass) {
             outL[s] = lookN > 0 ? delL.push(xl) : xl;
             outR[s] = lookN > 0 ? delR.push(xr) : xr;
+            outRing[outw] = outL[s]; outw = (outw + 1) & 4095;
             grNow = 0;
             continue;
           }
@@ -1235,6 +1248,7 @@ var RIGOR = (function (NM, ND) {
             var ll = sl, rr = sr;
             if (msPlace) { var q = ll + rr; rr = ll - rr; ll = q; }
             outL[s] = ll; outR[s] = rr;
+            outRing[outw] = ll; outw = (outw + 1) & 4095;
             meter.push(ll, rr);
             continue;
           }
@@ -1258,6 +1272,7 @@ var RIGOR = (function (NM, ND) {
           if (msPlace) { var rl = yl + yr; yr = yl - yr; yl = rl; }
 
           outL[s] = yl; outR[s] = yr;
+          outRing[outw] = yl; outw = (outw + 1) & 4095;
           meter.push(yl, yr);
         }
         pos = end;
@@ -1278,6 +1293,14 @@ var RIGOR = (function (NM, ND) {
       for (var i = 0; i < n; i++) out[i] = scRing[(scw - n + i + 4096) & 4095];
       return n;
     }
+    /* most recent OUTPUT samples, oldest first — the same contract as
+       scTap, deliberately, so the analyser can hold both with one code
+       path and the two traces are always the same length and alignment */
+    function outTap(out) {
+      var n = out.length < 4096 ? out.length : 4096;
+      for (var i = 0; i < n; i++) out[i] = outRing[(outw - n + i + 4096) & 4095];
+      return n;
+    }
     function resetMeters() { grPeak = 0; }
 
     applyTargets();
@@ -1287,7 +1310,7 @@ var RIGOR = (function (NM, ND) {
 
     return {
       setState: setState, process: process, reset: reset,
-      meters: meters, resetMeters: resetMeters, scTap: scTap,
+      meters: meters, resetMeters: resetMeters, scTap: scTap, outTap: outTap,
       latency: function () { return lookN; },
       gr: function () { return grNow; },
       _debug: function () {
@@ -1325,6 +1348,12 @@ var RIGOR = (function (NM, ND) {
        repeating the second half one level up would be a poor showing. */
     var dryL = ND.delay(1), dryR = ND.delay(1), dryN = 0;
     var dryBufL = null, dryBufR = null;
+    /* the wrapper keeps its OWN output ring, because at 2+ bands the sum
+       happens here and eng[0] has only ever seen band 0. At bands === 1
+       outTap delegates downward instead of duplicating the write — that
+       path returns before this loop, and eng[0]'s output IS the wrapper's
+       output there, so delegation is not an approximation. */
+    var outRingM = new Float64Array(4096), outwM = 0;
 
     function grow(n) {
       if (n <= cap) return;
@@ -1374,6 +1403,8 @@ var RIGOR = (function (NM, ND) {
     function reset() {
       for (var k = 0; k < MAX_BANDS; k++) eng[k].reset();
       sp.clear(); meter.reset();
+      for (var ri = 0; ri < 4096; ri++) outRingM[ri] = 0;
+      outwM = 0;
     }
     function process(inL, inR, outL, outR) {
       var n = inL.length, k, i2;
@@ -1445,6 +1476,7 @@ var RIGOR = (function (NM, ND) {
           for (k = 0; k < nb; k++) { yl += oL[k][i2] * g[k]; yr += oR[k][i2] * g[k]; }
         }
         outL[i2] = yl; outR[i2] = yr;
+        outRingM[outwM] = yl; outwM = (outwM + 1) & 4095;
         meter.push(yl, yr);
       }
       meter.latch();
@@ -1474,6 +1506,12 @@ var RIGOR = (function (NM, ND) {
              meters: meters,
              latency: function () { return eng[0].latency(); },
              scTap: function (o) { return eng[0].scTap(o); },
+             outTap: function (o) {
+               if (st.bands === 1) return eng[0].outTap(o);
+               var n = o.length < 4096 ? o.length : 4096;
+               for (var i = 0; i < n; i++) o[i] = outRingM[(outwM - n + i + 4096) & 4095];
+               return n;
+             },
              _debug: { eng: eng, sp: sp } };
   }
 

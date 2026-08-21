@@ -13,7 +13,7 @@
 
 Second of three. AUTOPSY opens the body, RIGOR holds it still, CASKET closes the lid.
 
-One DSP core, two bodies — a browser instrument and a JUCE plugin — proven identical to the last bit by a parity gate that currently stands at **<!--c:rigor.parity-->61,694<!--/c--> checks**.
+One DSP core, two bodies — a browser instrument and a JUCE plugin — proven identical to the last bit by a parity gate that currently stands at **<!--c:rigor.parity-->62,642<!--/c--> checks**.
 
 ## 2. Layout
 

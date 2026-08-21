@@ -38,8 +38,36 @@ public:
     void getStateInformation(juce::MemoryBlock&) override;
     void setStateInformation(const void*, int) override;
 
+    /* UNDO ACROSS HOST AUTOMATION (item 13).
+
+       DECLARED BEFORE apvts ON PURPOSE — members are constructed in
+       declaration order, and apvts takes its address. Put it after and the
+       APVTS gets a pointer to an object that does not exist yet.
+
+       The plugin previously passed `nullptr` here, so nothing a host did
+       was undoable and neither was anything the editor did. Attaching an
+       UndoManager makes every parameter write a transaction, INCLUDING the
+       ones automation performs — which is the whole point of the item, and
+       also the danger: an automation ramp writes at control rate and would
+       otherwise bury the stack in thousands of one-sample steps.
+
+       JUCE merges everything into the current transaction until someone
+       calls beginNewTransaction(), so coalescing is a matter of choosing
+       the boundaries. markUndoPoint() is that boundary, called by the
+       editor's timer, and it is deliberately the same idea as the
+       browser's 600 ms throttle — one gesture, one step. */
+    juce::UndoManager undoMgr{ 30000, 30 };
     juce::AudioProcessorValueTreeState apvts;
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
+
+    /* Opens a new transaction only if the present one has something in it,
+       so an idle timer tick does not push empty steps onto the stack and
+       make Undo look broken by needing five presses to do anything. */
+    void markUndoPoint() { undoMgr.beginNewTransaction(); }
+    bool canUndo() const { return undoMgr.canUndo(); }
+    bool canRedo() const { return undoMgr.canRedo(); }
+    void undoStep() { undoMgr.beginNewTransaction(); undoMgr.undo(); }
+    void redoStep() { undoMgr.redo(); }
 
     /* the editor draws from these */
     rigor::State currentState() const { return buildState(); }
@@ -51,8 +79,13 @@ public:
     float correlation() const { return corr.load(); }
     float inPeak() const { return inPk.load(); }
 
-    /* Case A / B lives in the PROCESSOR, so a comparison survives the
-       window being closed — which is the entire point of an A/B. */
+    /* The cases live in the PROCESSOR, so a comparison survives the window
+       being closed — which is the entire point of an A/B. Four rather than
+       two, matching the browser: two is enough to compare, four is enough
+       to decide. The count is named once and everything derives from it,
+       so the editor cannot end up wired for a different number than the
+       processor holds. */
+    static constexpr int NUM_CASES = 4;
     void recallCase(int slot);
     int activeCase() const { return curCase; }
 
@@ -64,8 +97,9 @@ private:
     std::atomic<float> grNow{ 0 }, tpPk{ 0 }, lufsS{ -200 }, lufsI{ -200 },
                        corr{ 1 }, inPk{ 0 };
     std::atomic<float> bGr[rigor::MAX_BANDS];
-    juce::ValueTree caseSlot[2]{ juce::ValueTree("A"), juce::ValueTree("B") };
-    bool caseValid[2]{ false, false };
+    juce::ValueTree caseSlot[NUM_CASES]{ juce::ValueTree("A"), juce::ValueTree("B"),
+                                         juce::ValueTree("C"), juce::ValueTree("D") };
+    bool caseValid[NUM_CASES]{ false, false, false, false };
     int curCase = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RigorAudioProcessor)

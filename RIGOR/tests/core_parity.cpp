@@ -439,6 +439,52 @@ int main() {
         }
     }
 
+    /* ---- 9½. THE ANALYSER TAPS ----
+       scTap shipped in round 3 with no parity coverage at all; outTap
+       arrives with it. Both read backwards through a masked ring, where an
+       off-by-one wraps silently and never touches the audio — exactly the
+       class of defect a gate exists for. Case 2 also pins the deliberate
+       asymmetry that bypass feeds outTap but not scTap. */
+    {
+        struct T { Style style; double thresh, ratio; bool scOn; double scHp, scLp;
+                   bool scListen, bypass; double look; int bands; double x0, x1;
+                   bool multi; };
+        const T TT[6] = {
+            { FRESH,    -30, 8, true,  120.0, 8000.0,  false, false, 0.0, 1, 200, 2000, false },
+            { FRESH,    -30, 8, false, 100.0, 12000.0, false, true,  7.0, 1, 200, 2000, false },
+            { SETTLING, -26, 4, true,  100.0, 12000.0, true,  false, 0.0, 1, 200, 2000, false },
+            { FRESH,    -30, 8, false, 100.0, 12000.0, false, false, 0.0, 1, 200, 2000, true  },
+            { FRESH,    -30, 8, false, 100.0, 12000.0, false, false, 0.0, 2, 300, 3000, true  },
+            { REPOSE,   -26, 4, false, 100.0, 12000.0, false, false, 0.0, 3, 200, 3000, true  }
+        };
+        p = 0;
+        for (int i = 0; i < 6; i++) {
+            State s = defaultState();
+            s.style = TT[i].style; s.thresh = TT[i].thresh; s.ratio = TT[i].ratio;
+            s.scOn = TT[i].scOn; s.scHp = TT[i].scHp; s.scLp = TT[i].scLp;
+            s.scListen = TT[i].scListen; s.bypass = TT[i].bypass; s.look = TT[i].look;
+            s.bands = TT[i].bands; s.xover[0] = TT[i].x0; s.xover[1] = TT[i].x1;
+            s = sanitizeState(s);
+            std::vector<double> oL((size_t)EXP_N), oR((size_t)EXP_N);
+            std::vector<double> tsc((size_t)EXP_TAPN), tou((size_t)EXP_TAPN);
+            if (TT[i].multi || s.bands > 1) {
+                Multi m(FS); m.setState(s);
+                m.process(srcL.data(), srcR.data(), oL.data(), oR.data(), EXP_N);
+                m.scTap(tsc.data(), EXP_TAPN); m.outTap(tou.data(), EXP_TAPN);
+            } else {
+                Engine e(FS); e.setState(s);
+                e.process(srcL.data(), srcR.data(), oL.data(), oR.data(), EXP_N);
+                e.scTap(tsc.data(), EXP_TAPN); e.outTap(tou.data(), EXP_TAPN);
+            }
+            for (int k = 0; k < EXP_TAPN; k += EXP_TAPSTRIDE) {
+                std::snprintf(w, sizeof(w), "taps[%d] sc[%d]", i, k);
+                check(tsc[(size_t)k], EXP_TAPS[p++], w);
+                std::snprintf(w, sizeof(w), "taps[%d] out[%d]", i, k);
+                check(tou[(size_t)k], EXP_TAPS[p++], w);
+            }
+        }
+    }
+
     /* ---- THE GATE ON THE GATE ----
        A parity run can report green while proving nothing. It happened:
        the linker could not overwrite the old binary, the stale one ran,
