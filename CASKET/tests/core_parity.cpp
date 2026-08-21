@@ -19,6 +19,7 @@ using namespace casket;
 static int fails = 0, checks = 0;
 static double worstUlp = 0;
 static char worstWhere[96] = "";
+static double worstGot = 0, worstExp = 0;
 
 /* DIAGNOSTIC GROUPING — added 2026-08-18. The -O3-only failure (43
    mismatches, all inside autoDrive, discovered by hand-inspecting a flat
@@ -50,7 +51,20 @@ static void check(double got, double exp_, const char* where) {
     if (got == exp_) return;
     if (std::isinf(got) && std::isinf(exp_) && ((got > 0) == (exp_ > 0))) return;
     double u = ulpDiff(got, exp_);
-    if (u > worstUlp) { worstUlp = u; std::snprintf(worstWhere, sizeof(worstWhere), "%s", where); }
+    /* KEEP THE WORST ONE'S NUMBERS — added 2026-08-21. The printed list is
+       capped (first N, in encounter order) while `worst` is tracked
+       separately, so the single most informative mismatch has been reported
+       as a bare NAME and nothing else. The 2026-08-16 log is the case in
+       point: 43 mismatches, 10 printed, and the summary line read
+       "worst: autoDrive[clipped][lead] at 4595268874078461952 ulp" — an ulp
+       count that large means a sign flip or a magnitude change, i.e. the
+       most diagnostic value in the run, and its got/expected were nowhere on
+       the page. Reading a failure should not require guessing. */
+    if (u > worstUlp) {
+        worstUlp = u;
+        worstGot = got; worstExp = exp_;
+        std::snprintf(worstWhere, sizeof(worstWhere), "%s", where);
+    }
     fails++;
     groupFail(where);
     if (fails <= 20)
@@ -421,6 +435,8 @@ int main() {
     std::printf("\n%d checks, %d mismatches\n", checks, fails);
     if (fails) {
         std::printf("worst: %s at %.0f ulp\n", worstWhere, worstUlp);
+        std::printf("       got %.17g expected %.17g (delta %.6g)\n",
+                    worstGot, worstExp, worstGot - worstExp);
         std::printf("by function (this is usually the fastest way to the cause):\n");
         for (std::map<std::string,int>::const_iterator it = failGroups.begin();
              it != failGroups.end(); ++it)
