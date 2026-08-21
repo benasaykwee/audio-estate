@@ -29,6 +29,12 @@
 !/AUTOPSY/
 !/RIGOR/
 !/CASKET/
+# PALLBEARER, the physically modelled bass, joined 2026-08-18. It depends on
+# ../shared/necromath, so like the other three it only resolves if the whole
+# estate travels together. Admitted at the same time as its workflow below —
+# a workflow without its sources is a job that can only fail, which is why
+# NECROPHONE's build.yml stays out.
+!/PALLBEARER/
 
 # --- admit the estate's tooling --------------------------------------------
 # tools/counts.js derives every live number in the docs from the gates that
@@ -55,6 +61,7 @@
 !/.github/workflows/casket.yml
 !/.github/workflows/autopsy.yml
 !/.github/workflows/rigor.yml
+!/.github/workflows/pallbearer.yml
 
 # ============================================================================
 # Now the ordinary exclusions, applied INSIDE the admitted directories.
@@ -89,6 +96,7 @@ cp3
 .__mut_test.js
 *.tailmark
 __wtest.txt
+__delete_probe_test.js
 
 # --- rendered audio --------------------------------------------------------
 # Renders are outputs of the suite, reproducible from the code that made them.

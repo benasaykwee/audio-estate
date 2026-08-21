@@ -1,0 +1,18 @@
+{
+  "version": "0.3",
+  "sr": 48000,
+  "recorded": "2026-08-17",
+  "hashes": {
+    "default_walk": "849e2158",
+    "precision": "7ca43f1e",
+    "slap": "3e3b3201",
+    "upright": "5e370a87",
+    "ghost_and_palm": "f41a1803",
+    "harmonics": "38a36926",
+    "five_string": "2dbeb529",
+    "humanize_max": "d3153660",
+    "extremes": "ce423a05",
+    "sampled_path": "a2b1c426",
+    "hybrid_path": "0579c653"
+  }
+}

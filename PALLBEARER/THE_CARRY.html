@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE CARRY — the PALLBEARER report</title>
+<style>
+:root{--ink:#07060a;--slab:#141019;--slab2:#1b1522;--gold:#c9a227;--gold-lo:#8a6f1a;--gold-hi:#f0d67a;--blood:#a4161a;--emerald:#1f6f5c;--sapphire:#2b4a7d;--amethyst:#6b3f7a;--bone:#e8e1d4;--mute:#9a8f80;--line:#2a2233}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(1100px 700px at 12% -8%,#1a1424 0%,transparent 60%),radial-gradient(900px 600px at 92% 4%,#16121f 0%,transparent 55%),var(--ink);color:var(--bone);font:16px/1.65 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;padding:0 0 80px}
+.wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+header{padding:56px 0 30px;text-align:center}header:after{content:"";display:block;width:190px;height:1px;margin:26px auto 0;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.kicker{letter-spacing:.4em;text-transform:uppercase;font-size:10px;color:var(--gold-lo);font-family:ui-sans-serif,system-ui,sans-serif}
+h1{font-size:56px;letter-spacing:.15em;margin:12px 0 4px;font-weight:400;color:var(--gold);text-shadow:0 0 32px rgba(201,162,39,.22)}
+.tag{font-style:italic;color:var(--mute);font-size:17px}
+.stamp{margin-top:14px;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--mute);font-family:ui-sans-serif,system-ui,sans-serif}
+.verdict{margin:26px 0;padding:20px;border-radius:3px;text-align:center;font-family:ui-sans-serif,system-ui,sans-serif;letter-spacing:.26em;text-transform:uppercase;font-size:13px}
+.verdict.green{background:rgba(31,111,92,.14);border:1px solid rgba(31,111,92,.5);color:#8fd0b8}
+.verdict.red{background:rgba(164,22,26,.14);border:1px solid rgba(164,22,26,.55);color:#e8a0a2}
+.vitals{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:12px;margin:26px 0}
+.vital{background:linear-gradient(180deg,var(--slab2),var(--slab));border:1px solid var(--line);border-radius:3px;padding:15px 10px;text-align:center;position:relative;overflow:hidden}
+.vital:before{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.55}
+.vital b{display:block;font-size:23px;color:var(--gold-hi);font-weight:400}
+.vital span{display:block;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin-top:5px;font-family:ui-sans-serif,system-ui,sans-serif;line-height:1.4}
+section{margin:44px 0}
+h2{font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);font-family:ui-sans-serif,system-ui,sans-serif;font-weight:600;border-bottom:1px solid var(--line);padding-bottom:10px;margin:0 0 20px;display:flex;align-items:center;gap:10px}
+h2:before{content:"✚";color:var(--blood);font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line)}
+th{font-family:ui-sans-serif,system-ui,sans-serif;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-lo);font-weight:600}
+td.num{text-align:right;font-family:"SF Mono",ui-monospace,Menlo,monospace;color:var(--gold-hi);white-space:nowrap}
+td.ok{color:#8fd0b8;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;letter-spacing:.14em}
+td.bad{color:#e8a0a2;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;letter-spacing:.14em}
+.bar{background:#100d16;border:1px solid var(--line);border-radius:2px;height:13px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-lo))}
+.card{background:linear-gradient(180deg,rgba(27,21,34,.9),rgba(20,16,25,.9));border:1px solid var(--line);border-left:3px solid var(--gold-lo);border-radius:3px;padding:16px 20px;margin:14px 0}
+.card.blood{border-left-color:var(--blood)}.card.sa{border-left-color:var(--sapphire)}
+.card p:first-child{margin-top:0}.card p:last-child{margin-bottom:0}
+ul{padding-left:20px}li{margin:6px 0}
+code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12.5px;background:#100d16;border:1px solid var(--line);border-radius:2px;padding:1px 5px;color:var(--gold-hi)}
+footer{margin-top:56px;padding-top:22px;border-top:1px solid var(--line);text-align:center;color:var(--mute);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<div class="kicker">pallbearer · physically modelled bass · fifth of the estate</div>
+<h1>THE CARRY</h1>
+<div class="tag">Six carry the box. Four carry the song.</div>
+<div class="stamp">Measured 2026-08-17 16:25 · core v0.3</div>
+</header>
+<div class="verdict green">✚ every gate green — fit to carry ✚</div>
+<div class="vitals">
+<div class="vital"><b>13,335</b><span>Parity checks<br>bit-exact</span></div>
+<div class="vital"><b>0.184</b><span>Cents worst<br>tuning error</span></div>
+<div class="vital"><b>94,241</b><span>Fuzz cases<br>clean</span></div>
+<div class="vital"><b>251</b><span>Assertions<br>green</span></div>
+<div class="vital"><b>37</b><span>Parameters</span></div>
+<div class="vital"><b>0</b><span>Samples in<br>the string</span></div>
+</div>
+<section>
+<h2>The gates</h2>
+<table>
+<thead><tr><th>Gate</th><th>State</th><th>What it measured</th></tr></thead>
+<tbody>
+<tr><td>Harness</td><td class="ok">✓ green</td><td class="num">188 passed, 0 failed</td></tr>
+<tr><td>Parity — JS vs C++</td><td class="ok">✓ green</td><td class="num">13,335 checks, bit-exact</td></tr>
+<tr><td>Plugin parameter parity</td><td class="ok">✓ green</td><td class="num">38 passed, 0 failed</td></tr>
+<tr><td>Regression baselines</td><td class="ok">✓ green</td><td class="num">11 phrases byte-stable</td></tr>
+<tr><td>Fuzz</td><td class="ok">✓ green</td><td class="num">94,241 hostile cases · worst peak 1.058419</td></tr>
+<tr><td>Underworld handoff</td><td class="ok">✓ green</td><td class="num">25 passed, 0 failed</td></tr>
+<tr><td>CPU cost gate</td><td class="ok">✓ green</td><td class="num">6 cases within tolerance</td></tr>
+<tr><td>Embed byte-identical</td><td class="ok">✓ green</td><td class="num">NM + core verbatim in the HTML</td></tr>
+</tbody>
+</table>
+<div class="card blood"><p><b style="color:var(--gold-hi);font-weight:400">LAW 1, measured on this project.</b> Compiled without <code>-ffp-contract=off</code>, <b>8,693 of 13,335</b> parity checks fail and the worst error reaches <b>14,301,684 ulp</b>. A waveguide feeds its own output back through a fractional-delay allpass, four dispersion stages and a damping pole every sample, so one fused rounding does not stay small.</p></div>
+</section>
+<section>
+<h2>What it costs</h2>
+<table>
+<thead><tr><th>Case</th><th>Relative cost</th><th>vs ref</th><th>Speed</th></tr></thead>
+<tbody>
+<tr><td>reference 1 string</td><td style="width:52%"><div class="bar"><i style="width:14.3%"></i></div></td><td class="num">1.00×</td><td class="num">740× RT</td></tr>
+<tr><td>four strings</td><td style="width:52%"><div class="bar"><i style="width:14.9%"></i></div></td><td class="num">1.04×</td><td class="num">714× RT</td></tr>
+<tr><td>body on</td><td style="width:52%"><div class="bar"><i style="width:18.1%"></i></div></td><td class="num">1.27×</td><td class="num">584× RT</td></tr>
+<tr><td>coupling on</td><td style="width:52%"><div class="bar"><i style="width:36.6%"></i></div></td><td class="num">2.56×</td><td class="num">289× RT</td></tr>
+<tr><td>everything on</td><td style="width:52%"><div class="bar"><i style="width:42.1%"></i></div></td><td class="num">2.95×</td><td class="num">251× RT</td></tr>
+<tr><td>six string full</td><td style="width:52%"><div class="bar"><i style="width:56.9%"></i></div></td><td class="num">3.98×</td><td class="num">186× RT</td></tr>
+</tbody>
+</table>
+<div class="card sa"><p>Coupling is the expensive feature and it is worth knowing why: with it on, every string runs its delay line every sample, played or not, because a sympathetic string that is not being computed cannot resonate. That is the cost of the feature being real rather than an envelope trick.</p><p style="color:var(--mute);font-size:14px">The gate compares ratios rather than milliseconds, takes the minimum of seven runs rather than the median, and allows 50% drift. That is a coarse net by design — it catches a doubling, not a 20% slip. On a shared machine, a tighter number would only produce a gate that cries wolf.</p></div>
+</section>
+<section>
+<h2>Still in the ground</h2>
+<div class="card">
+<ul>
+<li><b>The plugin has never been compiled.</b> There is no JUCE here; <code>PallbearerCore.h</code> is syntax-checked and parity-proven, and <code>PluginProcessor</code> is written to the estate's pattern, but the first real build happens on a CI runner. Expect the usual first-compile friction.</li>
+<li><b>The attack layer does not survive a session save.</b> The state carries a version stamp but not the audio, so a sampled or hybrid patch reloads silent. Saving a file path instead would break the moment the file moved, which is worse.</li>
+<li><b>Mono out.</b> Both channels are identical.</li>
+<li><b>The drive stage aliases</b> at high settings and wants oversampling — and the Interchange warns that oversampler taps are the first thing the compiler wants to fuse.</li>
+<li><b>No bespoke editor.</b> Generic sliders plus a neck diagram, deliberately: writing a rich JUCE editor without a compiler is how a session gets spent for nothing.</li>
+</ul>
+</div>
+</section>
+<footer><div style="letter-spacing:.28em;text-transform:uppercase;color:var(--gold-lo);font-size:11px;font-family:ui-sans-serif,system-ui,sans-serif">✚ 107,838 checks ✚</div>
+<p style="margin-top:12px">Generated by <code>tools/build_report.js</code>. Every figure above was measured by running the gate, not typed.<br>If a harness were red this page would say so in the headline.</p></footer>
+</div>
+</body>
+</html>

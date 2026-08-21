@@ -1,0 +1,128 @@
+name: PALLBEARER
+
+# LAYOUT NOTE. This file belongs at the ESTATE ROOT, not inside PALLBEARER/.
+# GitHub only reads workflows from <repo-root>/.github/workflows — a copy
+# living at PALLBEARER/.github/workflows is silently ignored, which is the
+# failure mode that leaves a project with no CI and no error to notice.
+#
+# Because the checkout lands at the estate root, every `run:` step needs to
+# start inside PALLBEARER/. That is what `defaults.run.working-directory`
+# does. It applies to `run:` steps ONLY — inputs to `uses:` actions (notably
+# upload-artifact's `path:`) are resolved from the repo root and must name
+# PALLBEARER/ explicitly.
+
+on:
+  push:
+    paths: ['PALLBEARER/**', 'shared/**', '.github/workflows/pallbearer.yml']
+  pull_request:
+    paths: ['PALLBEARER/**', 'shared/**', '.github/workflows/pallbearer.yml']
+
+# ADDED 2026-08-18. Every trilogy workflow used to trigger on every push with
+# no filter, so a CASKET-only commit still paid for AUTOPSY's, RIGOR's and
+# PALLBEARER's own harnesses AND their 10x-billed macOS plugin builds, for no
+# reason found in any of their triggers. shared/** stays in the filter
+# deliberately — PALLBEARER's own tests import it directly, per its own
+# README: PALLBEARER has no dynamics stage but still leans on shared/necromath.
+
+jobs:
+  harnesses:
+    name: JS harnesses + parity gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: PALLBEARER
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Core harness
+        run: node pallbearer_test.js
+
+      - name: Plugin parameter parity (no compiler needed)
+        run: node tests/pallbearer_plugin_test.js
+
+      - name: Regression (byte-stable baselines)
+        run: node tests/pallbearer_regression.js
+
+      - name: Fuzz (seeded, reproducible)
+        run: node tests/pallbearer_fuzz.js
+
+      - name: Underworld handoff
+        run: node tests/underworld_handoff.js
+
+      - name: Sync is current (embed byte-identical)
+        run: node pallbearer_sync.js --check
+
+      # Emit, then prove it did not move — the same shape as the gate itself.
+      # If the JS core changed and nobody re-emitted, this fails here rather
+      # than producing a gate that quietly tests yesterday's truth.
+      - name: Parity gate (JS truth vs C++ twin, bit-exact)
+        run: |
+          node tests/parity_emit.js
+          git diff --exit-code tests/parity_expected.h
+          mkdir -p build
+          g++ -std=c++17 -O2 -ffp-contract=off -o build/pb_parity tests/core_parity.cpp
+          ./build/pb_parity
+
+      # LAW 1 is a claim about this project, so it gets re-proved on this
+      # project. If a future compiler ever makes the unflagged build pass,
+      # that is worth knowing immediately — it would mean the evidence for
+      # the law had quietly evaporated.
+      - name: LAW 1 still bites (unflagged build must FAIL)
+        run: |
+          g++ -std=c++17 -O2 -o build/pb_fma tests/core_parity.cpp
+          if ./build/pb_fma > /dev/null 2>&1; then
+            echo "::error::parity passed WITHOUT -ffp-contract=off — LAW 1's evidence has changed"
+            exit 1
+          fi
+          echo "confirmed: the unflagged build still fails, as it must"
+
+  plugin-compile-check:
+    name: Compile the plugin sources (Linux, fast)
+    runs-on: ubuntu-latest
+    needs: harnesses
+    steps:
+      - uses: actions/checkout@v4
+
+      # Catches API misuse in seconds, before a macOS runner is spent on it.
+      # This does NOT produce a loadable plugin — AU is macOS-only — it just
+      # proves the translation units are sound.
+      - name: Fetch JUCE (pinned, shallow)
+        run: git clone --depth 1 --branch 7.0.12 https://github.com/juce-framework/JUCE.git /tmp/juce7
+
+      - name: Compile PluginProcessor and PluginEditor
+        working-directory: PALLBEARER
+        run: bash tools/compile_check.sh /tmp/juce7/modules
+
+  plugin-macos:
+    name: Build AU/VST3 (macOS)
+    runs-on: macos-14
+    needs: plugin-compile-check
+    defaults:
+      run:
+        working-directory: PALLBEARER
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -S pallbearer-juce -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release -j 3
+
+      - name: List artefacts
+        run: find build -name "*.component" -o -name "*.vst3" -o -name "*.app" | head -20
+
+      # `path:` is an input to a `uses:` action, so working-directory does NOT
+      # apply — spelled from the repo root or the upload finds nothing and
+      # only warns.
+      - name: Upload plugin artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pallbearer-plugins-macos
+          path: |
+            PALLBEARER/build/**/*.component
+            PALLBEARER/build/**/*.vst3
+          if-no-files-found: warn

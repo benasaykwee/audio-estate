@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE VIEWING — the PALLBEARER audit</title>
+<style>
+:root{--ink:#07060a;--slab:#141019;--slab2:#1b1522;--gold:#c9a227;--gold-lo:#8a6f1a;--gold-hi:#f0d67a;--blood:#a4161a;--emerald:#1f6f5c;--sapphire:#2b4a7d;--amethyst:#6b3f7a;--bone:#e8e1d4;--mute:#9a8f80;--line:#2a2233}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(1100px 700px at 12% -8%,#1a1424 0%,transparent 60%),radial-gradient(900px 600px at 92% 4%,#16121f 0%,transparent 55%),var(--ink);color:var(--bone);font:16px/1.65 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;padding:0 0 80px}
+.wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+header{padding:56px 0 30px;text-align:center}header:after{content:"";display:block;width:190px;height:1px;margin:26px auto 0;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.kicker{letter-spacing:.4em;text-transform:uppercase;font-size:10px;color:var(--gold-lo);font-family:ui-sans-serif,system-ui,sans-serif}
+h1{font-size:56px;letter-spacing:.15em;margin:12px 0 4px;font-weight:400;color:var(--gold);text-shadow:0 0 32px rgba(201,162,39,.22)}
+.tag{font-style:italic;color:var(--mute);font-size:17px}
+.stamp{margin-top:14px;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--mute);font-family:ui-sans-serif,system-ui,sans-serif}
+.verdict{margin:26px 0;padding:20px;border-radius:3px;text-align:center;font-family:ui-sans-serif,system-ui,sans-serif;letter-spacing:.26em;text-transform:uppercase;font-size:13px}
+.verdict.green{background:rgba(31,111,92,.14);border:1px solid rgba(31,111,92,.5);color:#8fd0b8}
+.verdict.red{background:rgba(164,22,26,.14);border:1px solid rgba(164,22,26,.55);color:#e8a0a2}
+.verdict.amber{background:rgba(201,162,39,.12);border:1px solid rgba(201,162,39,.5);color:var(--gold-hi)}
+.vitals{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:12px;margin:26px 0}
+.vital{background:linear-gradient(180deg,var(--slab2),var(--slab));border:1px solid var(--line);border-radius:3px;padding:15px 10px;text-align:center;position:relative;overflow:hidden}
+.vital:before{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.55}
+.vital.alarm:before{background:linear-gradient(90deg,transparent,var(--blood),transparent);opacity:.9}
+.vital b{display:block;font-size:23px;color:var(--gold-hi);font-weight:400}
+.vital.alarm b{color:#e8a0a2}
+.vital span{display:block;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin-top:5px;font-family:ui-sans-serif,system-ui,sans-serif;line-height:1.4}
+section{margin:44px 0}
+h2{font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);font-family:ui-sans-serif,system-ui,sans-serif;font-weight:600;border-bottom:1px solid var(--line);padding-bottom:10px;margin:0 0 20px;display:flex;align-items:center;gap:10px}
+h2:before{content:"✚";color:var(--blood);font-size:13px}
+h3{font-size:15px;color:var(--gold-hi);font-weight:400;letter-spacing:.04em;margin:26px 0 8px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line)}
+th{font-family:ui-sans-serif,system-ui,sans-serif;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-lo);font-weight:600}
+td.num{text-align:right;font-family:"SF Mono",ui-monospace,Menlo,monospace;color:var(--gold-hi);white-space:nowrap}
+td.ok{color:#8fd0b8;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;letter-spacing:.14em}
+td.bad{color:#e8a0a2;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;letter-spacing:.14em}
+td.warn{color:var(--gold-hi);font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;letter-spacing:.14em}
+tr.rot td.num{color:#e8a0a2}
+.card{background:linear-gradient(180deg,rgba(27,21,34,.9),rgba(20,16,25,.9));border:1px solid var(--line);border-left:3px solid var(--gold-lo);border-radius:3px;padding:16px 20px;margin:14px 0}
+.card.blood{border-left-color:var(--blood)}.card.sa{border-left-color:var(--sapphire)}.card.em{border-left-color:var(--emerald)}.card.am{border-left-color:var(--amethyst)}
+.card p:first-child{margin-top:0}.card p:last-child{margin-bottom:0}
+ul{padding-left:20px}li{margin:6px 0}
+ol.order{padding-left:0;list-style:none;counter-reset:step}
+ol.order>li{counter-increment:step;position:relative;padding:14px 0 14px 56px;border-bottom:1px solid var(--line)}
+ol.order>li:before{content:counter(step,upper-roman);position:absolute;left:0;top:14px;width:38px;text-align:center;font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;letter-spacing:.1em;color:var(--gold);border:1px solid var(--gold-lo);border-radius:2px;padding:3px 0}
+ol.order>li b{color:var(--gold-hi);font-weight:400;display:block;font-size:17px;margin-bottom:3px}
+ol.order>li .why{color:var(--mute);font-size:14px}
+code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12.5px;background:#100d16;border:1px solid var(--line);border-radius:2px;padding:1px 5px;color:var(--gold-hi)}
+.lede{font-size:18px;color:var(--bone)}
+footer{margin-top:56px;padding-top:22px;border-top:1px solid var(--line);text-align:center;color:var(--mute);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+<div class="kicker">pallbearer · physically modelled bass · fifth of the estate</div>
+<h1>THE VIEWING</h1>
+<div class="tag">Before it is carried, it is looked at.</div>
+<div class="stamp">Audited 2026-08-20 · core v0.3 · no code changed</div>
+</header>
+
+<div class="verdict amber">✚ every gate green · one structural fault the gates cannot see ✚</div>
+
+<div class="vitals">
+<div class="vital"><b>13,335</b><span>Parity checks<br>bit-exact</span></div>
+<div class="vital"><b>251</b><span>Assertions<br>green</span></div>
+<div class="vital"><b>94,241</b><span>Fuzz cases<br>clean</span></div>
+<div class="vital alarm"><b>0.30</b><span>Coupling turns<br>oscillator</span></div>
+<div class="vital alarm"><b>0</b><span>Files in<br>version control</span></div>
+<div class="vital"><b>3</b><span>Stale claims<br>in the prose</span></div>
+</div>
+
+<section>
+<h2>What this is</h2>
+<p class="lede">Every gate PALLBEARER owns passes today, on this machine, freshly run. That is
+worth saying plainly and first. What follows is not a list of broken tests — it is a list
+of things that are true about the instrument which no test currently asks about.</p>
+<p>Two of them matter. One is a shipping fault in the sound: <b>String Coupling above roughly
+30–40% turns the instrument into a self-sustaining drone</b>, and where that line falls depends
+on how many strings the tuning has. The other is administrative but total: <b>PALLBEARER has
+never been committed to the repository</b>, so its CI has never run, so the plugin has never
+been built, so nothing about it being loadable has ever been tested by anything.</p>
+</section>
+
+<section>
+<h2>The body on the slab — every gate, run today</h2>
+<table>
+<thead><tr><th>Gate</th><th>Result</th><th style="text-align:right">Measured</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>Core harness</td><td>188 passed, 0 failed · 22 sections</td><td class="num">0.184 c worst tuning</td><td class="ok">green</td></tr>
+<tr><td>Plugin parameter parity</td><td>DAW list vs core, incl. enum order</td><td class="num">38 / 0</td><td class="ok">green</td></tr>
+<tr><td>C++ parity, <code>-O0 / -O2 / -O3</code></td><td>bit-exact at all three</td><td class="num">13,335 / 0</td><td class="ok">green</td></tr>
+<tr><td>LAW 1 still bites</td><td>unflagged build fails, as it must</td><td class="num">8,693 fail · 14,301,684 ulp</td><td class="ok">green</td></tr>
+<tr><td>Parity emit stability</td><td><code>parity_expected.h</code> did not move on re-emit</td><td class="num">byte-identical</td><td class="ok">green</td></tr>
+<tr><td>Regression baselines</td><td>11 phrases, byte-stable</td><td class="num">11 / 11</td><td class="ok">green</td></tr>
+<tr><td>Fuzz</td><td>no NaN, no throw, no runaway</td><td class="num">94,241 cases · peak 1.058</td><td class="ok">green</td></tr>
+<tr><td>Underworld handoff</td><td>through the real mastering chain</td><td class="num">25 / 0</td><td class="ok">green</td></tr>
+<tr><td>CPU cost gate</td><td>nothing got heavier than the baseline</td><td class="num">701× / 104× realtime</td><td class="ok">green</td></tr>
+<tr><td>Embed sync</td><td>NM 6,160 b · core 50,645 b, byte-identical</td><td class="num">clean</td><td class="ok">green</td></tr>
+<tr><td>Plugin compiled</td><td>against JUCE 7.0.12, both translation units</td><td class="num">object code only</td><td class="warn">never built</td></tr>
+<tr><td>Plugin loaded in a host</td><td>—</td><td class="num">never</td><td class="bad">not attempted</td></tr>
+</tbody>
+</table>
+<div class="card em">
+<p>Nothing here has rotted since 17 August. The CPU ratios have in fact come <i>down</i>
+slightly against the recorded baseline (coupling 4.27 → 4.14, six-string 6.89 → 6.71),
+which is what a shared box's noise floor looks like from the good side.</p>
+</div>
+</section>
+
+<section>
+<h2>The fault — String Coupling is an oscillator above about a third</h2>
+
+<p>v0.3 routes each string's bridge output into every other string's delay line. It works.
+It works <i>too well</i>: the injection sums across the whole set, so the network's loop gain
+rises with the number of strings, and past a threshold the sympathetic bus stops being a
+colour and starts being a feedback path that sustains itself.</p>
+
+<h3>A single E2, plucked once, left alone for four seconds</h3>
+<p style="color:var(--mute);font-size:14px;margin-top:0">RMS in dB per quarter-second slice.
+A bass note should fall. Read across.</p>
+<table>
+<thead><tr><th>couple</th><th style="text-align:right">0.0 s</th><th style="text-align:right">0.5</th><th style="text-align:right">1.0</th><th style="text-align:right">1.5</th><th style="text-align:right">2.0</th><th style="text-align:right">2.5</th><th style="text-align:right">3.0</th><th style="text-align:right">3.5 s</th><th>behaviour</th></tr></thead>
+<tbody>
+<tr><td class="num">0</td><td class="num">−17.7</td><td class="num">−22.2</td><td class="num">−26.5</td><td class="num">−30.7</td><td class="num">−35.0</td><td class="num">−39.4</td><td class="num">−43.9</td><td class="num">−48.1</td><td class="ok">decays</td></tr>
+<tr><td class="num">0.18 <span style="color:var(--mute);font-size:11px">(default)</span></td><td class="num">−17.5</td><td class="num">−21.2</td><td class="num">−24.5</td><td class="num">−27.8</td><td class="num">−31.2</td><td class="num">−34.6</td><td class="num">−38.0</td><td class="num">−41.2</td><td class="ok">decays, longer</td></tr>
+<tr class="rot"><td class="num">0.5</td><td class="num">−17.1</td><td class="num">−19.1</td><td class="num">−20.4</td><td class="num">−20.6</td><td class="num">−18.2</td><td class="num">−13.1</td><td class="num">−7.1</td><td class="num">−0.9</td><td class="bad">turns around and grows</td></tr>
+<tr class="rot"><td class="num">0.75</td><td class="num">−16.8</td><td class="num">−16.8</td><td class="num">−12.8</td><td class="num">−3.1</td><td class="num">+4.1</td><td class="num">+4.1</td><td class="num">+4.1</td><td class="num">+4.1</td><td class="bad">pinned at the clip ceiling</td></tr>
+<tr class="rot"><td class="num">1.0</td><td class="num">−16.3</td><td class="num">−12.5</td><td class="num">+1.0</td><td class="num">+4.1</td><td class="num">+4.1</td><td class="num">+4.1</td><td class="num">+4.1</td><td class="num">+4.1</td><td class="bad">pinned at the clip ceiling</td></tr>
+</tbody>
+</table>
+
+<div class="card blood">
+<p><b>That flat +4.1 dB is the tell.</b> It is not a loud note — it is an oscillator held
+still by the soft clipper. The instrument has stopped being struck and started being driven.
+A player who pulls String Coupling past halfway gets a drone that never stops, and the only
+thing standing between them and clipping is a saturator doing a job it was not hired for.</p>
+</div>
+
+<h3>Where the line falls depends on the tuning</h3>
+<p style="color:var(--mute);font-size:14px;margin-top:0">dB change from t = 1.0 s to the end of
+a five-second note. Positive means growing. Bold is the first unstable setting.</p>
+<table>
+<thead><tr><th>Tuning</th><th style="text-align:right">0.10</th><th style="text-align:right">0.20</th><th style="text-align:right">0.30</th><th style="text-align:right">0.35</th><th style="text-align:right">0.40</th><th style="text-align:right">0.45</th><th style="text-align:right">0.50</th><th>threshold</th></tr></thead>
+<tbody>
+<tr><td>4-string EADG</td><td class="num">−27.7</td><td class="num">−23.7</td><td class="num">−18.9</td><td class="num">−12.2</td><td class="num">−2.5</td><td class="num" style="color:#e8a0a2"><b>+7.4</b></td><td class="num" style="color:#e8a0a2">+17.0</td><td class="warn">≈ 0.42</td></tr>
+<tr><td>5-string BEADG</td><td class="num">−27.7</td><td class="num">−23.7</td><td class="num">−11.2</td><td class="num" style="color:#e8a0a2"><b>+0.8</b></td><td class="num" style="color:#e8a0a2">+12.4</td><td class="num" style="color:#e8a0a2">+23.5</td><td class="num" style="color:#e8a0a2">+24.4</td><td class="warn">≈ 0.34</td></tr>
+<tr><td>6-string BEADGC</td><td class="num">−27.6</td><td class="num">−13.5</td><td class="num" style="color:#e8a0a2"><b>+21.3</b></td><td class="num" style="color:#e8a0a2">+26.1</td><td class="num" style="color:#e8a0a2">+24.7</td><td class="num" style="color:#e8a0a2">+22.6</td><td class="num" style="color:#e8a0a2">+19.6</td><td class="bad">≈ 0.27</td></tr>
+</tbody>
+</table>
+
+<div class="card sa">
+<p><b>Multiply each threshold by (N − 1) and the three numbers collapse into one:</b>
+0.42 × 3 = <b>1.26</b> · 0.34 × 4 = <b>1.36</b> · 0.27 × 5 = <b>1.35</b>.</p>
+<p>That is not a coincidence, it is the diagnosis. <code>bus</code> is the raw <i>sum</i> of every
+other string's bridge output, so the energy fed back scales with how many strings are on it.
+The fix is one divisor: normalise the injection by the number of contributing strings. Do that
+and the threshold sits at couple ≈ 1.3 for every tuning — outside the parameter's own range,
+which is where an instability threshold belongs. The whole 0–100% of the control becomes
+usable and, better, <b>means the same thing on a four-string as on a six.</b></p>
+</div>
+
+<h3>The pitch symptom, which is the same illness</h3>
+<p>The harness prints <b>0.184 cents</b> worst tuning error where the README still says 0.085.
+Nothing regressed — coupling is doing it, and the sweep is monotonic in exactly the way the
+decay table is:</p>
+<table>
+<thead><tr><th>couple</th><th style="text-align:right">0</th><th style="text-align:right">0.10</th><th style="text-align:right">0.18</th><th style="text-align:right">0.30</th><th style="text-align:right">0.50</th><th style="text-align:right">0.75</th><th style="text-align:right">1.00</th></tr></thead>
+<tbody>
+<tr><td>worst error, cents</td><td class="num">0.088</td><td class="num">0.148</td><td class="num">0.184</td><td class="num">0.218</td><td class="num">0.215</td><td class="num" style="color:#e8a0a2">0.550</td><td class="num" style="color:#e8a0a2">6.444</td></tr>
+</tbody>
+</table>
+<p>Pin <code>couple: 0</code> and the historical <b>0.088 cents</b> comes straight back. The
+section-I test already pins humanize, velBright, buzz and relNoise with a comment explaining
+exactly why — <i>pin what you are not measuring</i> — and then leaves the one parameter that
+feeds signal back into the delay line running at its default. The rule was right. It just did
+not get applied to the newest arrival.</p>
+</section>
+
+<section>
+<h2>Why nothing caught it</h2>
+<div class="card blood">
+<p><b>Peak-bounded is not stable.</b> The fuzz harness asserts no NaN, no throw, and peak under
+1.6. A self-oscillator held at the soft clipper's ceiling satisfies all three, forever, by
+construction. It is the most well-behaved signal in the whole corpus and it is the bug.</p>
+</div>
+<ul>
+<li><b>The CPU gate</b> has a <code>coupling_on</code> case, so coupling is exercised — but the gate
+measures milliseconds. A drone costs the same as a note.</li>
+<li><b>The regression baselines</b> are byte-stable, which means they would catch this changing.
+They cannot catch it being wrong in the first place: a baseline blesses whatever it was
+first shown.</li>
+<li><b>The tuning test</b> is the one gate that <i>did</i> see it. It reported 0.184 instead of
+0.085 and its threshold is "under 2 cents", so it shrugged and passed. The number moved by
+115% and the assertion never noticed, because the assertion was written around a limit
+rather than around the previous measurement.</li>
+<li><b>The parity gate</b> is at its most convincing here and its least useful: the C++ twin
+reproduces the oscillation bit-for-bit. Parity proves the two agree, never that either is right.</li>
+</ul>
+<p>This one is worth carrying off the project. Any estate gate whose safety net is "the peak
+stayed under the ceiling" has the same blind spot — <b>RIGOR and NECROPHONE both have feedback
+paths and both fuzz on peaks.</b> An energy-must-fall assertion is cheap and neither has one.</p>
+</section>
+
+<section>
+<h2>Three claims the prose makes that the machine does not</h2>
+<table>
+<thead><tr><th>Where</th><th>Says</th><th>Measures</th><th>Severity</th></tr></thead>
+<tbody>
+<tr><td><code>README.md:82</code></td><td>worst tuning error <b>0.085 cents</b>, stated as current</td><td class="num">0.184 c</td><td class="bad">stale headline</td></tr>
+<tr><td><code>README.md:182</code></td><td>coupling costs <b>2.6×</b> the single-string reference</td><td class="num">4.14×</td><td class="bad">off by 59%</td></tr>
+<tr><td><code>README.md:187</code></td><td><b>750×</b> realtime, heaviest <b>109×</b></td><td class="num">701× / 104×</td><td class="warn">machine noise</td></tr>
+<tr><td><code>THE_CARRY.html</code></td><td>CPU table shows 2.56 / 2.95 / 3.98</td><td class="num">baseline says 4.27 / 4.54 / 6.89</td><td class="bad">report predates its own baseline</td></tr>
+</tbody>
+</table>
+<p>The 2.6× figure has already escaped into the standing project notes, which is how a wrong
+number becomes a fact. The CPU gate is ratio-based on purpose, so absolute realtime multiples
+were never going to survive being written down; those belong in the generated report, not the
+prose.</p>
+</section>
+
+<section>
+<h2>Not yet in the ground — the administrative fault</h2>
+<div class="card blood">
+<p><b>PALLBEARER has zero files under version control.</b> Twenty-six files sit untracked, and
+<code>.github/workflows/pallbearer.yml</code> is untracked alongside them. The estate is
+seventeen commits ahead of <code>origin/main</code> and none of them contain any of this.</p>
+</div>
+<p>The good news is that everything is <i>ready</i>: the allowlist <code>.gitignore</code> already
+carries <code>!/PALLBEARER/</code> and <code>!/.github/workflows/pallbearer.yml</code>, and a dry run
+stages exactly the right 26 files — sources, gates, the 325 KB parity fixture, both baselines —
+while correctly leaving <code>build/</code> behind. Nothing needs deciding. It needs doing.</p>
+<p>The consequence is the whole reason "never been BUILT" is still on the list. The macOS job
+that produces the <code>.component</code> and <code>.vst3</code> triggers on
+<code>paths: ['PALLBEARER/**', …]</code>. Files that are not in the repository cannot match a path
+filter. <b>The build has not failed; it has never been asked.</b></p>
+<div class="card am">
+<p><b>One caution before anyone types <code>git add</code>.</b> A live <code>.git/index.lock</code>
+was sitting in the estate root during this audit, minutes old. Sibling sessions run on this
+folder. Check that the lock is gone and nobody else is mid-write before staging — do not
+delete the lock to get past it.</p>
+</div>
+</section>
+
+<section>
+<h2>The order of work</h2>
+<ol class="order">
+<li><b>Normalise the coupling injection</b>
+<div class="why">Divide by the number of contributing strings so loop gain stops scaling with
+the tuning. JS first, then mirror to <code>PallbearerCore.h</code> — porting is a code review and
+it goes in that direction. Re-emit <code>parity_expected.h</code>, then re-bless the eleven
+baselines deliberately and say so in the commit, because they <i>should</i> all move.</div></li>
+
+<li><b>Build the gate that would have caught it</b>
+<div class="why">An energy-must-fall assertion: pluck once, sweep <code>couple</code> across its
+range × every tuning, require the last window to be quieter than the window at one second.
+It is about fifteen lines and it is the only thing here that stops this class of fault
+returning. Add a companion that asserts pitch pull stays under a cent across the same sweep.</div></li>
+
+<li><b>Pin <code>couple: 0</code> in the tuning test, and gate the figure not the limit</b>
+<div class="why">Restores the honest 0.088 cents, and moves the assertion from "under 2 cents"
+to "within a hair of the recorded value" so the next 115% drift is loud instead of silent.</div></li>
+
+<li><b>Correct the three prose claims and regenerate THE CARRY</b>
+<div class="why">Cheap, and the 2.6× figure has already leaked. Everything numeric in the README
+that is not derived should either become derived or become a sentence without a number in it.</div></li>
+
+<li><b>Commit, push, and let CI build the thing</b>
+<div class="why">The whole point. Twenty-six files and one workflow. The macOS job then produces
+the first real <code>.component</code> and <code>.vst3</code> that have ever existed — after which
+pluginval, and then Logic, can finally say something no gate on this list can.</div></li>
+
+<li><b>Then the standing list, in this order</b>
+<div class="why">Stereo out (both channels are currently identical, and a bass with two pickups
+has an obvious answer) · oversample the drive stage, watching for the fused multiply-add the
+Interchange warns about · attack-layer persistence, which needs the audio in the state rather
+than a file path · a patch library, since nine presets are a literal inside the HTML · and the
+bespoke editor last, because it is the only item that a compiler-less session cannot verify.</div></li>
+</ol>
+</section>
+
+<section>
+<h2>What this audit did not touch</h2>
+<p>No file was modified. No test was re-blessed. No commit was made. The five probes that
+produced the tables above ran from <code>/tmp</code> against the core as it stands, and the one
+re-emit of <code>parity_expected.h</code> was checked byte-for-byte and confirmed unchanged.
+The instrument is exactly as it was found.</p>
+</section>
+
+<footer>
+THE VIEWING · PALLBEARER v0.3 · audited 20 August 2026<br>
+<i>Six carry the box. Four carry the song. One of them is pulling.</i>
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "recorded": "2026-08-17",
+  "version": "0.3",
+  "note": "ratios against reference_1_string, not absolute times",
+  "ratios": {
+    "reference_1_string": {
+      "ratio": 1
+    },
+    "four_strings": {
+      "ratio": 1.011
+    },
+    "body_on": {
+      "ratio": 1.241
+    },
+    "coupling_on": {
+      "ratio": 4.273
+    },
+    "everything_on": {
+      "ratio": 4.54
+    },
+    "six_string_full": {
+      "ratio": 6.887
+    }
+  }
+}

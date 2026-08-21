@@ -1,0 +1,86 @@
+{
+  "when": "2026-08-17 16:25",
+  "gates": {
+    "harness": {
+      "ok": true,
+      "passed": 188,
+      "failed": 0,
+      "tuning": "0.184"
+    },
+    "plugin": {
+      "ok": true,
+      "passed": 38,
+      "failed": 0
+    },
+    "regression": {
+      "ok": true,
+      "baselines": 11
+    },
+    "fuzz": {
+      "ok": true,
+      "cases": 94241,
+      "peak": "1.058419"
+    },
+    "parity": {
+      "ok": true,
+      "checks": 13335,
+      "compiled": true
+    },
+    "law1": {
+      "failed": 8693,
+      "worstUlp": 14301684
+    },
+    "handoff": {
+      "ok": true,
+      "passed": 25,
+      "failed": 0
+    },
+    "cpu": {
+      "ok": true,
+      "rows": [
+        {
+          "name": "reference_1_string",
+          "ms": 5.4,
+          "ratio": 1,
+          "realtime": 740
+        },
+        {
+          "name": "four_strings",
+          "ms": 5.6,
+          "ratio": 1.04,
+          "realtime": 714
+        },
+        {
+          "name": "body_on",
+          "ms": 6.8,
+          "ratio": 1.27,
+          "realtime": 584
+        },
+        {
+          "name": "coupling_on",
+          "ms": 13.8,
+          "ratio": 2.56,
+          "realtime": 289
+        },
+        {
+          "name": "everything_on",
+          "ms": 16,
+          "ratio": 2.95,
+          "realtime": 251
+        },
+        {
+          "name": "six_string_full",
+          "ms": 21.5,
+          "ratio": 3.98,
+          "realtime": 186
+        }
+      ]
+    },
+    "embed": {
+      "ok": true
+    }
+  },
+  "version": "0.3",
+  "params": 37,
+  "tunings": 6
+}
