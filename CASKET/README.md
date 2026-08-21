@@ -7,6 +7,14 @@ Third of the trilogy: [AUTOPSY](../AUTOPSY) opens the body, RIGOR stiffens it, C
 
 Design: [`../CASKET_ARCHITECTURE.md`](../CASKET_ARCHITECTURE.md).
 
+**The rest of the writing, and what each is for:**
+
+| | |
+|---|---|
+| [`MASTERING_WITH_CASKET.md`](MASTERING_WITH_CASKET.md) | when to reach for a thing and what it costs. Every figure cited to the harness that measured it. |
+| [`docs/LISTENING_PROTOCOL.md`](docs/LISTENING_PROTOCOL.md) | how to check any of those claims by ear — level-matching, the null test at home, per-arrangement listening. |
+| [`docs/CASE_FORMAT.md`](docs/CASE_FORMAT.md) | the `.casket.json` arrangement file and the share-link hash, field by field. |
+
 ## Run it
 
 Open `casket.html`. No build, no server, no dependencies.
@@ -23,11 +31,18 @@ The render is **latency-compensated**, so it drops straight back into a session 
 
 ## Run the suite
 
-<!--c:casket.harnesses-->11<!--/c--> asserting harnesses,
-**<!--c:casket.assertions-->545<!--/c--> assertions**, plus
-<!--c:casket.baselines-->14<!--/c--> byte-stable render baselines —
-**<!--c:casket.suite-->559<!--/c--> checks**, measured
-<!--c:measured-->2026-08-16<!--/c-->.
+<!--c:casket.harnesses-->12<!--/c--> asserting harnesses,
+**<!--c:casket.assertions-->634<!--/c--> assertions**, plus
+<!--c:casket.baselines-->16<!--/c--> byte-stable render baselines —
+**<!--c:casket.suite-->650<!--/c--> checks**, last changed
+<!--c:casket.measured-->2026-08-19<!--/c-->.
+<!-- The marker above is casket.measured, NOT the bare `measured` — fixed
+     2026-08-18. The bare key is the OLDEST last-change date across the
+     whole estate (counts.js takes dates[0], deliberately, as an estate-wide
+     "true since"), so this file spent two days announcing its own vitals
+     under a sibling's older date while its numbers moved twice in a day.
+     Per-project vitals want the per-project key. -->
+
 
 Those figures are generated. `tools/counts.js` runs the gates and rewrites what
 sits between the markers in this file, so a number here is either current or CI
@@ -67,18 +82,50 @@ g++ -std=c++17 -O2 -ffp-contract=off -o core_parity tests/core_parity.cpp && ./c
 node ../tools/counts.js
 ```
 
-**<!--c:casket.parity-->22,861<!--/c--> parity checks, zero mismatches**, at `-O0`, `-O2` and `-O3`. Compile the same file *without* `-ffp-contract=off` and thousands fail, the worst by 9,805 ulp — the polyphase inner loop is a long multiply-accumulate chain and GCC fuses it into FMAs given the chance. That flag is not belt-and-braces; it is the whole gate.
+**When something goes red, or a run will not fit.** Several harnesses grew
+flags for exactly these two moments, and nothing pointed at them until now:
+
+```bash
+# REPRODUCE a reported failure without re-running everything ahead of it.
+# Seeds fully describe a case, so one is enough.
+node tests/casket_fuzz.js --seed=17183        # the engine fuzzer
+node tests/casket_tools_fuzz.js --seed=5036   # the offline tools (~15 s, not ~95 s)
+
+# SPLIT a long run across several windows, when one process cannot have the time.
+node tests/casket_fuzz.js 20000 --from=16000
+node tests/casket_tools_fuzz.js 60 300        # 60 states, or 300 seconds, whichever first
+node tests/casket_soak.js 12 --only=pine,lead # the nightly duration, two arrangements
+
+# ASK WHAT IS COVERED, without reading the source.
+node tests/casket_mutate.js --list            # 17 mutants: target, judge, expectation
+node tests/casket_regression.js --list        # 16 baselines: hash and what each pins
+node tools/check_mastering_citations.js --self-test   # the checker's own extractor
+
+# COMPILE the plugin sources without a build system (seconds, any platform).
+bash tools/compile_check.sh
+```
+
+A partial run says so in its own summary — `casket_tools_fuzz.js` and
+`casket_soak.js` both report how much of the requested sweep actually ran, so
+a clipped run cannot be mistaken for a clean one a week later.
+
+**<!--c:casket.parity-->23,013<!--/c--> parity checks, zero mismatches**, at `-O0`, `-O2` and `-O3`. Compile the same file *without* `-ffp-contract=off` and thousands fail, the worst by 9,805 ulp — the polyphase inner loop is a long multiply-accumulate chain and GCC fuses it into FMAs given the chance. That flag is not belt-and-braces; it is the whole gate.
 
 Emit the header, then check it is **byte-identical** before trusting it. A gate generated fresh from the code it is gating proves nothing; proving the generator is deterministic first is what makes it a gate.
 
 ## The plugin
 
-`casket-juce/` builds AU, VST3 and Standalone via CMake (JUCE 7.0.12 fetched automatically). Eighteen parameters. Written compile-first — it has not been built here, because there is no JUCE in this sandbox — but the DSP underneath it is the same header the parity gate proves bit-exact against the browser, so the only untested layer is the JUCE wrapper itself.
+`casket-juce/` builds AU, VST3 and Standalone via CMake (JUCE 7.0.12 fetched automatically). Twenty-two parameters. The DSP underneath it is the same header the parity gate proves bit-exact against the browser, so the only untested layer is the JUCE wrapper itself.
 
 ```bash
 cmake -B build -S casket-juce -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
+
+# or just check it is sound C++ — seconds, any platform, no build system
+bash tools/compile_check.sh            # fetches JUCE 7.0.12 to /tmp on first run
 ```
+
+**COMPILES, but has not been BUILT.** `tools/compile_check.sh` compiles both translation units against the JUCE version CI pins, which rules out the whole class of first-build failure — missing includes, wrong signatures, API drift. What it cannot do is produce a loadable plugin: Audio Unit is a macOS format needing Apple frameworks, and this is not a macOS machine. The `.component` comes from the `macos-14` job, and only a host proves it actually runs. (This paragraph said the plugin "has not been built here, because there is no JUCE in this sandbox" until 2026-08-19 — true when written, and false the moment anyone checked whether JUCE could simply be fetched.)
 
 Latency is reported to the host from the *same* pure function the browser and the parity gate use, so the three can never disagree about it.
 
@@ -92,6 +139,7 @@ Latency is reported to the host from the *same* pure function the browser and th
 | Scrolling display | the **viewing** |
 | Gain-reduction trace | the **weight** |
 | Loudness / true-peak meters | the **plot** |
+| Loudness-distribution chart | **THE RANGE** |
 | Oversampling factor | the **lining** |
 | Lookahead | the **vigil** |
 | Dither | the **dust** |
@@ -105,23 +153,43 @@ Latency is reported to the host from the *same* pure function the browser and th
 | **Velvet** | lined, forgiving | 2 ms | full | program-dependent | 4× |
 | **Oak** | punchy — the transient front survives | 1 ms | ⅜ vigil | fast, program | 4× |
 | **Iron** | loud and dense, soft-clip pre-stage | 1.5 ms | ⅝ vigil | fast | 8× |
-| **Lead** | sealed, mastering-safe, −0.3 dB margin | 5 ms | full | slow, program | 16× |
+| **Lead** | sealed, mastering-safe, −0.3 dB margin | 5 ms | full | slow, program | 4× |
 
 Two of those columns are *structural* — the smoother fraction and the release shape change the code path and no knob exposes them. The rest are defaults the arrangement writes into the state when you pick it, and you can override any of them.
 
+**Lead is 4×, not 16×, and that is deliberate.** In sealed mode the lining is the *processing* rate as well as the detection rate, and detection is already exact at 4×; more lining costs the decimator's whole filter for no accuracy gained, and measures slightly worse. This table said 16× until 2026-08-18 — a documentation error, not a code one; `casket_core.js` has always shipped 4×. The *factory preset* named "Sealed for Delivery" does use 16×, which is probably where the confusion started.
+
 ## What it guarantees, and what it doesn't
 
-**Absolutely:** no output sample exceeds the lid. Zero epsilon, any input, all five arrangements, proven against squares, impulse trains, clipped noise, DC steps and a 19 kHz sine. This follows from a theorem rather than from tuning — see §5.3 of the architecture doc. The last stage clamps at the lid to absorb floating-point rounding, and the harness watches how much work that clamp does: across the whole hostile battery, 7 × 10⁻¹³ relative. It has never caught anything but the last bit.
+**Absolutely:** no output sample exceeds the lid. Zero epsilon, any input, all five arrangements, proven against squares, impulse trains, clipped noise, DC steps and a 19 kHz sine. This follows from a theorem rather than from tuning — see §5.3 of the architecture doc.
+
+The last stage clamps at the lid to absorb floating-point rounding, and the harness watches how much work that clamp does (`tests/casket_test.js`):
+
+| arrangement | worst the clamp absorbed |
+|---|---|
+| pine | 5.39e-13 relative |
+| velvet | 2.41e-13 relative |
+| oak | 6.17e-14 relative |
+| iron | 9.99e-15 relative |
+| **lead (sealed)** | **0.0879 dB** — a different thing entirely |
+
+On the four unsealed arrangements the clamp has never caught anything but the last bit. **Lead is the exception and it is not a small one:** sealing means the clamp also absorbs the decimator's ripple, which is eleven orders of magnitude larger than rounding. That is documented, bounded and asserted separately — it is the price of the seal, not a defect in it.
+
+*(This paragraph read "across the whole hostile battery, 7 × 10⁻¹³ relative. It has never caught anything but the last bit" until 2026-08-19. Two problems: the figure did not match any current measurement, and "the whole hostile battery" silently included Lead, where the sentence is false by eleven orders of magnitude. A single number standing for five arrangements will eventually be wrong about at least one of them.)*
 
 **Very nearly:** the *true* peak — the value between samples that a converter actually reproduces.
 
-| material | residual above the lid |
-|---|---|
-| harmonic / musical | **+0.000 dB** |
-| band-limited clipped | +0.55 dB |
-| full-scale full-band clipped noise | +1.19 dB |
+Measured at a −1.0 dBTP lid with +12 dB of drive (`tests/casket_test.js`):
 
-Detection is oversampled and exact; the gain is *applied* at base rate, and a fast-moving gain aliases. More lining does not help (4× and 16× agree to three decimals); a longer vigil helps a little.
+| material | at 4× lining (the default) | at 16× |
+|---|---|---|
+| harmonic / musical | +0.011 dB | **+0.000 dB** |
+| band-limited clipped | +0.522 dB | +0.555 dB |
+| full-scale full-band clipped noise | +1.194 dB | +1.194 dB |
+
+Detection is oversampled and exact; the gain is *applied* at base rate, and a fast-moving gain aliases. **More lining does not help on the case that matters** — the full-band worst case agrees to three decimals at 4× and 16×. On the two easier rows the two linings differ in the second decimal, and not always in 16×'s favour. A longer vigil helps a little.
+
+*(This table carried a single unlabelled column until 2026-08-19, and its figures were the 16× ones — so a reader would have taken them for the 4× default, which ships +0.011 rather than +0.000 on musical material. The sentence beneath it also generalised "agree to three decimals" from the one row where that is true; `CASKET_ARCHITECTURE.md` §6.2 always said "on the hard case" and always showed both columns. Summary documents drift from detailed ones in exactly this direction.)*
 
 The obvious fix was tried and does not work — see §6.3 and `tests/seal_experiment.js`, which is committed so the conclusion can be re-run rather than believed. Short version: applying the gain oversampled as a *residual* preserves the bit-exact null test but is ill-conditioned exactly when limiting is heavy, and makes the overshoot worse, not better. The full oversampled path does work and roughly halves the residual, but costs the null test permanently. That trade is an open question, not a decision already taken.
 
@@ -148,6 +216,11 @@ casket-juce/
   Source/Plugin*.{h,cpp}  AU / VST3 wrapper + bespoke face, 22 parameters
   CMakeLists.txt          fetches JUCE; also builds the parity gate
 MASTERING_WITH_CASKET.md  when to reach for a thing and what it costs
+docs/
+  LISTENING_PROTOCOL.md  how to verify what the numbers claim, by ear
+  CASE_FORMAT.md          the .casket.json arrangement file, field by field
+tools/
+  check_mastering_citations.js  checks the doc's own cited numbers against a fresh run
 tests/
   casket_test.js          the guarantee, BS.1770, the null test, latency
   casket_ui_test.js       UIH, the three embeds, the boot path, the WAV writer
@@ -167,6 +240,9 @@ tests/
   casket_cpu_gate.js      the SHAPE of the cost, as ratios
   casket_soak.js          long-run drift — nightly
   casket_bench.js         absolute figures, for the record not for a gate
+  casket_audit.js         autoDrive/autoMargin/matchReference, re-derived independently
+  casket_coverage.js      state-field census — what does nothing watch?
+  casket_mutate.js        breaks the core on purpose; the suite must notice
   seal_experiment.js      the §6.3 evidence — reports, does not assert
   parity_emit.js          JS truth → parity_expected.h
   core_parity.cpp         the gate

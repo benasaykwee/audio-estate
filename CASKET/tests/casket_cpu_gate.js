@@ -224,6 +224,36 @@ Object.keys(now).forEach(function (k) {
   }
 });
 
+/* A BASELINE THAT IS STALE IN THE FAST DIRECTION IS STILL STALE — added
+   2026-08-18. The comparison above is one-sided on purpose: getting faster
+   is not a regression and failing on an improvement teaches people to
+   ignore the gate. But silence about a large improvement has its own cost.
+   If something now runs 20% faster than its baseline, the gate's real
+   threshold for that entry has quietly become 50% rather than 30% — a
+   future regression can eat the whole improvement and still pass, while
+   being slower than the code is today.
+   Observed here: albumMaster came in 18%, 20% and 22% below baseline on
+   three separate runs while `lead` swung +2%/-2% between the same two runs.
+   One of those is noise and the other is not, and the difference is exactly
+   what this section exists to make visible. It reports rather than fails,
+   because re-blessing is a decision for a person on a known machine. */
+var stale = Object.keys(now).filter(function (k) {
+  var was = base.ratios[k];
+  return was !== undefined && (now[k] - was) / was < -0.15;
+});
+if (stale.length) {
+  console.log('\n— faster than baseline by more than 15%, on purpose or not —');
+  stale.forEach(function (k) {
+    var was = base.ratios[k];
+    var d = (now[k] - was) / was;
+    console.log('  · ' + k + ' is ' + Math.abs(d * 100).toFixed(0) + '% faster (×' +
+                was.toFixed(2) + ' → ×' + now[k].toFixed(2) + ')');
+  });
+  console.log('  Not a failure. But until re-blessed, each of these entries tolerates');
+  console.log('  a regression of ' + ((TOL) * 100).toFixed(0) + '% ON TOP of an improvement it is no longer measuring.');
+  console.log('  Confirm it is real (repeat the run) before blessing — see the header.');
+}
+
 console.log('\n' + pass + ' within tolerance, ' + fail + ' regressed');
 if (fail) {
   console.log('performance is defended like correctness. investigate, or re-bless deliberately.');

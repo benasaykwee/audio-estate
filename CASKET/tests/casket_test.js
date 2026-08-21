@@ -523,7 +523,7 @@ console.log('\n— the guarantee —');
     var d = C.styleDefaults(style);
     for (var k in d) st[k] = d[k];
     st.style = style; st.lid = -1.0; st.drive = 12;
-    var lidLin = Math.pow(10, (st.lid + st.margin) / 20);
+    var lidLin = C._nd.dbToLin(st.lid + st.margin);
     var worstAll = -Infinity, over = 0, clampWorst = 0;
     Object.keys(mats).forEach(function (name) {
       var e = C.createEngine(FS); e.setState(st);
@@ -843,7 +843,7 @@ console.log('\n— mid/side and loudness range —');
   for (i = 0; i < n; i++) { var v = big[i] * 6; big[i] = v > 1 ? 1 : (v < -1 ? -1 : v); }
   var a2 = new Float64Array(n), b2 = new Float64Array(n);
   e2.process(big, y, a2, b2);
-  var lidLin = Math.pow(10, (lidTest.lid + lidTest.margin) / 20), over = 0;
+  var lidLin = C._nd.dbToLin(lidTest.lid + lidTest.margin), over = 0;
   for (i = 0; i < n; i++) if (Math.abs(a2[i]) > lidLin || Math.abs(b2[i]) > lidLin) over++;
   ok(over === 0, 'the ceiling still holds with M/S pushed to +12 side / +6 mid');
   note('that is the whole reason M/S is a pre-stage: the limiter still runs last, ' +
@@ -872,6 +872,33 @@ console.log('\n— mid/side and loudness range —');
   var gated = lraOf([[-20, 20], [-70, 20]]);
   ok(gated < 2, 'a passage 50 LU down is gated out of the range, not counted (' +
      gated.toFixed(2) + ' LU)');
+
+  /* histogramS() — added 2026-08-18 alongside the browser's THE RANGE
+     chart. lra() and histogramS() now share one shortTermStats() helper
+     instead of each computing the gate independently, so the strongest
+     test of that refactor is simply: do their two entry points still
+     agree, on the exact material that already exercises the gate above? */
+  (function () {
+    var st = C.defaultState(); st.bypass = true;
+    var e = C.createEngine(FS);
+    e.setState(st);
+    [[-20, 20], [-70, 20]].forEach(function (p) {
+      var x = C.makeSine(1000, FS, Math.round(FS * p[1]), Math.pow(10, p[0] / 20));
+      var o1 = new Float64Array(x.length), o2 = new Float64Array(x.length);
+      e.process(x, x, o1, o2);
+    });
+    var m = e.meters(), h = e.histogramS();
+    ok(h.lra === m.lra, 'histogramS().lra agrees EXACTLY with meters().lra — one gate, two callers');
+    ok(h.bins.length > 0, 'histogramS() returns at least one populated bin');
+    ok(h.bins.every(function (b) { return b.count > 0; }), 'every returned bin is genuinely populated (sparse, not padded with zeros)');
+    ok(isFinite(h.gate), 'the relative gate is a real number once there is any content');
+    ok(h.p10 !== null && h.p95 !== null && h.p95 >= h.p10, 'p95 is at or above p10, and neither is null once content survives the gate');
+    /* the quiet 50-LU-down tail must be VISIBLE in the bins (a chart that
+       hides gated-out material is a chart that hides the reason its own
+       gate line is where it is) even though it does not affect lra */
+    ok(h.bins.some(function (b) { return b.loudness < h.gate; }),
+       'material gated out of the LRA figure still appears in the bins, below the gate line');
+  })();
 })();
 
 /* ============================================================
@@ -958,7 +985,7 @@ console.log('\n— every rate, not just 48 k —');
     for (i = 0; i < n; i++) { var v = x[i] * 6; x[i] = v > 1 ? 1 : (v < -1 ? -1 : v); }
     var oL = new Float64Array(n), oR = new Float64Array(n);
     e.process(x, x, oL, oR);
-    var lidLin = Math.pow(10, -1 / 20), over = 0;
+    var lidLin = C._nd.dbToLin(-1), over = 0;
     for (i = 0; i < n; i++) if (Math.abs(oL[i]) > lidLin) over++;
     ok(over === 0, rate + ' Hz: the lid still holds');
   });
@@ -985,7 +1012,7 @@ console.log('\n— every rate, not just 48 k —');
   var e = C.createEngine(rate);
   e.setState(st);
   var oL = new Float64Array(CH), oR = new Float64Array(CH);
-  var lidLin = Math.pow(10, (st.lid + st.margin) / 20);
+  var lidLin = C._nd.dbToLin(st.lid + st.margin);
   var over = 0, nonFinite = 0, i;
   for (var b = 0; b < 6; b++) {
     var x = C.makeNoise(7000 + b, CH);
@@ -1039,7 +1066,7 @@ console.log('\n— automation —');
     st.lid = -1 - (b % 25) * 0.7;
     var s2 = C.sanitizeState(st);
     e.setState(s2);
-    var lidLin = Math.pow(10, (s2.lid + s2.margin) / 20);
+    var lidLin = C._nd.dbToLin(s2.lid + s2.margin);
     for (i = 0; i < BLOCK; i++) {
       var v = (r() * 2 - 1) * 6;
       inL[i] = v > 1 ? 1 : (v < -1 ? -1 : v);
@@ -1314,7 +1341,7 @@ console.log('\n— the dust —');
   var n = 24000, x = C.makeNoise(1234, n);
   var oL = new Float64Array(n), oR = new Float64Array(n);
   e.process(x, x, oL, oR);
-  var lidLin = Math.pow(10, -0.1 / 20), over = 0, mx = 0;
+  var lidLin = C._nd.dbToLin(-0.1), over = 0, mx = 0;
   for (i = 0; i < n; i++) { mx = Math.max(mx, Math.abs(oL[i])); if (Math.abs(oL[i]) > lidLin) over++; }
   ok(over === 0, 'shaped dust at 16 bits still cannot push a sample over the lid');
   note('dithered peak ' + db(mx).toFixed(4) + ' dB vs lid −0.1000 dB');

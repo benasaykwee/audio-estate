@@ -21,6 +21,19 @@ var ND = require('../../shared/necrodyn.js');
    is exactly the class of gap the shaped-dither bug lived in. */
 var RATES = [44100, 48000, 88200, 96000, 192000];
 var ITERS = parseInt(process.argv[2], 10) || 1200;
+
+/* --seed=17183[,17184]  — replay exactly these cases and nothing else.
+   The header above promises that a reported seed reproduces a failure
+   exactly. That was true and useless: seeds are 1000 + iteration, so
+   reproducing seed 17183 meant re-running the 16,183 cases in front of it,
+   about three minutes to reach one case that takes milliseconds. The
+   nightly deep fuzz reports seeds nobody can afford to chase.
+   Everything about a case derives from `ND.lcg(seed)`, so a seed is a
+   complete description of it and can simply be run on its own. */
+var SEEDS = (function () {
+  var a = process.argv.slice(2).filter(function (x) { return x.indexOf('--seed=') === 0; })[0];
+  return a ? a.slice(7).split(',').map(Number).filter(function (n) { return isFinite(n); }) : null;
+})();
 var N = 2400;                       // samples per case — small and many
 var fails = 0, checked = 0, blkUsed;
 var worstHeadroom = Infinity, worstAt = '';
@@ -97,11 +110,25 @@ function fail(msg, seed, st, rate) {
   }
 }
 
-console.log('CASKET fuzzer — ' + ITERS + ' random states × ' + N +
-            ' samples, across ' + RATES.join(' / ') + ' Hz');
+console.log(SEEDS
+  ? 'CASKET fuzzer — replaying seed(s) ' + SEEDS.join(', ')
+  : 'CASKET fuzzer — ' + ITERS + ' random states × ' + N +
+    ' samples, across ' + RATES.join(' / ') + ' Hz');
 
-for (var it = 0; it < ITERS; it++) {
-  var seed = 1000 + it;
+/* --from=N — start at iteration N instead of 0, so a long run can be split
+   across several windows. Twenty thousand states is about three and a half
+   minutes, which is longer than some environments allow one process. */
+var FROM = (function () {
+  var a = process.argv.slice(2).filter(function (x) { return x.indexOf('--from=') === 0; })[0];
+  return a ? parseInt(a.slice(7), 10) : 0;
+})();
+
+var SEED_LIST = SEEDS || (function () {
+  var a = []; for (var i = FROM; i < ITERS; i++) a.push(1000 + i); return a;
+})();
+
+for (var it = 0; it < SEED_LIST.length; it++) {
+  var seed = SEED_LIST[it];
   var r = ND.lcg(seed);
   var FS = pick(r, RATES);
   var st = randomState(r);
@@ -134,7 +161,7 @@ for (var it = 0; it < ITERS; it++) {
 
   /* 2. the lid holds. The clamp guarantees the sample domain, so any
         violation here is a broken clamp, not a broken theorem. */
-  var lidLin = Math.pow(10, (st.lid + st.margin) / 20);
+  var lidLin = ND.dbToLin(st.lid + st.margin);
   /* ZERO tolerance, dither included. The dithered output is clamped to
      the largest quantisation step at or below the lid, so there is no
      budget to allow for — a violation here is a real violation. */

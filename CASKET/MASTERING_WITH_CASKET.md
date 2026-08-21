@@ -10,7 +10,25 @@ does. This is about **when to reach for a thing and what it costs you**, which
 is the part a control list cannot tell you.
 
 Everything here is a measured claim. Where a number appears, the harness that
-produced it is named, so you can check rather than trust.
+produced it is named, so you can check rather than trust. `tools/check_mastering_citations.js`
+re-runs every one of those harnesses and confirms the cited number still
+appears in its output, so a figure here going stale is a thing that gets
+caught rather than a thing you find out about later.
+
+**One deliberate exception, flagged so it does not read as an oversight.** A
+few figures here describe **a bug that used to exist and no longer does** —
+they are marked *(historical)* where they appear. Those carry no citation on
+purpose: no current harness can produce them, because the behaviour they
+measure was removed. They are kept because *why* a thing is built the way it
+is often only makes sense next to what it replaced.
+
+**The other three documents, and when to reach for each:**
+
+| | |
+|---|---|
+| [`README.md`](README.md) | what every control *is*. Start there if a word here is unfamiliar. |
+| [`docs/LISTENING_PROTOCOL.md`](docs/LISTENING_PROTOCOL.md) | how to verify by ear what the numbers here claim — level-matching, the null test, what to listen for per arrangement. |
+| [`docs/CASE_FORMAT.md`](docs/CASE_FORMAT.md) | the `.casket.json` arrangement file, field by field. For scripting or hand-editing. |
 
 ---
 
@@ -60,6 +78,17 @@ Those ratios are measured against a same-machine bypass calibration by
 purpose: your machine is not the machine they were measured on, but the
 *shape* of the cost travels.
 
+**To measure your own,** run `tests/casket_bench.js`. Its `×bypass` column is
+the same unit as the table above — bypass is calibrated first, on whatever
+machine you are on, and everything after is stated against it. Its
+milliseconds and realtime factors are the numbers that do *not* travel; the
+ratio is the one you can compare with anybody else's. The bench also reports
+what oversampling actually costs (sealing adds ~1.7× at 2× lining and ~2.3×
+at 16×, so the penalty for sealing grows with the lining) and what the
+meter-to-editor handoff costs the audio thread — about 0.11% of a
+512-sample block period, which is the sort of claim worth having a number
+for rather than a reassurance.
+
 ---
 
 ## 3. The lid, and why the margin exists
@@ -97,7 +126,7 @@ decibel. **Do not set a margin by default.** Use **Auto Margin**, which renders,
 measures, adjusts and *re-renders to verify* — and reports `covered` as a
 statement about a measurement rather than a prediction. It earned that
 behaviour: an earlier version estimated, and claimed `covered` on a render
-0.554 dB over the ceiling.
+0.554 dB over the ceiling *(historical)*.
 
 ---
 
@@ -144,7 +173,7 @@ instead of folding back across it. It buys true-peak accuracy and costs exact
 transparency: an idle sealed arrangement differs from its input by up to
 **−76.8 dBFS**. Inaudible. Not zero. And zero is what the null test means.
 
-What the seal actually buys, measured:
+What the seal actually buys, measured (`tests/casket_seal_margin.js`):
 
 | material | seal buys you |
 |---|---|
@@ -184,8 +213,8 @@ into a flutter.
 A property worth knowing: **the threshold tightens instantly and loosens
 smoothly.** Automating the ceiling downward snaps; upward glides. That
 asymmetry is not a nicety — before it existed, sweeping the ceiling down
-exceeded it by +2.37 dB for a dozen control blocks, because the gain computer
-was still working to the old, higher threshold.
+exceeded it by +2.37 dB for a dozen control blocks *(historical)*, because the
+gain computer was still working to the old, higher threshold.
 
 ---
 
@@ -235,7 +264,7 @@ The dithered output is clamped to **the largest quantisation step at or below
 the true lid** — on the grid — so the guarantee holds by construction and not
 by budget. This matters because the first version budgeted for it and was
 wrong: the shaped shaper's own error feedback needed 6 LSB of trim, not 2, and
-12 of the first 400 fuzz states exceeded the lid by 0.005 dB.
+12 of the first 400 fuzz states exceeded the lid by 0.005 dB *(historical)*.
 
 ---
 
@@ -246,13 +275,15 @@ wrong: the shaped shaper's own error feedback needed 6 LSB of trim, not 2, and
 Normalising each song to the same LUFS makes every song equally loud, which is
 the same as saying the quiet song is no longer the quiet song. The running
 order carries meaning. On the test record the spread was 13.82 LU before
-mastering and 13.99 LU after — preserved, not flattened.
+mastering and 13.99 LU after (`tests/casket_album.js`) — preserved, not
+flattened.
 
 The album's own figure is the **gated measure across every track concatenated**,
 which is what BS.1770 asks for and what streaming services compute. It is *not*
 the mean of the per-track figures. On the test record the correct album figure
-is −6.51 LUFS while the arithmetic mean of the three tracks is −10.56. Four LU
-is the size of that mistake, and it happens because LUFS is a logarithm.
+is −6.51 LUFS while the arithmetic mean of the three tracks is −10.56
+(`tests/casket_album.js`). Four LU is the size of that mistake, and it happens
+because LUFS is a logarithm.
 
 Two options worth knowing:
 
@@ -260,9 +291,9 @@ Two options worth knowing:
   concept record with crossfades. Renders the whole thing through one engine
   and cuts it back up, so the limiter's state crosses every join the way the
   music does. Rendered a track at a time instead, the release envelope
-  restarts at every join; measured, the difference reaches **−19.4 dB** and is
-  concentrated at the *start* of each track, which is exactly where you would
-  hear it.
+  restarts at every join; measured, the difference reaches **−19.4 dB**
+  (`tests/casket_album.js`) and is concentrated at the *start* of each track,
+  which is exactly where you would hear it.
 
 - **Dither seeding.** `perTrack` by default, because a track is a file and a
   file should carry its own noise. `same` stamps the identical noise print on
@@ -294,7 +325,76 @@ did. Read the sentence.
 
 ---
 
-## 12. A working order
+## 12. Loudness range, and THE RANGE
+
+**Loudness range (LRA) is how far the loud parts sit above the quiet parts**,
+in LU, over the whole piece. It is the number in the readout marked `range`,
+and it is the one figure here that describes the *music* rather than the
+limiter.
+
+Where the other meters answer "how loud is this", LRA answers "how much does
+that change". A record with LRA 3 is flat — every moment about as loud as every
+other. LRA 12 has real quiet passages and real loud ones. Neither number is
+good or bad on its own; what it tells you is whether the drive setting you just
+chose is flattening something that was doing work.
+
+**Watch it while you turn the drive up.** That is the whole practical use. If
+LRA barely moves as you drive, the limiter is catching peaks and leaving the
+shape alone. If it collapses, you are not making the record louder, you are
+making it *smaller* — and that is a decision, not an accident, so make it
+deliberately.
+
+### What the number actually is
+
+Per **EBU Tech 3342**, and worth knowing because it explains the chart:
+
+- It is computed from **short-term (3 s)** loudness, not the 400 ms blocks
+  integrated loudness uses. Different window, different answer. CASKET keeps
+  two separate histograms for exactly this reason; sharing one would be quietly
+  wrong.
+- Blocks below **−70 LUFS** are dropped outright, then a **relative gate 20 LU**
+  below the mean of what survived drops the rest. Note **20**, where integrated
+  loudness uses 10 — LRA is the more forgiving of the two about quiet material.
+- What is left is sorted, and LRA is the spread between the **10th and 95th
+  percentiles**. Not the min and max: a single loud stab or one silent bar
+  cannot define your record's range.
+
+Measured against the spec's own construction: two levels 10 LU apart read
+**10.0000 LU**, two levels 5 LU apart read **5.0000 LU**
+(`tests/casket_conformance.js`).
+
+### THE RANGE — the chart under the number
+
+The third pane shows the distribution that produces that figure. It exists
+because a single number cannot tell you *why* it is what it is.
+
+- **Bars** are how much of the session sat at each loudness.
+- **Two gold lines** are the 10th and 95th percentiles. The gap between them
+  is the LRA figure — not an illustration of it, the actual thing being
+  subtracted.
+- **The red dashed line** is the relative gate. Bars to its left were measured
+  and are drawn, but excluded from the number. They are shown rather than
+  hidden on purpose: if a lot of your material sits left of that line, the
+  reported range is describing a smaller piece of the record than you might
+  assume, and you should know that.
+
+A tall narrow pile means a consistent record. A wide spread means a dynamic
+one. Two separate humps usually means two kinds of material — verses and
+choruses, or a quiet intro — which is worth seeing before you decide the
+limiter is doing something wrong.
+
+### One thing it is not
+
+The album report's **spread** line is a different measurement. That is the gap
+between the loudest and quietest *track* on a record (§10). LRA is the range
+*within* whatever is being measured. A record of eleven equally-loud but
+internally dynamic songs has a small spread and a large LRA; the reverse is
+also possible. `matchReference` reports both, and the gap in each, because
+matching one does not match the other.
+
+---
+
+## 13. A working order
 
 1. Load the mix. Conform the rate if it needs it.
 2. Set the lid to the delivery target. Leave the margin at 0.
@@ -311,7 +411,7 @@ did. Read the sentence.
 
 ---
 
-## 13. What CASKET will not do
+## 14. What CASKET will not do
 
 - It will not put a gain stage after itself, so do not ask.
 - It will not tell you a target was reached when it was not.

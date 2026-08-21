@@ -26,7 +26,7 @@ function render(st, x, y) {
 }
 function allFinite(a) { for (var i = 0; i < a.length; i++) if (!isFinite(a[i])) return false; return true; }
 function underLid(a, st) {
-  var lid = Math.pow(10, (st.lid + st.margin) / 20);
+  var lid = C._nd.dbToLin(st.lid + st.margin);
   for (var i = 0; i < a.length; i++) if (Math.abs(a[i]) > lid) return false;
   return true;
 }
@@ -82,14 +82,14 @@ console.log('CASKET edge cases — the inputs nobody feeds it on purpose\n');
   threw = false;
   try { for (var i = 0; i < 5000; i++) e.process(one, one, o1, o2); } catch (err) { threw = true; }
   ok(!threw, '5000 single-sample calls do not throw');
-  ok(isFinite(o1[0]) && Math.abs(o1[0]) <= Math.pow(10, (st.lid + st.margin) / 20),
+  ok(isFinite(o1[0]) && Math.abs(o1[0]) <= C._nd.dbToLin(st.lid + st.margin),
      'and the last one is finite and under the lid');
 })();
 
 /* ---- DC at exactly the lid, and above it ---- */
 (function () {
   var st = loud(); st.drive = 0; st.dust = 'off';
-  var lid = Math.pow(10, (st.lid + st.margin) / 20);
+  var lid = C._nd.dbToLin(st.lid + st.margin);
   [lid, lid * 1.000001, 1.0, 4.0].forEach(function (v) {
     var n = 8192, x = new Float64Array(n), i;
     for (i = 0; i < n; i++) x[i] = v;

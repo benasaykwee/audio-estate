@@ -48,9 +48,10 @@ Three problems, none of which an EQ or a compressor has:
 
 **Out for v1, with reasons:**
 
-- **Mid/side operation.** Cut *during* the build, which is the honest place to record it, and still outstanding. Limiting M and S with independent gains does not bound L = M + S: two signals each sitting under the ceiling can reconstruct to twice it. The only safe version links the two gains at 100 %, which is arithmetically identical to ordinary linked stereo and therefore pointless. A mode that breaks "nothing gets out" is worse than no mode. Phase 3 can have it properly — detector watching L/R, gain acting on M/S.
+- ~~**Mid/side operation.**~~ **BUILT, as a PRE-STAGE — which is the resolution this entry asked for.** The reasoning below still stands exactly as written and is the reason the shipped answer takes the shape it does: limiting M and S with independent gains does not bound L = M + S, so there is no mid/side limiting *mode* and never will be. What ships instead is M/S *shaping* placed **before** the limiter, so the limiter still runs last on L/R and §5's proof carries over verbatim rather than needing to be re-derived. It short-circuits at unity, so arming it with nothing dialled in cannot cost a bit. `ms`/`msMid`/`msSide` are real state fields with parity coverage, and `casket_test.js` §5e asserts the ceiling still holds with M/S pushed to +12 side / +6 mid on a sealed Lead.
+  *(Original entry, kept because the argument is still the argument: "Cut during the build, which is the honest place to record it… A mode that breaks 'nothing gets out' is worse than no mode. Phase 3 can have it properly — detector watching L/R, gain acting on M/S." What shipped is the safe half of that, and the doc simply never came back to say so.)*
 - **Multiband limiting.** A different instrument wearing the same hat. If we want it, it belongs downstream of RIGOR's crossover work, not here.
-- **Loudness Range (LRA) and the EBU histogram.** Genuinely useful, genuinely a Phase 3 evening. Integrated LUFS is the number people actually act on.
+- ~~**Loudness Range (LRA) and the EBU histogram.**~~ **BUILT.** LRA shipped with the metering and is parity-gated; the histogram behind it — **THE RANGE** — was built for the browser on 2026-08-18 and mirrored into the JUCE face on 2026-08-19. Both faces compute it through one `shortTermStats()`, and the parity gate compares the two bin for bin, so the pictures cannot drift from each other or from the number. (This bullet still read "genuinely a Phase 3 evening" a day after the chart existed — the estimate was even roughly right, which is not the same as the entry being true.)
 - **Surround / >2 channels.** BS.1770 defines the channel weights (+1.5 dB on surrounds) and the core is written channel-agnostically enough to grow into it, but the browser instrument is stereo and so is the plugin for now.
 - **Linear-phase or spectral limiting.** Out of lineage. Pro-L doesn't do it either.
 
@@ -224,7 +225,9 @@ The idea was to apply the gain in the oversampled domain, but as a **residual**,
 RESIDUAL   y[p] = x[p − D] + decimate( (g4 − 1)·x4 )
 ```
 
-When `g4 ≡ 1` the correction is exactly zero, so the output is the delayed input to the last bit. That part worked perfectly on the first try — the null test held, and the latency derivation (`2q + Lb + 1`) landed the impulse on the predicted sample with no fudging. And then the true-peak residual on band-limited clipped noise went from **+0.52 dB to +2.47 dB**, and on full-band clipped noise from **+1.19 dB to +5.84 dB**. The rounding clamp, which had never caught more than 7 × 10⁻¹³, was suddenly absorbing 120 %.
+When `g4 ≡ 1` the correction is exactly zero, so the output is the delayed input to the last bit. That part worked perfectly on the first try — the null test held, and the latency derivation (`2q + Lb + 1`) landed the impulse on the predicted sample with no fudging. And then the true-peak residual on band-limited clipped noise went from **+0.522 dB to +3.378 dB**, and on full-band clipped noise from **+1.194 dB to +10.298 dB**. The rounding clamp, which had never caught more than about 5 × 10⁻¹³ on an unsealed arrangement, was suddenly absorbing more than the signal it was meant to be rounding.
+
+*(This sentence read "+2.47 dB" and "+5.84 dB" until 2026-08-19 — figures that disagreed with the table three paragraphs below it, in the same section, which has always said +3.378 and +10.298. Both are `tests/seal_experiment.js` output and the table is the one that matches it today; the prose numbers most likely predate a decimator change and were never revisited. The pattern is by now familiar enough to name: **the summary sentence drifts and the detailed table does not**, because the table is regenerated from a run and the sentence is retyped from memory. Same shape as the README's residual table and its "agree to three decimals" line, and as §6.4's ladder.)*
 
 **Why.** The residual form is a difference of two large, nearly-cancelling terms, and it is worst exactly where it needs to be best. Under 13 dB of gain reduction, `g ≈ 0.22`, so the correction `(g − 1)·x4` is **78 % of the signal**. Every scrap of decimation-filter error inside that correction arrives at the output undivided, with no small factor in front of it. The harder the limiter works, the worse the conditioning gets.
 
@@ -266,9 +269,22 @@ Three implementation notes worth keeping:
 - **Sealed at 1× is a contradiction, and the sanitiser corrects it rather than obeying it.** There is no oversampled domain to form the product in, so the sidebands alias exactly as they would unsealed *and* the decimator lowpasses the result. Measured: +7.2 dB of overshoot with the safety clamp absorbing 62 % — that is clipping, not limiting. `sanitizeState` bumps a sealed 1× to 2×, so the engine and `latencySamples` can never disagree.
 - **Sealed, the safety clamp stops being purely a rounding backstop.** It also absorbs the decimation filter's ripple. Measured across the whole hostile battery it fires **twice in 96,000 samples**, only on a full-scale 19 kHz sine, by 0.088 dB. The harness asserts that bound explicitly rather than reusing the unsealed `< 1e-12` claim, because reusing it would have been a lie.
 
-More lining is very slightly *worse* sealed (2× +0.447, 4× +0.507, 16× +0.562) — a longer filter has a sharper transition, so it preserves more of the product energy sitting just under Nyquist. Lead therefore defaults to **4×**, not 16×: in sealed mode the lining is the processing rate as well as the detection rate, and detection was already exact at 4×.
+More lining is very slightly *worse* sealed — a longer filter has a sharper transition, so it preserves more of the product energy sitting just under Nyquist. Lead therefore defaults to **4×**, not 16×: in sealed mode the lining is the processing rate as well as the detection rate, and detection was already exact at 4×.
 
-Both paths are held to the same standard. Three sealed regression baselines (`sealed2x`, `sealed4x`, `sealedDust`) and four sealed render cases in the parity gate, which stood at **18,753 bit-exact checks** when the seal landed and at **<!--c:casket.parity-->22,861<!--/c-->** as of <!--c:measured-->2026-08-16<!--/c-->.
+Re-measured 2026-08-19, and now runnable — `tests/seal_experiment.js` sweeps it:
+
+| lining | decimator | full-band residual |
+|---|---|---|
+| 2× | 257 taps | +0.562 dB |
+| 4× | 513 taps | +0.568 dB |
+| 8× | 1025 taps | +0.569 dB |
+| 16× | 2049 taps | +0.584 dB |
+
+*(This paragraph published "2× +0.447, 4× +0.507, 16× +0.562" until 2026-08-19 with nothing in the suite reproducing them — figures deciding a shipped default, resting on a measurement nobody could re-run. The **direction is confirmed**: sealed residual does rise with the lining. The magnitudes differ, and the older set is not necessarily wrong; it may predate the current decimator or use different material. What changed is that the claim is now executable rather than remembered.*
+
+*Worth recording how the sweep went wrong on the way: written using the rig's fixed 256 half-length, it produced a tidy monotone **fall** to +0.095 at 16× — the opposite conclusion, cleanly and believably. The shipped engine sets `half = DEC_Q·M`, so its decimator grows with the lining; holding it fixed while sweeping M measures the harness instead of the product.)*
+
+Both paths are held to the same standard. Three sealed regression baselines (`sealed2x`, `sealed4x`, `sealedDust`) and four sealed render cases in the parity gate, which stood at **18,753 bit-exact checks** when the seal landed and at **<!--c:casket.parity-->23,013<!--/c-->** as of <!--c:measured-->2026-08-16<!--/c-->.
 
 ## 7. The five arrangements
 
@@ -283,8 +299,14 @@ Not presets. Five sets of structural choices, and each one changes what the code
 | Release | linear, user | **program-dependent** | fast, program-dependent | fast, user | slow, program-dependent |
 | Knee (dB) | 0 (hard) | 3 | 0 | 1.5 | 6 |
 | Saturation | none | none | none | **soft-clip pre-stage** | none |
-| Lining default | 4× | 4× | 4× | 8× | **16×** |
+| Lining default | 4× | 4× | 4× | 8× | 4× |
 | Margin | 0 | 0 | 0 | 0 | **−0.3 dB** |
+
+*(Lead's lining read **16×** here from this table's first writing until 2026-08-18 —
+while §6.4, eight paragraphs up, explains at length why Lead defaults to 4×. The
+same error shipped in the README's arrangement table. Both are now gated by
+`casket_ui_test.js` against `styleDefaults()`, so a default stated in prose can
+no longer drift from the one the code ships.)*
 
 The one that needs explaining is **Oak**. Its smoothing window is deliberately *shorter* than its sliding-minimum window. The theorem still holds — the hypothesis is that `w` is supported within `[0, L]`, and a shorter support is still within it — so Oak cannot overshoot either. What a short smoother does is let the gain drop faster and more abruptly right at the transient, which preserves the leading edge of a drum hit at the cost of a slightly harder gain corner. That's the trade "punchy" actually names.
 
@@ -333,9 +355,14 @@ Two details worth recording because both are parity landmines. Rounding is `floo
 
 ## 10. Parameters
 
-Eighteen host parameters, as built. AUTOPSY needed 146; RIGOR wants 22; a limiter is a knob and a promise.
+Twenty-two host parameters, as built. AUTOPSY needed 146; RIGOR wants 22; a limiter is a knob and a promise.
 
-`bypass` · `style` (5) · `drive` −12…+24 dB · `lid` (ceiling) −20…0 dBTP · `margin` −1…0 dB · `knee` 0…12 dB · `vigil` 0.1…20 ms (0.35 skew) · `release` 1…1000 ms (0.35 skew) · `auto_rel` · `hold` 0…500 ms · `link` 0…100 % · `lining` 1/2/4/8/16× · `sat` 0…100 % · `dc` on/off · `unity` · `dust` off/flat/shaped · `dust_bits` 16/20/24 · `target_lufs` −30…−5 (display only)
+`bypass` · `style` (5) · `drive` −12…+24 dB · `lid` (ceiling) −20…0 dBTP · `margin` −1…0 dB · `knee` 0…12 dB · `vigil` 0.1…20 ms (0.35 skew) · `release` 1…1000 ms (0.35 skew) · `auto_rel` · `hold` 0…500 ms · `link` 0…100 % · `lining` 1/2/4/8/16× · `seal` (see §6.4) · `sat` 0…100 % · `ms` · `ms_mid` −12…+12 dB · `ms_side` −12…+12 dB · `dc` on/off · `unity` · `dust` off/flat/shaped · `dust_bits` 16/20/24 · `target_lufs` −30…−5 (display only)
+
+*(This section said "eighteen, as built" until 2026-08-18, written before `seal`
+and the M/S pre-stage became host parameters and never revisited — the same
+staleness the README carried. The count and the list are now gated by
+`casket_plugin_test.js` against the layout the plugin actually declares.)*
 
 Three that were in the sketch and are not in the build: `stereo_mode` (see §3), `sc_listen` (a limiter has no sidechain to listen to), and `out_trim`. That last one was cut on purpose — an output gain applied *after* the limiter can push the signal back over the lid, which would make the plugin's central claim conditional on a knob position. If you want it quieter, that is what `lid` is.
 

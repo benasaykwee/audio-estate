@@ -15,7 +15,9 @@
     "saturated": "8c09e47d",
     "sealed2x": "817d3435",
     "sealed4x": "663de691",
+    "sealed16x": "a812eb53",
     "sealedDust": "632de9e6",
-    "midside": "e3938d5d"
+    "midside": "e3938d5d",
+    "gaplessBatch": "8f58aae0"
   }
 }

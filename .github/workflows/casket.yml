@@ -91,6 +91,54 @@ jobs:
       - name: Sample-rate conversion (a 44.1 file in a 96 session)
         run: node tests/casket_rate.js
 
+      # ADDED 2026-08-18. autoDrive, autoMargin and matchReference each hand
+      # the user a number and ask them to trust it; nothing else re-derives
+      # the claim by a route that does not run back through the function
+      # being checked. Same idea as RIGOR's rigor_audit.js.
+      - name: Audits (autoDrive, autoMargin, matchReference — checked from outside)
+        run: node tests/casket_audit.js
+
+      # ADDED 2026-08-18. Same idea as RIGOR's rigor_coverage.js: a green
+      # suite only answers for what it was told to watch. This asks which
+      # state fields nothing watches at all.
+      - name: Coverage census (is anything unwatched?)
+        run: node tests/casket_coverage.js --strict
+
+      # ADDED 2026-08-18. The ONLY test in this project that runs two threads.
+      # It found two real bugs in Handoff<T> the day it was written — an ABA
+      # on the slot index, and a missing acquire fence that let the compiler
+      # sink the struct copy past its own verification. Neither is visible by
+      # reading the code and neither can be caught single-threaded, so this
+      # runs on every push rather than nightly. It also runs its own controls:
+      # if the unprotected arm stops tearing, the run reports itself
+      # inconclusive rather than passing.
+      - name: The audio/UI seam (trace fold, then Handoff under contention)
+        run: |
+          mkdir -p build
+          g++ -std=c++17 -O2 -pthread -o build/handoff tests/handoff_stress.cpp
+          ./build/handoff
+
+      # ADDED 2026-08-19. Compiles both plugin translation units against real
+      # JUCE 7.0.12 headers — the whole class of first-build failure (missing
+      # includes, wrong signatures, API drift) caught in ~40 s on a 1×-billed
+      # Linux runner instead of surfacing in the 10×-billed macOS plugin job.
+      #
+      # ONE CELL ONLY, and that is deliberate: this is a C++ compile, not a
+      # JS harness, so running it across the whole six-cell os×node matrix
+      # would pay for the same answer six times. The macOS job below is what
+      # proves the plugin BUILDS and links; this only proves it is sound C++.
+      # A JUCE checkout is ~500 MB, so it is cached on the tag.
+      - name: Cache JUCE 7.0.12
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 20
+        id: juce-cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/juce-7.0.12
+          key: juce-7.0.12-shallow
+      - name: Plugin sources compile against JUCE (fast, before the 10× job finds out)
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 20
+        run: bash tools/compile_check.sh
+
       # A shared/ change by any sibling project leaves CASKET's three embeds
       # stale, and the failure surfaces here rather than where it was caused.
       # That is the point: this step is the estate's tripwire in reverse.
@@ -227,6 +275,33 @@ jobs:
 
       - name: Offline-tools fuzz, at full strength
         run: node tests/casket_tools_fuzz.js 60
+
+      # ADDED 2026-08-18. MASTERING_WITH_CASKET.md promises every figure a
+      # named harness; this re-runs each cited harness and confirms the
+      # number still appears in its output. ~80 s because five real
+      # harnesses run — too slow for every push, exactly right here. It is
+      # informational by design (exit 0 either way), so the nightly stays
+      # green while the log carries the verdict; the tool's own --self-test
+      # runs first and DOES gate, because a broken extractor would make the
+      # report below it meaningless.
+      # Widened 2026-08-19 to FIVE documents (the mastering doc, the README,
+      # the docs/ pair, and the architecture doc). ~3 minutes measured.
+      #
+      # It runs 8 of the 14 cited harnesses: a citation with no figure
+      # attached is still reported, but its harness is never executed,
+      # because running a program to verify zero numbers is waste. That
+      # matters more than it sounds — casket_soak.js and casket_tools_fuzz.js
+      # are both cited by the README's new flags section, and their DEFAULT
+      # invocations are twenty minutes per arrangement and sixty fuzz states
+      # respectively. Before the skip, adding those two citations would have
+      # turned this step into an hour of re-running the estate's longest
+      # harnesses to check nothing.
+      # Nightly-only, and informational by design.
+      - name: Doc citations (every CASKET doc's numbers, re-measured)
+        timeout-minutes: 15
+        run: |
+          node tools/check_mastering_citations.js --self-test
+          node tools/check_mastering_citations.js
 
       # The push path takes two CASKET harness counts from the cache because
       # they cost three and a half minutes between them. A cached number is

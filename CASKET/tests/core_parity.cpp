@@ -10,6 +10,7 @@
 #include <cmath>
 #include <limits>
 #include <string>
+#include <map>
 #include "../casket-juce/Source/CasketCore.h"
 #include "parity_expected.h"
 
@@ -18,6 +19,22 @@ using namespace casket;
 static int fails = 0, checks = 0;
 static double worstUlp = 0;
 static char worstWhere[96] = "";
+
+/* DIAGNOSTIC GROUPING — added 2026-08-18. The -O3-only failure (43
+   mismatches, all inside autoDrive, discovered by hand-inspecting a flat
+   list capped at 10 lines) took real archaeology to attribute to one
+   function. `where` is a name like "autoDrive[silence][pine]" or
+   "kneeGain[W=6][117]" — grouping by everything before the first '[' turns
+   a wall of individual coordinates into "which FUNCTION is actually
+   diverging", which is the question that matters first. See also
+   canon9() in CasketCore.h's autoDrive: if this ever fires on autoDrive
+   again, check that fix is intact before assuming a new bug. */
+static std::map<std::string, int> failGroups;
+static void groupFail(const char* where) {
+    const char* br = std::strchr(where, '[');
+    std::string key = br ? std::string(where, (size_t)(br - where)) : std::string(where);
+    failGroups[key]++;
+}
 
 static double ulpDiff(double a, double b) {
     if (a == b) return 0;
@@ -35,14 +52,17 @@ static void check(double got, double exp_, const char* where) {
     double u = ulpDiff(got, exp_);
     if (u > worstUlp) { worstUlp = u; std::snprintf(worstWhere, sizeof(worstWhere), "%s", where); }
     fails++;
-    if (fails <= 10)
-        std::printf("  MISMATCH %s: got %.17g expected %.17g (%.0f ulp)\n", where, got, exp_, u);
+    groupFail(where);
+    if (fails <= 20)
+        std::printf("  MISMATCH %s: got %.17g expected %.17g (%.0f ulp, delta %.6g)\n",
+                     where, got, exp_, u, got - exp_);
 }
 static void checkInt(int got, int exp_, const char* where) {
     checks++;
     if (got == exp_) return;
     fails++;
-    if (fails <= 10) std::printf("  MISMATCH %s: got %d expected %d\n", where, got, exp_);
+    groupFail(where);
+    if (fails <= 20) std::printf("  MISMATCH %s: got %d expected %d\n", where, got, exp_);
 }
 
 static const int LININGS[5] = { 1, 2, 4, 8, 16 };
@@ -230,6 +250,36 @@ int main() {
             check(m2.lra, EXP_LRA[n++], w);
             std::snprintf(w, sizeof(w), "lra[prog %d].integrated", p);
             check(m2.integrated, EXP_LRA[n++], w);
+
+            /* THE RANGE's bins, gate and percentiles — the picture both
+               faces draw. The JS side emits only POPULATED bins; the C++
+               histogram is a dense 751-slot array (it has to be, to cross a
+               Handoff without allocating), so walk it and compare only the
+               non-zero slots, in order. If the two disagree about WHICH
+               bins are populated, the count check below fails first and
+               says so before any value comparison runs. */
+            Hist h;
+            e2.histogram(h);
+            int populated = 0;
+            for (int b = 0; b < 751; b++) if (h.counts[b] != 0) populated++;
+            std::snprintf(w, sizeof(w), "hist[prog %d].populatedBins", p);
+            check((double)populated, EXP_LRA[n++], w);
+            std::snprintf(w, sizeof(w), "hist[prog %d].gate", p);
+            check(h.gate, EXP_LRA[n++], w);
+            std::snprintf(w, sizeof(w), "hist[prog %d].p10", p);
+            check(h.p10 == 0 && h.p95 == 0 ? -999 : h.p10, EXP_LRA[n++], w);
+            std::snprintf(w, sizeof(w), "hist[prog %d].p95", p);
+            check(h.p10 == 0 && h.p95 == 0 ? -999 : h.p95, EXP_LRA[n++], w);
+            std::snprintf(w, sizeof(w), "hist[prog %d].lra", p);
+            check(h.lra, EXP_LRA[n++], w);
+            for (int b = 0; b < 751; b++) {
+                if (h.counts[b] == 0) continue;
+                double loud = BIN_LO + (b + 0.5) * BIN_W;
+                std::snprintf(w, sizeof(w), "hist[prog %d].bin[%d].loudness", p, b);
+                check(loud, EXP_LRA[n++], w);
+                std::snprintf(w, sizeof(w), "hist[prog %d].bin[%d].count", p, b);
+                check(h.counts[b], EXP_LRA[n++], w);
+            }
         }
     }
 
@@ -371,6 +421,10 @@ int main() {
     std::printf("\n%d checks, %d mismatches\n", checks, fails);
     if (fails) {
         std::printf("worst: %s at %.0f ulp\n", worstWhere, worstUlp);
+        std::printf("by function (this is usually the fastest way to the cause):\n");
+        for (std::map<std::string,int>::const_iterator it = failGroups.begin();
+             it != failGroups.end(); ++it)
+            std::printf("  %-24s %d\n", it->first.c_str(), it->second);
         std::printf("PARITY BROKEN — the twin has drifted.\n");
         return 1;
     }

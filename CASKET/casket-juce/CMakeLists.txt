@@ -11,6 +11,7 @@ FetchContent_MakeAvailable(JUCE)
 
 juce_add_plugin(Casket
   COMPANY_NAME "Ben Asaykwee"
+  BUNDLE_ID "com.benasaykwee.casket"
   PLUGIN_MANUFACTURER_CODE Basy
   PLUGIN_CODE Cskt
   FORMATS AU VST3 Standalone

@@ -1,4 +1,5 @@
-/* CASKET offline-tools fuzzer — node tests/casket_tools_fuzz.js [iters]
+/* CASKET offline-tools fuzzer —
+   node tests/casket_tools_fuzz.js [iters] [maxSeconds]
    renderOffline, autoDrive, difference, matchReference and autoMargin all
    do arithmetic on user-supplied audio, all were added recently, and none
    had ever seen a random state. The engine fuzzer found a real bug in its
@@ -11,12 +12,70 @@
      - difference against self is exactly zero, always
      - autoMargin never rounds toward the unsafe side, and says so honestly
        when it cannot cover the residual
-     - none of them mutates the state it was handed */
+     - none of them mutates the state it was handed
+
+   PROFILED 2026-08-18, RE-PROFILED 2026-08-19 after the fix (~2.5 s/iter):
+
+       tool                 18th    19th
+       autoDrive(6)          26%    30.1%   <- now the largest single cost
+       matchReference        36%    24.4%   <- was 9 passes, now 4
+       difference x2         11%    12.7%
+       autoMargin(3)          8%     9.1%
+       albumMaster proxy      6%     8.0%
+       everything else       ~13%   ~15.6%
+
+   The original finding was that matchReference — a call with no explicit
+   pass count — was the most expensive thing here, because it invoked
+   autoDrive INTERNALLY at the full default 9 passes plus two meterBuffer
+   calls on top. Giving it `iters` moved it from first to second.
+   Re-profiling matters because the SHAPE moved, not just the number: the
+   explicit 6-pass autoDrive is now the biggest line, which is a much less
+   interesting target — it is 6 passes because the contract being tested
+   needs 6, and cutting it would weaken an assertion rather than remove
+   waste. The easy win is spent. Anything further comes out of coverage.
+   albumMaster's two searches remain under 13% combined, despite the
+   long-since-corrected comment below that once claimed they cost more than
+   everything else together — they run on every FOURTH iteration only. */
 'use strict';
 var C = require('../casket_core.js');
 var ND = require('../../shared/necrodyn.js');
 
 var ITERS = parseInt(process.argv[2], 10) || 60;
+/* Optional wall-clock budget. Every harness in this suite so far has
+   assumed whatever runs it (a push, a nightly cron, a person's own
+   machine) can afford however long the iteration count takes — true in
+   casket.yml, where the push path deliberately asks for only 25 states and
+   the job timeout is GitHub's 360-minute default either way, but not true
+   of every place this file might get run by hand. --maxSeconds stops the
+   loop early, on an iteration boundary, and reports a PARTIAL result
+   honestly rather than either hanging past someone's patience or being
+   killed mid-iteration with nothing printed at all. */
+var MAX_SECONDS = (function () {
+  /* second positional arg, but skip flag-shaped args so `60 --seed=5003`
+     and `--seed=5003 60` both mean what they look like */
+  var pos = process.argv.slice(2).filter(function (x) { return x.indexOf('--') !== 0; });
+  return pos[1] ? parseFloat(pos[1]) : Infinity;
+})();
+/* --seed=5036[,5037] — replay exactly these cases and nothing else.
+   --from=N           — start at iteration N instead of 0.
+   Same flags, same reasons, same spellings as casket_fuzz.js: seeds here
+   are 5000 + iteration, so a failure at seed 5036 used to mean re-running
+   36 cases at ~2.6 s each to reach one case — a small tax at the push
+   path's 25 states and a real one at the nightly's 60. Everything about a
+   case derives from ND.lcg(seed) (state, material, rate, the SECOND state
+   `difference` compares against, and the album options), so a seed is a
+   complete description and can simply be run on its own. The comment at
+   seed 5036 in the albumMaster section below is exactly the kind of
+   forensic note that needed this flag to have been written cheaply. */
+var SEEDS = (function () {
+  var a = process.argv.slice(2).filter(function (x) { return x.indexOf('--seed=') === 0; })[0];
+  return a ? a.slice(7).split(',').map(Number).filter(function (n) { return isFinite(n); }) : null;
+})();
+var FROM = (function () {
+  var a = process.argv.slice(2).filter(function (x) { return x.indexOf('--from=') === 0; })[0];
+  return a ? parseInt(a.slice(7), 10) : 0;
+})();
+var T0 = Date.now();
 /* Deliberately short material. autoDrive alone does nine full renders per
    call, so a 4-second buffer at 96 k means ~36 s of audio rendered per
    iteration before the other four tools have run. Short and many beats
@@ -81,10 +140,32 @@ function randomAudio(r, n, fs) {
   return a;
 }
 
-console.log('CASKET offline-tools fuzzer — ' + ITERS + ' random states\n');
+var SEED_LIST = SEEDS || (function () {
+  var a = []; for (var i = FROM; i < ITERS; i++) a.push(5000 + i); return a;
+})();
 
-for (var it = 0; it < ITERS; it++) {
-  var seed = 5000 + it;
+console.log(SEEDS
+  ? 'CASKET offline-tools fuzzer — replaying seed(s) ' + SEEDS.join(', ')
+  : 'CASKET offline-tools fuzzer — ' + SEED_LIST.length + ' random states' +
+    (FROM ? ' from iteration ' + FROM : '') +
+    (isFinite(MAX_SECONDS) ? ' (budget ' + MAX_SECONDS + 's)' : ''));
+console.log('');
+
+var stoppedEarly = false, lastPrint = 0;
+for (var it = 0; it < SEED_LIST.length; it++) {
+  var elapsedNow = (Date.now() - T0) / 1000;
+  if (elapsedNow > MAX_SECONDS) { stoppedEarly = true; break; }
+  /* A run at the default 60 states costs a couple of minutes at this
+     harness's measured rate — long enough that silence looks like a hang
+     to whoever is watching it. One line every 10 states, or every 20
+     seconds, whichever comes first, is enough to show it's alive without
+     drowning the eventual pass/fail lines beneath it. */
+  if (it > 0 && (it % 10 === 0 || elapsedNow - lastPrint > 20)) {
+    console.log('  … ' + it + '/' + SEED_LIST.length + ' states, ' + fails + ' failure(s) so far, ' +
+                elapsedNow.toFixed(0) + 's elapsed');
+    lastPrint = elapsedNow;
+  }
+  var seed = SEED_LIST[it];
   var r = ND.lcg(seed);
   var fs = pick(r, RATES);
   var st = randomState(r);
@@ -150,7 +231,25 @@ for (var it = 0; it < ITERS; it++) {
   }
 
   /* --- matchReference --- */
-  var mr = C.matchReference(st, L, R, R, L, fs);
+  /* 4 passes, not the default 9 — added 2026-08-19 after profiling put this
+     one call at 36% of the whole fuzzer. Nothing asserted below depends on
+     the search being fine-grained: the checks are that `gap` is finite-or-
+     null and that nothing returns NaN, and `gap` is computed from
+     meterBuffer readings that do not involve autoDrive at all (verified:
+     identical gap objects at 4 and 9 passes). The SEARCH QUALITY is
+     casket_audit.js's job, where it is checked properly against an
+     independent re-render, so buying state coverage with pass count here
+     costs nothing this file was measuring.
+
+     MEASURED, A/B on the same 12 seeds: 39.0 s → 33.7 s, about 14% off the
+     whole run. Worth stating plainly because "matchReference is 36% of the
+     budget" invites the arithmetic that this should have saved ~20%: it
+     does not, because that 36% is not all autoDrive. matchReference also
+     runs two full meterBuffer passes over both signals, and autoDrive's two
+     rail probes are unconditional, so cutting 9 midpoints to 4 removes five
+     renders from a call that makes thirteen. The remaining cost is doing
+     real work. */
+  var mr = C.matchReference(st, L, R, R, L, fs, 4);
   if (!mr || !mr.gap) { fail('matchReference returned nothing', seed); continue; }
   /* null is the honest answer for an uncomputable gap; NaN is not */
   ['lufs', 'truePeak', 'lra'].forEach(function (kk) {
@@ -204,12 +303,23 @@ for (var it = 0; it < ITERS; it++) {
 
   /* the proxy search must not change the answer — it exists to be
      cheaper, and a cheaper answer that differs is just a wrong answer */
-  /* SAMPLED, not skipped. Two albumMaster searches cost more than the
-     other five tools combined, so running them on every state trades a
-     lot of state coverage for a little option coverage. Every fourth
-     state keeps both — the seeds are deterministic, so this is a stride
-     through the same space rather than a hole in it. */
-  if (it % 4) {
+  /* SAMPLED, not skipped. Two albumMaster searches are a real, nontrivial
+     cost — profiled 2026-08-18 at under 10% of the loop's time combined,
+     which is LESS than this comment used to claim before anyone measured
+     it (see the file header). The stride below isn't about albumMaster
+     being the single biggest cost — matchReference is, and always runs —
+     it's that these two searches are ADDITIONAL cost on top of everything
+     else this iteration already pays for, and running them on every state
+     trades a lot of state coverage for a little option coverage that
+     three-in-four iterations already exercise once. Every fourth state
+     keeps both — the seeds are deterministic, so this is a stride through
+     the same space rather than a hole in it. */
+  /* The stride keys off the SEED, not the loop index — with --seed replay
+     the loop index is always 0, and a replayed case must run exactly the
+     arms it ran in the sweep that reported it, or the reproduction is of a
+     different case wearing the same number. (seed - 5000) === the original
+     iteration, so the arm selection is identical either way. */
+  if ((seed - 5000) % 4) {
     if (JSON.stringify(st) !== before) { fail('a tool MUTATED the state it was handed', seed); }
     continue;
   }
@@ -262,6 +372,62 @@ for (var it = 0; it < ITERS; it++) {
   if (JSON.stringify(st) !== before) { fail('a tool MUTATED the state it was handed', seed); continue; }
 }
 
-console.log(checked + ' states exercised, ' + fails + ' failures');
-if (!fails) console.log('the offline tools hold.');
+/* THE REPRODUCER MUST ACTUALLY REPRODUCE — added 2026-08-19. --seed exists
+   so a reported failure can be replayed in seconds instead of re-running
+   everything ahead of it, and that promise rests on two things nothing was
+   checking:
+
+   (1) DETERMINISM. Every case derives from ND.lcg(seed), so the same seed
+       must build the same state, the same material, the same rate. If it
+       did not, a replay would be a different trial wearing the same number
+       and the flag would be actively misleading.
+   (2) ARM SELECTION. The albumMaster arms run on every fourth case via
+       (seed - 5000) % 4, keyed to the seed rather than the loop index for
+       exactly this reason — under --seed the loop index is always 0, so an
+       index-keyed stride would silently replay case 5036 WITHOUT the arms
+       that case originally ran, and a failure inside albumMaster would
+       vanish on replay. That is the worst possible failure for a
+       reproducer: it makes the bug look fixed.
+
+   Both are cheap to assert and neither renders any audio, so this runs on
+   every invocation rather than behind a flag. */
+(function selfCheck() {
+  var a = ND.lcg(5036), b = ND.lcg(5036);
+  var s1 = randomState(a), s2 = randomState(b);
+  var det = JSON.stringify(s1) === JSON.stringify(s2);
+  /* material too, not just state — the audio is where determinism actually
+     costs something to get wrong */
+  var m1 = randomAudio(a, 512, 48000), m2 = randomAudio(b, 512, 48000);
+  var sameAudio = m1.length === m2.length;
+  for (var i = 0; sameAudio && i < m1.length; i++) if (m1[i] !== m2[i]) sameAudio = false;
+
+  var armFor = function (seed) { return (seed - 5000) % 4 === 0; };
+  var strideOk = armFor(5000) && armFor(5036) && !armFor(5001) && !armFor(5037);
+
+  if (!det || !sameAudio || !strideOk) {
+    console.log('\n*** REPRODUCER SELF-CHECK FAILED ***');
+    if (!det) console.log('  a seed does not rebuild the same state — --seed replays a DIFFERENT case');
+    if (!sameAudio) console.log('  a seed does not rebuild the same material');
+    if (!strideOk) console.log('  the albumMaster stride is not seed-keyed — replays would skip those arms');
+    fails++;
+  } else {
+    console.log('\n  reproducer: seeds rebuild state and material identically, and the ' +
+                'albumMaster stride is seed-keyed (5036 runs them, 5037 does not)');
+  }
+})();
+
+var elapsed = (Date.now() - T0) / 1000;
+console.log('\n' + checked + ' states exercised, ' + fails + ' failures — ' +
+            elapsed.toFixed(1) + 's, ' + (checked / elapsed).toFixed(2) + ' states/s');
+if (stoppedEarly) {
+  console.log('STOPPED EARLY at the ' + MAX_SECONDS + 's budget: ' + checked + ' of ' +
+              ITERS + ' requested states actually ran. This is a partial result, not a ' +
+              'clean pass — rerun with more time (or no --maxSeconds) before trusting a ' +
+              'zero-failure count here.');
+}
+if (!fails && !stoppedEarly) console.log('the offline tools hold.');
+/* A run stopped early by its own time budget exits 0 only if nothing that
+   DID run failed — the budget is a scheduling concession, not a licence to
+   call an incomplete sweep a pass. Reading `checked` against the requested
+   ITERS (both printed above) is how a caller tells the two apart. */
 process.exit(fails ? 1 : 0);

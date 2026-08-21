@@ -118,6 +118,18 @@ console.log('\n— the trade, stated in numbers rather than in prose —');
   });
   note('the seal buys at most ' + worst.saved.toFixed(4) +
        ' dB of residual on this material (' + worst.name + ')');
+  /* PER MATERIAL, PRINTED — added 2026-08-18. Only the worst case was
+     reported, but MASTERING_WITH_CASKET.md §5 publishes the whole table
+     ("band-limited 0.20 dB, hard-clipped 0.53 dB"), and a published figure
+     that no harness prints is a figure nothing can check. The numbers were
+     always here — the difference of two residuals a few lines up — they
+     just never made it to stdout, so the doc's citation had nothing to
+     match against. Printing them costs one line and makes the whole table
+     verifiable by tools/check_mastering_citations.js instead of only its
+     worst row. */
+  rows.forEach(function (r) {
+    note('  ' + r[0] + ': the seal buys ' + (r[1].residual - r[2].residual).toFixed(2) + ' dB');
+  });
 
   /* THE COST, asserted so it cannot be forgotten: a sealed arrangement is
      NOT bit-transparent when idle, and an unsealed one is. This is the

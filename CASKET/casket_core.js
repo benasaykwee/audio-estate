@@ -809,6 +809,11 @@ var CASKET = (function (NM, ND) {
     return {
       setState: setState, process: process, reset: reset,
       meters: meters, trace: trace, resetMeters: resetMeters,
+      /* Separate from meters() on purpose — meters() runs at the UI's 30 Hz
+         timer and the histogram is a bar per 0.1 LU bin over the whole
+         3 s ring, cheap but pointless to rebuild 30 times a second when a
+         chart only needs to redraw when it's actually visible. */
+      histogramS: function () { return mtr.histogramS(); },
       latency: function () { return lat; },
       gr: function () { return grNow; },
       _debug: function () {
@@ -875,6 +880,39 @@ var CASKET = (function (NM, ND) {
       return loudnessOf(zl / k + zr / k);
     }
 
+    /* The gate-and-percentile pass EBU Tech 3342 LRA needs, extracted so
+       lra() and histogramS() (below) compute it once, the same way, rather
+       than risk two copies of "-20 LU below the mean of what survived"
+       drifting apart under a future edit. */
+    function shortTermStats() {
+      var i, sum = 0, cnt = 0;
+      for (i = 0; i < NBINS; i++) {
+        if (!histS[i]) continue;
+        sum += histSE[i]; cnt += histS[i];
+      }
+      if (cnt < 1) return { gate: -Infinity, p10: null, p95: null, lra: 0 };
+      var gate = loudnessOf(sum / cnt) - 20;
+      var kept = 0;
+      for (i = 0; i < NBINS; i++) {
+        if (!histS[i]) continue;
+        if (BIN_LO + (i + 0.5) * BIN_W <= gate) continue;
+        kept += histS[i];
+      }
+      if (kept < 1) return { gate: gate, p10: null, p95: null, lra: 0 };
+      var lo = kept * 0.10, hi = kept * 0.95;
+      var run = 0, p10 = null, p95 = null;
+      for (i = 0; i < NBINS; i++) {
+        if (!histS[i]) continue;
+        var l = BIN_LO + (i + 0.5) * BIN_W;
+        if (l <= gate) continue;
+        run += histS[i];
+        if (p10 === null && run >= lo) p10 = l;
+        if (p95 === null && run >= hi) { p95 = l; break; }
+      }
+      var lraV = (p10 === null || p95 === null) ? 0 : p95 - p10;
+      return { gate: gate, p10: p10, p95: p95, lra: lraV };
+    }
+
     return {
       push: function (l, r) {
         var a = l < 0 ? -l : l, b = r < 0 ? -r : r;
@@ -925,34 +963,30 @@ var CASKET = (function (NM, ND) {
       /* EBU Tech 3342. Absolute gate at -70 LUFS (the histogram's floor),
          then a RELATIVE gate 20 LU below the mean of what survived — note
          20, where integrated loudness uses 10. LRA is then the spread
-         between the 10th and 95th percentiles of what is left. */
-      lra: function () {
-        var i, sum = 0, cnt = 0;
-        for (i = 0; i < NBINS; i++) {
+         between the 10th and 95th percentiles of what is left.
+         Factored out as shortTermStats() (added 2026-08-18) so histogramS()
+         below can return the gate and percentile markers a chart needs
+         without re-deriving them by hand — one gate computation, two
+         callers, rather than a second copy that could quietly drift from
+         this one. lra()'s return type (a plain number) is unchanged; every
+         existing caller of m.lra keeps working exactly as before. */
+      lra: function () { return shortTermStats().lra; },
+      /* Diagnostic only — not part of any guarantee the parity gate proves,
+         same footing as the GR trace. Returns the SHORT-TERM histogram
+         (the one LRA is computed from, not the 400 ms one integrated
+         loudness uses) as sparse {loudness, count} bins, plus the gate and
+         the p10/p95 markers lra() itself used, so a chart can show exactly
+         what was kept, what was gated out, and where the reported LRA
+         number actually came from — rather than a bar chart that LOOKS
+         authoritative but was drawn from different numbers than the LRA
+         figure sitting next to it. */
+      histogramS: function () {
+        var st = shortTermStats(), bins = [];
+        for (var i = 0; i < NBINS; i++) {
           if (!histS[i]) continue;
-          sum += histSE[i]; cnt += histS[i];
+          bins.push({ loudness: BIN_LO + (i + 0.5) * BIN_W, count: histS[i] });
         }
-        if (cnt < 1) return 0;
-        var gate = loudnessOf(sum / cnt) - 20;
-        var kept = 0;
-        for (i = 0; i < NBINS; i++) {
-          if (!histS[i]) continue;
-          if (BIN_LO + (i + 0.5) * BIN_W <= gate) continue;
-          kept += histS[i];
-        }
-        if (kept < 1) return 0;
-        var lo = kept * 0.10, hi = kept * 0.95;
-        var run = 0, p10 = null, p95 = null;
-        for (i = 0; i < NBINS; i++) {
-          if (!histS[i]) continue;
-          var l = BIN_LO + (i + 0.5) * BIN_W;
-          if (l <= gate) continue;
-          run += histS[i];
-          if (p10 === null && run >= lo) p10 = l;
-          if (p95 === null && run >= hi) { p95 = l; break; }
-        }
-        if (p10 === null || p95 === null) return 0;
-        return p95 - p10;
+        return { bins: bins, gate: st.gate, p10: st.p10, p95: st.p95, lra: st.lra };
       },
       read: function () {
         /* integrated: absolute gate at -70 (the histogram's floor), then
@@ -1250,6 +1284,24 @@ var CASKET = (function (NM, ND) {
     return Math.round(x * inv) / inv;
   }
 
+  /* CANONICALISE THE BISECTION BRANCH — added 2026-08-18, LAW-5 shape.
+     -O3 on the C++ twin can reorder the summation inside renderOffline's
+     LUFS gate (auto-vectorisation; legal even under -ffp-contract=off,
+     which only forbids FMA fusion) and return a `got` that differs from
+     -O0/-O2 by about one ulp. Harmless on its own, but autoDrive is a
+     BISECTION: one flipped branch early in the search sends every later
+     probe into a different half of the 36 dB range, and the two builds can
+     converge on genuinely different grid points (measured up to 2.25 dB
+     apart on CI). Same shape as the defence already proven in
+     underworld/calibrate.js, which hardened its search variable onto a
+     grid. Here the search variable (LUFS) is the output of a full render
+     and cannot be put on a grid, so instead the COMPARISON is desensitised:
+     round to 1e-9 LU before branching — nine orders of magnitude coarser
+     than compiler-reordering noise (~1e-15 relative) and eight orders
+     tighter than the 0.1 LU this function already calls "reached". Applied
+     only where it decides direction; the returned lufs/error stay exact. */
+  function canon9(x) { return Math.round(x * 1e9) / 1e9; }
+
   function autoDrive(state, inL, inR, fs, targetLufs, iters, step) {
     var lo = -12, hi = 24, best = null;
     var passes = iters || 9;
@@ -1259,6 +1311,7 @@ var CASKET = (function (NM, ND) {
        quantise to different values and the whole point is lost. */
     var grid = (isFinite(step) && step > 0) ? step : 0.1;
     var inv = 1 / grid;
+    var targetC = canon9(targetLufs);
 
     function lufsAt(d) {
       var s = sanitizeState(state);
@@ -1268,7 +1321,7 @@ var CASKET = (function (NM, ND) {
     }
     function consider(d, got) {
       if (!isFinite(got)) return;
-      if (best === null || Math.abs(got - targetLufs) < Math.abs(best.lufs - targetLufs)) {
+      if (best === null || Math.abs(canon9(got) - targetC) < Math.abs(canon9(best.lufs) - targetC)) {
         best = { drive: d, lufs: got };
       }
     }
@@ -1287,7 +1340,7 @@ var CASKET = (function (NM, ND) {
       var got = lufsAt(mid);
       if (!isFinite(got)) { lo = mid; continue; }
       consider(mid, got);
-      if (got < targetLufs) lo = mid; else hi = mid;
+      if (canon9(got) < targetC) lo = mid; else hi = mid;
     }
     /* nothing measurable at any drive — silence, or so quiet the gate never
        opens. Say so; do not invent a drive. */
@@ -1841,14 +1894,25 @@ var CASKET = (function (NM, ND) {
      the gap plus the drive that closes it. Deliberately reports rather
      than applies: the numbers are the useful part, and a mastering tool
      that silently moves your gain is a tool you stop trusting. */
-  function matchReference(state, inL, inR, refL, refR, fs) {
+  /* `iters` added 2026-08-19, defaulting to autoDrive's own default so
+     every existing caller is bit-for-bit unaffected. It exists because
+     matchReference was the single most expensive call in the offline-tools
+     fuzzer — 36% of the whole budget, measured — for a reason nobody had
+     noticed: it calls autoDrive WITHOUT a pass count, so it silently runs
+     the full nine-pass search plus the two rail probes. That is correct for
+     a user asking "what drive matches this record", and wasteful for a
+     fuzzer asking "does this return a finite number and a sane gap".
+     Safe to add: matchReference has no C++ twin (it is browser-only, see
+     casket_coverage.js's API_EXEMPT) and appears zero times in
+     parity_emit.js and core_parity.cpp, so no blessed value can move. */
+  function matchReference(state, inL, inR, refL, refR, fs, iters) {
     /* Two bypassed renders used to live here for the same bad reason
        albumLoudness had one: measuring an UNPROCESSED buffer needs a
        meter, not an engine. */
     var mine = meterBuffer(inL, inR, fs);
     var theirs = meterBuffer(refL, refR, fs);
     var target = theirs.integrated;
-    var found = isFinite(target) ? autoDrive(state, inL, inR, fs, target) : null;
+    var found = isFinite(target) ? autoDrive(state, inL, inR, fs, target, iters) : null;
     /* Subtracting two dB figures gives NaN when BOTH are -Infinity, which
        is what silence measures. The fuzzer found it by handing the tool
        two silent buffers — a case a person hits by dragging in the wrong

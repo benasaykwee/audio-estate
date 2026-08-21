@@ -67,6 +67,44 @@ declared.forEach(function (id) {
   var n = (proc.match(new RegExp('id\\("' + id + '"\\)', 'g')) || []).length;
   if (n > 1) dupes.push(id + '×' + n);
 });
+/* THE PROSE COUNT, AGAINST THE PARSED COUNT — added 2026-08-18, because it
+   was wrong twice at once: the README said "Eighteen parameters" in one
+   place and "22 parameters" in another while the layout declared 22. A
+   number spelled out in a sentence is the one no generator rewrites and no
+   grep for digits finds. The README spells it as a word, so this maps the
+   word; the PluginProcessor.h header comment states it as a word too and
+   is checked the same way. If the layout grows a parameter, both sentences
+   go red until someone updates the words — which is the point. */
+var WORDS = { eighteen: 18, nineteen: 19, twenty: 20,
+              'twenty-one': 21, 'twenty-two': 22, 'twenty-three': 23, 'twenty-four': 24 };
+var readmeText = slurp(path.join(SRC, '..', '..', 'README.md'));
+var rm = readmeText.match(/([A-Za-z-]+) parameters/);
+ok(rm && WORDS[rm[1].toLowerCase()] === declared.length,
+   'the README\'s spelled-out parameter count ("' + (rm ? rm[1] : 'none found') +
+   '") matches the layout\'s ' + declared.length);
+/* the header's sentence lives in a COMMENT, so read the raw file — procH
+   is decommented, which is right for every other check here and exactly
+   wrong for prose */
+var hm = slurp(path.join(SRC, 'PluginProcessor.h')).match(/([A-Za-z-]+) parameters/i);
+ok(hm && WORDS[hm[1].toLowerCase()] === declared.length,
+   'PluginProcessor.h\'s own count ("' + (hm ? hm[1] : 'none found') +
+   '") matches the layout\'s ' + declared.length);
+/* and the architecture doc — the third copy of this claim, which said
+   "eighteen, as built" for months after seal/ms/ms_mid/ms_side landed.
+   §10 both states the count and LISTS the ids, so check both: the word,
+   and that every declared id appears in the list. */
+var archText = slurp(path.join(SRC, '..', '..', '..', 'CASKET_ARCHITECTURE.md'));
+var am = archText.match(/([A-Za-z-]+) host parameters, as built/i);
+ok(am && WORDS[am[1].toLowerCase()] === declared.length,
+   'CASKET_ARCHITECTURE.md §10\'s count ("' + (am ? am[1] : 'none found') +
+   '") matches the layout\'s ' + declared.length);
+var archMissing = declared.filter(function (id) {
+  return archText.indexOf('`' + id + '`') < 0;
+});
+ok(archMissing.length === 0,
+   'every declared parameter id appears in §10\'s list' +
+   (archMissing.length ? ' — MISSING: ' + archMissing.join(', ') : ''));
+
 ok(dupes.length === 0, 'no parameter is declared twice' +
    (dupes.length ? ' — ' + dupes.join(', ') : ''));
 
@@ -214,6 +252,134 @@ ok(/ctrlPhase|phase/.test(core),
 ok(!/samplesPerBlock/.test(pb),
    'processBlock does not assume the prepared block size');
 
+/* ---------- 7b. the audio/UI seam ----------
+   Wired 2026-08-18: the message thread reads snapshots, never the engine.
+   These are the assertions that keep it that way — each one names a
+   regression that would LOOK like a simplification. The race this closed
+   is invisible to every single-threaded harness, so the only cheap defence
+   is refusing the code shapes that reintroduce it. */
+console.log('\n— the audio/UI seam —');
+var lmBody = (procH.match(/void latestMeters[\s\S]*?\n    \}/) || [''])[0];
+var ltBody = (procH.match(/void latestTrace[\s\S]*?\n    \}/) || [''])[0];
+ok(/metersPub\.read/.test(lmBody) && !/engine\./.test(lmBody),
+   'latestMeters reads the Handoff snapshot, never the engine');
+ok(/tracePub\.read/.test(ltBody) && !/engine\./.test(ltBody),
+   'latestTrace reads the Handoff snapshot, never the engine');
+ok(/void resetMeters\(\)[^}]*meterResetReq/.test(procH) &&
+   !/void resetMeters\(\)[^}]*engine\./.test(procH),
+   'the reset button raises an epoch — it does not touch the engine cross-thread');
+ok(/metersPub\.publish/.test(pb) && /tracePub\.publish/.test(pb),
+   'processBlock publishes both snapshots from the audio thread');
+ok(/engine\.trace\(/.test(pb),
+   'engine.trace() is consumed on the audio thread, where its reset-on-read is harmless');
+ok(/traceResetSeen/.test(pb) && /meterResetSeen/.test(pb),
+   'both editor requests are serviced inside processBlock');
+/* THE RANGE crosses the same seam, added 2026-08-19 — and must be throttled,
+   because its snapshot is 751 doubles and the chart describes a 3 s window */
+var lhBody = (procH.match(/bool latestHistogram[\s\S]*?\n    \}/) || [''])[0];
+ok(/histPub\.read/.test(lhBody) && !/engine\./.test(lhBody),
+   'latestHistogram reads the Handoff snapshot, never the engine');
+ok(/histPub\.publish/.test(pb) && /engine\.histogram\(/.test(pb),
+   'processBlock publishes the histogram from the audio thread');
+ok(/histCount\s*\+=/.test(pb) && /histCount >= \(int\)sr/.test(pb),
+   'and throttles it to about once a second, keyed to the sample rate');
+ok(!/histCount >= \d/.test(pb),
+   'the histogram throttle does not compare against a hardcoded sample count');
+/* the editor itself must not have grown a direct line to the processor's engine */
+ok(!/\bengine\b/.test(edit) && !/\bengine\b/.test(editH),
+   'the editor never names the engine at all — snapshots are its whole world');
+
+/* THESE GATES MUST BITE — added 2026-08-19, the same standard the README
+   table gates were held to. Every assertion above is a REGEX over source
+   text, which is the cheapest kind of test to write and the easiest kind to
+   get subtly wrong: a pattern that never matches passes exactly as quietly
+   as one that always does. So each check below hands the gate the specific
+   regression it exists to stop and confirms the gate rejects it.
+   The regressions are not hypothetical — every one is what this code looked
+   like BEFORE 2026-08-18, so these are the diffs a well-meaning
+   simplification would actually produce. */
+(function () {
+  var wasLatestMeters = 'void latestMeters(casket::Meters& m) { engine.meters(m); }';
+  var wasLatestTrace  = 'void latestTrace(casket::Trace& t) { engine.trace(t); }';
+  var wasReset        = 'void resetMeters() { engine.resetMeters(); }';
+
+  /* the pre-rewrite bodies must FAIL the same predicates the live ones pass */
+  ok(!(/metersPub\.read/.test(wasLatestMeters) && !/engine\./.test(wasLatestMeters)),
+     'BITES: the old engine-touching latestMeters would fail the snapshot gate');
+  ok(!(/tracePub\.read/.test(wasLatestTrace) && !/engine\./.test(wasLatestTrace)),
+     'BITES: the old engine-touching latestTrace would fail its gate');
+  ok(!(/void resetMeters\(\)[^}]*meterResetReq/.test(wasReset) &&
+       !/void resetMeters\(\)[^}]*engine\./.test(wasReset)),
+     'BITES: the old direct resetMeters would fail the epoch gate');
+
+  /* and the editor gate: prove it reacts to the word appearing, rather than
+     passing because `edit` happens to be empty or unreadable */
+  var edithSpiked = editH + '\n  casket::Engine& engine;\n';
+  ok(!(!/\bengine\b/.test(edithSpiked)),
+     'BITES: an editor that grew an engine reference would fail the editor gate');
+  ok(edit.length > 500 && editH.length > 200,
+     'and both editor sources were actually read (' + edit.length + '/' + editH.length +
+     ' chars) — an empty read would pass every check above vacuously');
+
+  /* processBlock's publish gate, against a body that forgot to publish */
+  var pbNoPublish = pb.replace(/metersPub\.publish[^;]*;/, '');
+  ok(!(/metersPub\.publish/.test(pbNoPublish) && /tracePub\.publish/.test(pbNoPublish)),
+     'BITES: a processBlock that stopped publishing meters would fail its gate');
+})();
+
+/* ---------- 7c. the editor fits inside its own minimum size ----------
+   Added 2026-08-19, after arithmetic found the rack's bottom row laid out
+   below the window edge at the smallest permitted height. That bug predates
+   THE RANGE and had never been seen, because seeing it needs a display and
+   this project has never had one — but it is pure arithmetic, and the
+   numbers are all in the source.
+   The top band is FIXED: resized() skips it and lays out only the rack. So
+   minHeight must cover the band, the rack's rows, its group labels and the
+   insets. Reading the constants out of the source rather than restating
+   them means a change to any of them re-runs this sum. */
+console.log('\n— the editor fits its own minimum —');
+(function () {
+  function num(re, what) {
+    var m = edit.match(re);
+    ok(!!m, 'found ' + what + ' in the editor source');
+    return m ? +m[1] : NaN;
+  }
+  /* anchored on CODE, not on the comment beside it — `edit` is decommented
+     before these checks run, so a regex reaching for the explanatory text
+     matches nothing and quietly yields NaN. Caught immediately, because the
+     assertion printed "needs NaN px" rather than passing. */
+  var band  = num(/void CasketEditor::resized[\s\S]*?removeFromTop\((\d+)\)/, 'the fixed pane band');
+  var rowH  = num(/const int rowH = (\d+);/, 'the rack row height');
+  var lim   = edit.match(/setResizeLimits\((\d+),\s*(\d+),/);
+  ok(!!lim, 'found setResizeLimits');
+  var minW = lim ? +lim[1] : NaN, minH = lim ? +lim[2] : NaN;
+
+  var resizedBody = (edit.match(/void CasketEditor::resized[\s\S]*?\n\}/) || [''])[0];
+  var rows   = (resizedBody.match(/rowOf\(\)/g) || []).length;
+  var labels = (resizedBody.match(/removeFromTop\(14\)/g) || []).length;
+  var rackInset = 12;   /* reduced(14, 6) — 6 top + 6 bottom */
+
+  var needed = band + rackInset + rows * rowH + labels * 14;
+  ok(rows === 4 && labels === 4,
+     'the rack is ' + rows + ' rows and ' + labels + ' group labels');
+  ok(minH >= needed,
+     'minimum height ' + minH + ' covers the ' + needed + ' px the layout needs' +
+     (minH >= needed ? '' : ' — THE BOTTOM ROW WOULD CLIP by ' + (needed - minH) + ' px'));
+
+  /* and the pane band's own subdivision has to leave THE RANGE something
+     to draw in — it is the newest pane and the one squeezed if the split
+     is ever retuned */
+  var paneBody = band - 44 - 12;          /* header, then reduced(14,6) */
+  var rangeH = Math.floor(paneBody / 2) - 3;
+  ok(rangeH - 20 - 28 > 40,
+     'THE RANGE keeps ' + (rangeH - 20 - 28) + ' px of bar height after its title and footer');
+
+  /* width: the right column is a fixed 280, so the viewing takes the rest */
+  var viewingW = minW - 28 - 280 - 10;
+  ok(viewingW > 300,
+     'at minimum width the viewing still gets ' + viewingW + ' px (it is the pane users drag)');
+})();
+
 /* ---------- 8. the twin mirrors the core ---------- */
 console.log('\n— the twin mirrors the core —');
 var twinVer = (core.match(/VERSION = "([^"]+)"/) || [])[1];
@@ -237,6 +403,147 @@ var absent = Object.keys(st).filter(function (f) {
 });
 ok(absent.length === 0, 'the twin State carries every JS state field' +
    (absent.length ? ' — ABSENT: ' + absent.join(', ') : ''));
+
+/* WHAT THE TWIN DELIBERATELY DOES NOT MIRROR, on the record — added
+   2026-08-18. Everything above asserts the C++ twin keeps up with the JS
+   core, which makes any JS function ABSENT from the twin look like an
+   oversight the parity gate failed to notice. Some absences are decisions,
+   and a decision nobody wrote down is indistinguishable from a gap.
+
+   The rule that separates them: the twin mirrors anything that can change
+   a SAMPLE. Diagnostics that only ever feed a display do not need a C++
+   counterpart, because the plugin's face is native JUCE and never runs the
+   browser's drawing code — mirroring them would add parity surface with no
+   guarantee attached to it.
+
+   This list is asserted in the negative on purpose: if one of these ever
+   DOES appear in the twin, that is a real change of policy and this test
+   should go red so somebody restates the decision rather than drifting
+   into it. */
+/* DIAGNOSTIC_ONLY IS NOW EMPTY, AND THE REVERSAL IS THE RECORD — 2026-08-19.
+   On 2026-08-18 histogramS was listed here as deliberately absent from the
+   twin, with a sound argument: it fed a canvas in casket.html, the JUCE
+   editor drew its own meters, and mirroring it would have added parity
+   surface with no guarantee attached. That held exactly until the plugin's
+   face wanted the same chart. The choice then was "mirror it" or "ship two
+   faces that disagree about what the program measures", and the second is
+   not a real option.
+   So the list is empty rather than deleted: an empty list with a history is
+   a decision that was made and remade, and the assertion below keeps it
+   honest — anything added here must genuinely be absent from the twin.
+   What did NOT change: histogramS is still not parity-gated. It is a
+   picture, not a sample. The NUMBER it is drawn around, Meters::lra, is
+   gated, and both faces now compute it through the same shortTermStats(). */
+var DIAGNOSTIC_ONLY = {};
+Object.keys(DIAGNOSTIC_ONLY).forEach(function (fn) {
+  ok(typeof C[fn] !== 'undefined',
+     'the JS core still has ' + fn + ' (if not, delete it from DIAGNOSTIC_ONLY)');
+  ok(core.indexOf(fn) < 0,
+     fn + ' is deliberately NOT in the twin — ' + DIAGNOSTIC_ONLY[fn].split('.')[0]);
+});
+/* THE POSITIVE COUNTERPART — added 2026-08-19. DIAGNOSTIC_ONLY being empty
+   is a meaningful statement, and an empty list is a weak way to make it: it
+   asserts nothing, so a mirror could silently vanish and the emptiness would
+   look unchanged. This is the same claim from the other side — the surfaces
+   that MUST exist in both faces, each with the reason it earned that status.
+   A deletion from the twin now fails here rather than passing quietly. */
+var MUST_MIRROR = {
+  histogramS:     'THE RANGE is drawn by both faces; if only one has the data, they disagree ' +
+                  'about what the program measured. Parity-gated as of 2026-08-19.',
+  shortTermStats: 'the single gate-and-percentile pass. Both lra() and histogramS() go ' +
+                  'through it precisely so they cannot drift apart.',
+  lra:            'the number THE RANGE is drawn around, and the one figure of the three ' +
+                  'that was always parity-gated.',
+  foldTrace:      'decides which peaks the editor is shown between frames — a rule about ' +
+                  'what the user sees, not a display detail.',
+  emptyTrace:     'seeds the trace to silence rather than 0 dBFS; getting it wrong draws ' +
+                  'full scale on an idle transport.',
+  Handoff:        'the audio→UI seam itself. Two real bugs lived here.',
+  meterFrac:      'both faces map a level to a position with this; divergence would make ' +
+                  'one instrument\'s screenshot stop being evidence about the other.',
+  quantize:       'the control-grid expression the core, the browser and the twin must all ' +
+                  'spell identically — a mutation test proved the parity gate could not see ' +
+                  'the difference until it was given a name.'
+};
+/* WORD BOUNDARIES, not indexOf — the first version of this check used a
+   substring match and a bites-proof caught it immediately: renaming
+   foldTrace to foldTraceXX left "foldTrace" as a substring, so a mirror
+   could be renamed out of existence and this would still pass. Exactly the
+   trap casket_coverage.js's has() documents about short field names,
+   arrived at from the opposite direction. */
+var lostMirrors = Object.keys(MUST_MIRROR).filter(function (fn) {
+  return !new RegExp('\\b' + fn + '\\b').test(core);
+});
+ok(lostMirrors.length === 0,
+   'every surface that must exist in both faces is still in the twin' +
+   (lostMirrors.length ? ' — MISSING: ' + lostMirrors.join(', ') : ''));
+ok(Object.keys(DIAGNOSTIC_ONLY).length + Object.keys(MUST_MIRROR).length > 0,
+   'the two lists together are the record: ' + Object.keys(MUST_MIRROR).length +
+   ' mirrored on purpose, ' + Object.keys(DIAGNOSTIC_ONLY).length + ' deliberately not');
+
+/* the reversal itself, asserted: both faces must now be able to draw it */
+ok(/histogramS/.test(core), 'the twin now HAS histogramS — the 2026-08-18 exemption was reversed on purpose');
+ok(/shortTermStats/.test(core),
+   'and both lra() and histogramS() go through one shortTermStats(), so they cannot drift');
+ok(/double lra\(\) const \{ return shortTermStats\(\)\.lra; \}/.test(core),
+   'lra() is now a one-liner over that helper — the arithmetic moved, not changed (parity proves it)');
+
+/* THE OTHER DIRECTION — added 2026-08-19. Everything above asks whether the
+   twin keeps up with the JS core. Nothing asked the reverse: what does the
+   twin have that the core does NOT, and is each one a decision?
+   That question stopped being theoretical the day Handoff<T> and foldTrace
+   landed — real, load-bearing C++ with no JS counterpart, added without
+   anything anywhere recording that the asymmetry was intentional. It is:
+   the browser is single-threaded, so a thread-handoff has nothing to do
+   there. But "obviously fine" is what every undocumented asymmetry looks
+   like until someone tries to reconcile the two files.
+   C++ TYPES ARE EXPECTED to have no JS twin — JS has no structs — so the
+   list below is only the things that could plausibly have been shared. */
+console.log('\n— what the twin has that the core does not —');
+var TWIN_ONLY = {
+  /* threading — the whole category has no browser counterpart */
+  Handoff:    'a lock-free publish for the audio→UI seam. JS is single-threaded ' +
+              'in both the worklet and the fallback, so there is nothing to hand off.',
+  foldTrace:  'folds per-block traces for a 30 Hz editor. The browser reads the ' +
+              'engine directly at frame rate, so it never accumulates across blocks.',
+  emptyTrace: 'seeds a Trace to silence for the same editor path.',
+  /* C++ shape — JS returns object literals where C++ needs a declared type */
+  StyleDef: 'a struct; JS uses the STYLE object literal', State: 'a struct; JS uses defaultState()',
+  /* Hist is C++-only for a REASON, not just because JS has no structs: the
+     browser's histogramS returns SPARSE bins over postMessage, because it
+     can allocate freely. The plugin cannot allocate on the audio thread, so
+     its snapshot is a fixed 751-bin POD that fits through a Handoff. Same
+     picture, two shapes, each dictated by its transport. */
+  Hist: 'a fixed-size POD so THE RANGE can cross a Handoff without allocating; ' +
+        'the browser sends sparse bins instead, which it can afford to allocate',
+  /* display mappings — the JS equivalents live in UIH (casket.html), not in
+     casket_core.js, so they are correctly absent from the core's exports.
+     They are in the TWIN only because `static` in a .cpp is untestable. */
+  meterFrac: 'the browser\'s UIH.meterFrac; here so a test can reach it (it was static in PluginEditor.cpp)',
+  dbToY:     'the browser\'s UIH.dbToY; same reason',
+  grToPx:    'the browser\'s UIH.grToPx; same reason',
+  Meters: 'a struct', Trace: 'a struct', DriveResult: 'a struct', MarginResult: 'a struct',
+  DiffResult: 'a struct', Oversampler: 'a struct', Decimator: 'a struct', KWeight: 'a struct',
+  Meter: 'a class; JS uses makeMeter()', Engine: 'a class; JS uses createEngine()',
+  Offline: 'a struct for renderOffline results',
+  /* C++ spellings of things the JS core does export under another name */
+  sanitize: 'sanitizeState', fromStyle: 'styleDefaults', legalLining: 'inline in sanitizeState',
+  canon9: 'PRESENT in the JS core too — the bisection guard, mirrored on purpose'
+};
+var TYPE_WORDS = { char: 1, int: 1, double: 1, unsigned: 1, bool: 1, void: 1, size_t: 1 };
+var twinNames = [];
+var twinRe = /^(?:inline\s+\w[\w:<>\s*&]*?|static\s+\w[\w\s]*?|class|struct|template\s*<[^>]*>\s*(?:class|struct))\s+(\w+)/gm;
+var tm;
+while ((tm = twinRe.exec(core))) if (!TYPE_WORDS[tm[1]] && tm[1].length > 2) twinNames.push(tm[1]);
+twinNames = twinNames.filter(function (v, i) { return twinNames.indexOf(v) === i; });
+var jsExports = Object.keys(C);
+var undecided = twinNames.filter(function (n) {
+  return jsExports.indexOf(n) < 0 && !TWIN_ONLY[n];
+});
+ok(twinNames.length > 15, 'the twin scan found ' + twinNames.length + ' top-level names to census');
+ok(undecided.length === 0,
+   'every twin-only construct has a recorded reason' +
+   (undecided.length ? ' — UNDECIDED: ' + undecided.join(', ') : ''));
 
 /* ---------- 9. the laws ---------- */
 /* ---------- 8b. the CI must actually run what exists ----------

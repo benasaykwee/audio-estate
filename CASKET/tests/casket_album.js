@@ -243,7 +243,7 @@ console.log('\n— gapless: the state crosses the join —');
      early.toExponential(2) + ' vs ' + late.toExponential(2) + ' at the end)');
 
   /* the guarantee does not get weaker because the record got longer */
-  var lidLin = Math.pow(10, (st.lid + st.margin) / 20), over = 0;
+  var lidLin = C._nd.dbToLin(st.lid + st.margin), over = 0;
   for (i = 0; i < gap.tracks.length; i++) {
     var g = gap.tracks[i];
     for (k = 0; k < g.L.length; k++)

@@ -163,6 +163,23 @@ function shipped(src, lining, vigil, drive, lid) {
   return db(C.truePeakOf(oL, 16, 4000)) - lid;
 }
 
+/* `half: 256` IS NOT ARBITRARY, and that is the whole reason the lining bug
+   was so hard to see — audited 2026-08-19 across every sweep in the suite.
+   The shipped engine sets the decimator half-length to DEC_Q·M. At this
+   file's default `lining: 4` that is 64 × 4 = 256, so OPT is EXACTLY what
+   the product uses, and every measurement here that keeps the default
+   lining is faithful. The figure in §6.3's table matched live output to
+   three decimals for precisely this reason.
+   It only goes wrong when `lining` is swept while `half` stays put — the
+   one thing nobody had done until the ladder was added. `cut: 0.96` is
+   likewise the engine's own DEC_CUT and does not scale with M, so it is
+   correct at every lining.
+   AUDIT RESULT: this is the ONLY file in the suite that reimplements the
+   DSP rather than driving the engine — every other lining sweep
+   (casket_test, casket_host, casket_bench, parity_emit) sets `lining` on a
+   real state and lets the engine derive its own filter lengths, so the
+   trap cannot exist there. One reimplementation, one fixed constant, one
+   bug — now with the constant scaled where it needs to be. */
 var OPT = { lining: 4, vigil: 2, drive: 12, lid: -1, half: 256, cut: 0.96 };
 function opts(mode) {
   var o = {};
@@ -184,16 +201,81 @@ console.log('  sanity — idle residual reproduces the input: ' +
 
 console.log('  true-peak residual above the lid, in dB (lower is better)\n');
 console.log('  material            shipped (base-rate)   RESIDUAL form   FULL oversampled');
+var headline = null;   /* full-band clip's three figures — the case the whole question turns on */
 [['harmonic / musical', MUSICAL], ['band-limited clip', BANDED], ['full-band clip', FULL]]
   .forEach(function (p) {
     var s = shipped(p[1], OPT.lining, OPT.vigil, OPT.drive, OPT.lid);
     var r = render(p[1], opts('residual'));
     var f = render(p[1], opts('full'));
+    if (p[1] === FULL) headline = { base: s, residual: r, full: f };
     console.log('  ' + p[0].padEnd(20) +
       (s >= 0 ? '+' : '') + s.toFixed(3).padStart(9) + '          ' +
       (r >= 0 ? '+' : '') + r.toFixed(3).padStart(8) + '        ' +
       (f >= 0 ? '+' : '') + f.toFixed(3).padStart(8));
   });
+
+/* THE SEALED LINING LADDER — added 2026-08-19, because architecture §6.4
+   publishes "2× +0.447, 4× +0.507, 16× +0.562" as the reason Lead defaults
+   to 4×, and nothing in the suite reproduced it. Not wrong, but unbacked:
+   the numbers predate this file's current shape and no harness swept sealed
+   linings. A figure that decides a shipped default deserves to be runnable,
+   which is this file's whole stated purpose.
+   Note the counter-intuitive direction the doc reports and this confirms:
+   MORE lining is slightly WORSE sealed, because a longer decimator has a
+   sharper transition and preserves more product energy just under Nyquist.
+   Lead still defaults to 4× rather than 2× — detection is not exact at 2×,
+   so the marginally lower residual there is bought with a worse detector. */
+console.log('\n  the FULL oversampled form, sweeping the lining');
+console.log('  decimator half-length scaled as DEC_Q·M, the way the SHIPPED engine does —');
+console.log('  holding it fixed measures this rig instead of the product:');
+var ladder = [];
+[2, 4, 8, 16].forEach(function (M) {
+  var o = opts('full');
+  o.lining = M;
+  /* THE TRAP THIS LINE EXISTS FOR. `OPT.half` is a constant 256 in this
+     file, which is right for the decimator-quality sweep further down —
+     that sweep is ABOUT holding the lining still and varying the filter.
+     Sweeping the lining with `half` fixed measures something the product
+     never does: the shipped engine sets half = DEC_Q·M, so its decimator
+     grows with the lining and its relative response stays put. Fixed, the
+     filter gets effectively sharper as M rises and the residual falls
+     steeply — a clean, believable, entirely artefactual result. Measured
+     both ways before this comment was written, because the fixed-half
+     version produced exactly the kind of tidy monotone curve that gets
+     quoted. */
+  o.half = C.DEC_Q * M;
+  var res = render(FULL, o);
+  ladder.push({ M: M, res: res });
+  console.log('    ' + (M + '× lining').padStart(10) +
+              '  →  full-band residual +' + res.toFixed(3) + ' dB' +
+              '   (decimator ' + (2 * o.half + 1) + ' taps)');
+});
+
+/* THIS FILE NOW ASSERTS ONE THING — added 2026-08-19. Everything else here
+   reports rather than gates, on purpose: it is §6.3's evidence, and evidence
+   argues rather than polices. But the ladder above is different in kind now,
+   because CASKET_ARCHITECTURE.md §6.4 was rewritten to quote it, and the
+   figures it replaced were figures nobody could reproduce. A doc table
+   sourced from a print statement is one refactor away from being orphaned
+   again.
+   The DIRECTION is asserted, not the magnitudes. The direction is the
+   argument — sealed residual rises with the lining, which is why Lead
+   defaults to 4× rather than 16× — and it is what would have caught the
+   fixed-decimator mistake that produced a confident monotone FALL. The
+   magnitudes are wall-clock-free but still material- and filter-dependent,
+   and pinning them would make this a brittle gate rather than a true one. */
+var rising = ladder.every(function (p, i) { return i === 0 || p.res >= ladder[i - 1].res; });
+var spread = ladder[ladder.length - 1].res - ladder[0].res;
+console.log('\n  ASSERTED: the ladder rises with the lining' +
+            (rising ? '  ✓' : '  ✗ IT DOES NOT — see §6.4, which is written on the assumption that it does'));
+console.log('    2× ' + ladder[0].res.toFixed(3) + ' → 16× ' + ladder[ladder.length - 1].res.toFixed(3) +
+            '  (spread ' + spread.toFixed(3) + ' dB)');
+if (!rising) {
+  console.log('    If this went red honestly, §6.4 needs rewriting. If it went red after a');
+  console.log('    change to THIS file, check that every constant the engine varies is varying');
+  console.log('    here too — a fixed decimator half-length reverses this result convincingly.');
+  process.exitCode = 1;
+}
 
 console.log('\n  the residual form, sweeping decimator length and cutoff');
 console.log('  (if it were merely a filter-quality problem, this column would fall)');
@@ -212,3 +294,15 @@ console.log('  move it, because the problem is conditioning, not filter quality.
 console.log('  The full oversampled form works and roughly halves the residual, but');
 console.log('  costs the bit-exact null test permanently. That trade is §14\'s to');
 console.log('  settle, not this file\'s.');
+/* One machine-checkable line, COMPUTED rather than typed — added
+   2026-08-18. This file is the runnable evidence behind architecture §6.3,
+   and §6.3 publishes its table; but the table this printed and the prose
+   the doc carries had no line a tool could compare. This is that line: the
+   headline figures, from the variables that made the table above, in the
+   number-adjacent-to-a-sentence shape check_mastering_citations.js's
+   extractor reads — so if a doc ever cites this file, the citation is
+   verifiable from day one instead of needing the harness patched first
+   (the fate casket_seal_margin.js's per-material figures suffered). */
+console.log('\n  Measured on full-band clip: shipped ' + headline.base.toFixed(3) +
+            ' dB, residual form ' + headline.residual.toFixed(3) +
+            ' dB, full oversampled ' + headline.full.toFixed(3) + ' dB.');

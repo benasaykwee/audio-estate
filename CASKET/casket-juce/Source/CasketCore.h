@@ -13,6 +13,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <atomic>
 #include "../../../shared/necromath.h"
 #include "../../../shared/necrodyn.h"
 
@@ -275,6 +276,185 @@ struct Trace {
     double inPeakDb, outPeakDb;
 };
 
+/* ============================================================
+   DISPLAY MAPPINGS — how a number becomes a position
+   ============================================================
+   Moved here 2026-08-19 from static functions inside PluginEditor.cpp.
+   They are not DSP and they do not belong to the engine; they are here for
+   one reason, which is that `static` in a .cpp is unreachable by any test.
+   The browser's identical copies live in UIH and are asserted headlessly —
+   dbToY round-trips, meterFrac clamps at both ends, grToPx cannot exceed
+   its band. The C++ copies had none of that, which is the wrong way round:
+   the plugin's face is the one nobody can open in this sandbox.
+
+   Kept as free functions rather than folded into Engine because both faces
+   need them without an engine instance, and because a scale mapping that
+   depended on engine state would be a bug waiting to happen. */
+inline double meterFrac(double v, double lo, double hi) {
+    if (!std::isfinite(v)) return 0.0;      /* silence reads empty, not NaN */
+    double f = (v - lo) / (hi - lo);
+    return f < 0 ? 0 : (f > 1 ? 1 : f);
+}
+/* the viewing's dB→pixel map. TOP/BOT are the browser's UIH.TOP/UIH.BOT. */
+inline double dbToY(double v, double h, double top, double bot) {
+    if (v > top) v = top;
+    if (v < bot) v = bot;
+    return (top - v) / (top - bot) * h;
+}
+/* the weight hangs from the top: no reduction draws nothing, and it can
+   never exceed its band no matter how deep the reduction goes */
+inline double grToPx(double gr, double h, double grMax) {
+    double g = gr > 0 ? 0 : (gr < -grMax ? -grMax : gr);
+    return (-g / grMax) * h;
+}
+
+/* THE RANGE, as a fixed-size POD so it can cross a Handoff — 2026-08-19.
+   Variable-length would mean allocating on the audio thread, which is the
+   one thing processBlock may never do; 751 bins is the histogram's whole
+   fixed width (BIN_LO −70 LUFS, 0.1 LU steps), so carrying all of it costs
+   6 KB per slot and asks no questions. The browser sends sparse bins over
+   postMessage instead — it can afford to allocate, and a message is not a
+   real-time deadline. Same picture, different transport, for the same
+   reason each side does everything else differently at this seam. */
+struct Hist {
+    double counts[751];
+    double gate, p10, p95, lra;
+    bool   any;            /* false until the 3 s short-term window has filled */
+};
+
+/* A trace with nothing in it yet — moved here from PluginProcessor.h
+   2026-08-19 so it can be tested without JUCE. The dB fields seed to −inf
+   rather than 0: a zero-initialised Trace draws a 0 dBFS line on an idle
+   transport, which reads as "full scale" rather than "silence". */
+inline Trace emptyTrace() {
+    Trace t {};
+    t.inPeakDb = t.outPeakDb = -std::numeric_limits<double>::infinity();
+    return t;
+}
+
+/* FOLD ONE BLOCK'S TRACE INTO AN ACCUMULATOR.
+   Extracted from processBlock 2026-08-19 for the same reason histBinKept
+   came out of the canvas code: it is a rule about what the user sees,
+   living where no test could reach it.
+
+   Why an accumulator exists at all: Engine::trace() RESETS ON READ, and
+   after the 2026-08-18 seam rewrite that read happens per audio block. The
+   editor draws at 30 Hz, so between two frames several blocks have come and
+   gone — take only the last one and every peak in the others is lost, which
+   on a scrolling display looks like a meter that misses transients. So the
+   audio thread folds each block in and clears only when the editor confirms
+   it has drawn a frame.
+
+   The directions are not symmetric and that is the whole content of this
+   function: peaks accumulate as MAXIMA, gain reduction as a MINIMUM,
+   because gr is negative-going and the deepest reduction is the one worth
+   showing. The dB fields fold as maxima directly rather than being
+   recomputed from the linear ones — dB is monotone in the value it mirrors,
+   so the larger dB always belongs to the larger linear peak. */
+inline void foldTrace(Trace& acc, const Trace& t) {
+    if (t.inPeak    > acc.inPeak)    acc.inPeak    = t.inPeak;
+    if (t.outPeak   > acc.outPeak)   acc.outPeak   = t.outPeak;
+    if (t.inPeakDb  > acc.inPeakDb)  acc.inPeakDb  = t.inPeakDb;
+    if (t.outPeakDb > acc.outPeakDb) acc.outPeakDb = t.outPeakDb;
+    if (t.gr        < acc.gr)        acc.gr        = t.gr;
+}
+
+/* ============================================================
+   HANDOFF — publishing a snapshot from the audio thread to the UI
+   ============================================================
+   ADDED 2026-08-18. Built and stress-tested; deliberately NOT yet wired
+   into Engine::meters(). Read the whole comment before using it.
+
+   THE PROBLEM IT EXISTS FOR. `Meter::read()` walks four 751-bin histograms
+   and two ring buffers to produce a `Meters`. In the plugin that walk
+   happens on the MESSAGE thread (the editor's 30 Hz timer calls
+   `latestMeters`) while `Meter::push()` is writing those same arrays from
+   the AUDIO thread. That is a data race over roughly 1,500 doubles.
+
+   WHY `std::atomic` PER FIELD IS THE WRONG FIX, and it is the first thing
+   anyone reaches for. It would (a) put an atomic operation in the meter's
+   innermost per-sample loop, on the audio thread, for no benefit, and
+   (b) NOT ACTUALLY FIX ANYTHING: making each bin individually atomic still
+   lets the reader observe bin 40 from before an update and bin 41 from
+   after it. The result is a snapshot that never existed — internally
+   inconsistent numbers that satisfy every atomic and still describe no
+   real moment. Tearing here is about the SET, not the elements.
+
+   THE SHAPE THAT WORKS. The audio thread computes the small `Meters` POD
+   itself (it is the only thread that can do so consistently) and publishes
+   it whole; the UI takes a copy. Three slots rotating, with the index
+   published release/acquire, and the reader verifying the index did not
+   move underneath it. Three rather than two because with two, a reader
+   copying slot A can be overtaken by a writer that publishes B and then
+   comes back around to A. With three, a reader is safe unless two full
+   publishes land inside one struct copy — at ~100 publishes/second against
+   a sub-microsecond copy, that is not a race that happens.
+
+   The audio thread never blocks, never allocates, and never waits: publish
+   is a copy and one release store. The reader may fail, and says so, so
+   the caller can keep its last good frame rather than draw a torn one.
+
+   TWO BUGS LIVED HERE, AND `tests/handoff_stress.cpp` found both. Neither
+   is visible by reading the code, and no single-threaded harness can see
+   either. This is the whole argument for that test existing.
+
+   1. THE VERSION COUNTER MUST BE MONOTONIC. The first version published a
+      SLOT INDEX (0,1,2) and had the reader verify the index had not moved.
+      Textbook ABA: three publishes during one copy bring the index all the
+      way around to where it started, so the reader's check sees the value
+      it began with and returns a struct assembled from two different
+      moments while every check agrees nothing changed. A counter that only
+      increases cannot lie that way — three publishes take it `a` to `a+3`,
+      the comparison fails, the reader retries.
+
+   2. THE FENCE IS LOAD-BEARING, and this one was worse: swapping the index
+      for a counter made tearing MUCH more frequent, not less, which is the
+      opposite of what the fix predicted. An acquire load is a ONE-WAY
+      barrier. It stops later operations from moving before it; it does
+      nothing to stop the earlier struct copy from sinking AFTER it. So the
+      compiler was free to schedule the copy after the verification read,
+      and the verification then vouched for a copy that had not happened
+      yet. `std::atomic_thread_fence(acquire)` between the copy and the
+      check is what actually orders them. The counter change was necessary
+      and insufficient, and only measurement distinguished those.
+
+   The lesson worth keeping: a concurrency fix that makes the symptom worse
+   is still information. Had this class been reasoned about rather than run,
+   the counter would have shipped, looked principled, and been wrong.
+
+   TO WIRE IT (needs a JUCE build to verify, which is why it is not done
+   here): call `pub.publish(m)` at the end of `Engine::process()` after the
+   existing meter update, and have `latestMeters` read from `pub` instead
+   of calling `mtr.read()` on the message thread. `Engine::meters()` itself
+   must keep its current direct behaviour, because the parity gate calls it
+   single-threaded and expects exactly today's values. */
+template <typename T>
+class Handoff {
+public:
+    /* audio thread only, and only one of it */
+    void publish(const T& v) {
+        unsigned s = seq.load(std::memory_order_relaxed);
+        slot[(s + 1) % 3] = v;
+        seq.store(s + 1, std::memory_order_release);
+    }
+    /* any other thread. false means "publishes overtook the copy" — keep
+       whatever you drew last; do NOT draw the half-copied value. */
+    bool read(T& out) const {
+        for (int tries = 0; tries < 8; ++tries) {
+            unsigned a = seq.load(std::memory_order_acquire);
+            out = slot[a % 3];
+            /* NOT redundant with the acquire above — see note 2. Without
+               this the copy is free to sink past the check below. */
+            std::atomic_thread_fence(std::memory_order_acquire);
+            if (seq.load(std::memory_order_relaxed) == a) return true;
+        }
+        return false;
+    }
+private:
+    T slot[3] = {};
+    std::atomic<unsigned> seq{0};
+};
+
 class Meter {
 public:
     void init(double fs_) {
@@ -345,21 +525,30 @@ public:
     }
     /* EBU Tech 3342 — a SECOND distribution, over short-term loudness,
        with a -20 LU relative gate (not -10). */
-    double lra() const {
+    /* The gate-and-percentile pass, extracted 2026-08-19 so lra() and
+       histogramS() cannot drift apart — the same refactor the JS core got
+       when THE RANGE was built, for the same reason. The arithmetic is
+       moved, not changed: every operation is in its original order, and the
+       parity gate (which covers lra at every metering case) is what proves
+       that rather than my say-so. */
+    struct ShortTermStats { double gate, p10, p95, lra; bool has10, has95; };
+    ShortTermStats shortTermStats() const {
+        ShortTermStats r { -std::numeric_limits<double>::infinity(), 0, 0, 0, false, false };
         int i; double sum = 0, cnt = 0;
         for (i = 0; i < NBINS; i++) {
             if (histS[(size_t)i] == 0) continue;
             sum += histSE[(size_t)i]; cnt += histS[(size_t)i];
         }
-        if (cnt < 1) return 0;
+        if (cnt < 1) return r;
         double gate = loudnessOf(sum / cnt) - 20;
+        r.gate = gate;
         double kept = 0;
         for (i = 0; i < NBINS; i++) {
             if (histS[(size_t)i] == 0) continue;
             if (BIN_LO + (i + 0.5) * BIN_W <= gate) continue;
             kept += histS[(size_t)i];
         }
-        if (kept < 1) return 0;
+        if (kept < 1) return r;
         double lo = kept * 0.10, hi = kept * 0.95;
         double run = 0, p10 = 0, p95 = 0;
         bool h10 = false, h95 = false;
@@ -371,8 +560,30 @@ public:
             if (!h10 && run >= lo) { p10 = l; h10 = true; }
             if (!h95 && run >= hi) { p95 = l; h95 = true; break; }
         }
-        if (!h10 || !h95) return 0;
-        return p95 - p10;
+        r.p10 = p10; r.p95 = p95; r.has10 = h10; r.has95 = h95;
+        if (!h10 || !h95) return r;
+        r.lra = p95 - p10;
+        return r;
+    }
+    double lra() const { return shortTermStats().lra; }
+
+    /* THE RANGE's data, mirrored into the twin 2026-08-19 — a deliberate
+       reversal of the DIAGNOSTIC_ONLY decision recorded on 2026-08-18.
+       The reasoning then was sound and is now outdated: histogramS existed
+       only to feed a canvas in casket.html, and the JUCE editor drew its own
+       meters, so mirroring it would have added parity surface with no
+       guarantee attached. That held right up until the plugin's face wanted
+       the same chart, at which point the choice became "mirror it" or "have
+       two faces that disagree about what the program measures".
+       Still not parity-gated, and that is still deliberate — it is a
+       picture, not a sample. What IS gated is `lra`, the number this chart
+       is drawn around, which both faces now compute through the same
+       shortTermStats() above. */
+    void histogramS(double* countsOut, double& gateOut,
+                    double& p10Out, double& p95Out, double& lraOut) const {
+        ShortTermStats st = shortTermStats();
+        gateOut = st.gate; p10Out = st.p10; p95Out = st.p95; lraOut = st.lra;
+        for (int i = 0; i < NBINS; i++) countsOut[i] = histS[(size_t)i];
     }
     void read(Meters& m) const {
         double sum = 0, cnt = 0;
@@ -473,11 +684,30 @@ public:
 
     int latency() const { return lat; }
     double gr() const { return grNow; }
+    /* AUDIO THREAD (or single-threaded harness) ONLY — audited 2026-08-18.
+       clampWorst/clampHits are plain doubles/longs written per-sample in
+       process(); this accessor is not snapshot-published the way meters()
+       now is. That is a decision, not an oversight: nothing in the plugin
+       calls it (verified — zero references in PluginProcessor/PluginEditor),
+       its only callers are the JS side's _debug() twin-of-convenience and
+       single-threaded harnesses, and making it thread-safe would put an
+       atomic in the innermost sample loop to protect a diagnostic nobody
+       reads live. If an editor ever wants this number, route it through
+       the Meters snapshot instead of calling this cross-thread. */
     double getClampWorst() const { return clampWorst; }
 
     void meters(Meters& m) {
         mtr.read(m);
         m.gr = grNow; m.grPeak = grPeak; m.latency = lat;
+    }
+    /* THE RANGE's snapshot. Cheap enough for the audio thread — a copy of
+       751 doubles and one gate pass, alongside the meter read already
+       happening there — but the editor only redraws it at 30 Hz, so the
+       processor throttles the call rather than making it every block. */
+    void histogram(Hist& h) {
+        mtr.histogramS(h.counts, h.gate, h.p10, h.p95, h.lra);
+        h.any = false;
+        for (int i = 0; i < 751; i++) if (h.counts[i] != 0) { h.any = true; break; }
     }
     /* READ AND RESET. Deliberately not folded into meters(): a read with
        a side effect surprises everybody eventually. */
@@ -582,7 +812,7 @@ public:
                     yl = dl * (gL == 0 ? 1 : nd::dbToLin(gL));
                     yr = dr * (gR == 0 ? 1 : nd::dbToLin(gR));
                 }
-                if (grNow < grPeak) grPeak = grNow;
+                if (grNow < grPeak) grPeak = grNow.load(std::memory_order_relaxed);
                 if (yl > lidLin || yl < -lidLin) {
                     double ex = (yl < 0 ? -yl : yl) / lidLin - 1;
                     if (ex > clampWorst) clampWorst = ex;
@@ -601,7 +831,7 @@ public:
                 double ol = yl < 0 ? -yl : yl, orr = yr < 0 ? -yr : yr;
                 if (ol > tOut) tOut = ol;
                 if (orr > tOut) tOut = orr;
-                if (grNow < tGr) tGr = grNow;
+                if (grNow < tGr) tGr = grNow.load(std::memory_order_relaxed);
                 mtr.push(yl, yr);
             }
             ctrlPhase += end - pos;
@@ -760,7 +990,24 @@ private:
     State st;
     bool first = true;
     Oversampler os;
-    int M = 1, Lb = 0, W = 1, B = 1, lat = 0, histN = 1, hp = 0, ringN = 1, rp = 0;
+    int M = 1, Lb = 0, W = 1, B = 1, histN = 1, hp = 0, ringN = 1, rp = 0;
+    /* `lat` IS CROSS-THREAD, unlike its neighbours above — split out of that
+       group 2026-08-18 so the difference is visible rather than buried in a
+       comma list. It is written on the audio thread by rebuild() and read on
+       the message thread through meters() (the editor prints it).
+       An aligned int does not tear on any platform CASKET targets, so this
+       was never going to corrupt a reading — the worst real symptom is the
+       editor showing a one-frame-stale number, which is cosmetic. It is
+       still formally a data race, relaxed atomics cost literally nothing
+       here (same mov instruction), and leaving a known race in place because
+       today's hardware forgives it is how a project ends up unable to run a
+       thread sanitiser without wading through noise.
+       Relaxed is the right ordering: this value guards nothing else, so
+       there is no ordering to establish — only the read itself must be
+       well-defined. NOTE the host's OWN latency does not come through here;
+       PluginProcessor::refreshLatency() calls the pure latencySamples()
+       instead, which is why this was never a correctness problem for the DAW. */
+    std::atomic<int> lat{0};
     int relShape = 0;
     /* control-block phase carried ACROSS process() calls, so control()
        fires every CTRL samples of stream time rather than of call time.
@@ -797,8 +1044,26 @@ private:
     double envLf = 0, envLs = 0, envRf = 0, envRs = 0;
     int holdL = 0, holdR = 0;
     Meter mtr;
-    double grNow = 0, grPeak = 0;
-    double tIn = 0, tOut = 0, tGr = 0;   /* the trace — reset on read */
+    /* ATOMIC — added 2026-08-18. These five are written every sample on the
+       AUDIO thread (inside process(), below) and read on the MESSAGE thread
+       by PluginEditor's 30 Hz timer via meters()/trace(). Plain double was
+       an unsynchronised cross-thread read-modify-write with no lock and no
+       atomics — undefined behaviour by the letter of the standard, and a
+       plausible contributor to pluginval's exit-9 crash at strictness 10
+       (which runs the editor's timer and the audio thread genuinely
+       concurrently, --validate-in-process, and is exactly the kind of
+       timing stress that makes a data race surface). relaxed ordering is
+       enough: nothing else depends on these being ordered against other
+       memory, only on the load/store itself not tearing.
+       NOT extended to Meter (mtr) in this pass — its internal state (the
+       LUFS histograms, the K-weighting filter chain, the oversampler
+       history ring) is large and mutually-dependent, and a correct fix
+       there is a proper snapshot/double-buffer, not per-field atomics.
+       That is real remaining work, flagged rather than rushed, since nei-
+       ther a JUCE toolchain nor pluginval exists in this sandbox to verify
+       a bigger change against. See IN_THE_LINING_Report.html. */
+    std::atomic<double> grNow{0}, grPeak{0};
+    std::atomic<double> tIn{0}, tOut{0}, tGr{0};   /* the trace — reset on read */
 
     /* THE BYPASS DELAY — latency-compensated bypass.
        Bypass used to pass audio through with ZERO delay while
@@ -929,6 +1194,18 @@ struct DriveResult {
     bool reached = false;
 };
 
+/* CANONICALISE THE BISECTION BRANCH — added 2026-08-18, LAW-5 shape, mirrors
+   the identical comment and fix in casket_core.js's autoDrive. -O3 can
+   reorder the summation inside renderOffline's LUFS gate (auto-vectorisation
+   is legal even under -ffp-contract=off, which only forbids FMA fusion) and
+   return a value that differs from -O0/-O2 by about one ulp — enough to flip
+   a bisection branch and send the search into a different half of the range.
+   Rounding to 1e-9 LU before branching absorbs that noise (nine orders of
+   magnitude coarser than the ~1e-15 relative noise, eight orders tighter
+   than the 0.1 LU this function already calls "reached") without touching
+   the exact values this function returns. */
+inline double canon9(double x) { return std::round(x * 1e9) / 1e9; }
+
 inline DriveResult autoDrive(const State& state, const double* inL, const double* inR,
                              int n, double fs, double targetLufs,
                              int iters = 9, double step = 0.1) {
@@ -942,6 +1219,7 @@ inline DriveResult autoDrive(const State& state, const double* inL, const double
        and the parity gate — correctly — refuses them. */
     double grid = (step > 0) ? step : 0.1;
     double inv = 1.0 / grid;
+    double targetC = canon9(targetLufs);
 
     struct LufsAt {
         const State& state; const double* inL; const double* inR; int n; double fs;
@@ -955,7 +1233,7 @@ inline DriveResult autoDrive(const State& state, const double* inL, const double
 
     auto consider = [&](double d, double got) {
         if (!std::isfinite(got)) return;
-        if (!have || std::fabs(got - targetLufs) < std::fabs(bestLufs - targetLufs)) {
+        if (!have || std::fabs(canon9(got) - targetC) < std::fabs(canon9(bestLufs) - targetC)) {
             have = true; bestDrive = d; bestLufs = got;
         }
     };
@@ -968,7 +1246,7 @@ inline DriveResult autoDrive(const State& state, const double* inL, const double
         double got = lufsAt(mid);
         if (!std::isfinite(got)) { lo = mid; continue; }
         consider(mid, got);
-        if (got < targetLufs) lo = mid; else hi = mid;
+        if (canon9(got) < targetC) lo = mid; else hi = mid;
     }
     DriveResult out;
     out.target = targetLufs;

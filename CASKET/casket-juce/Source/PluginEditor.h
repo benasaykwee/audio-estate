@@ -88,6 +88,7 @@ private:
     void timerCallback() override;
     void drawViewing(juce::Graphics&, juce::Rectangle<int>);
     void drawPlot(juce::Graphics&, juce::Rectangle<int>);
+    void drawRange(juce::Graphics&, juce::Rectangle<int>);
     void drawHeader(juce::Graphics&, juce::Rectangle<int>);
 
     CasketProcessor& proc;
@@ -107,6 +108,12 @@ private:
     int hIdx = 0;
     casket::Meters m{};
     casket::Trace tr{};
+    /* THE RANGE's latest snapshot, and whether it has anything in it yet —
+       the 3 s short-term window has to fill before the chart means anything,
+       and drawing an empty axis reads as a broken meter rather than a
+       waiting one. */
+    casket::Hist hist{};
+    bool hasHist = false;
 
     /* palette lifted from the browser so the two faces look like one object */
     const juce::Colour slab   { 0xff0b0a0d };

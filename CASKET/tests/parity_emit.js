@@ -189,6 +189,24 @@ var lraVals = [];
   });
   var m2 = e2.meters();
   lraVals.push(m2.lra, m2.integrated);
+  /* THE PICTURE, NOT ONLY THE FIGURE — added 2026-08-19.
+     Both faces now draw THE RANGE, and until this existed nothing said the
+     two drew the SAME distribution. The LRA number was gated; the bins it
+     is computed from were not, so the JS and C++ charts could in principle
+     have disagreed about the shape while agreeing about the spread.
+     This reverses the "diagnostic, therefore ungated" stance recorded on
+     2026-08-18 — and reverses it on a real change of circumstance rather
+     than a change of mind. That stance was correct while histogramS fed one
+     canvas; the moment a second face draws from it, "the two pictures
+     match" becomes a guarantee worth having, and a guarantee worth having
+     is exactly what earns parity surface.
+     Sparse on purpose: emitting all 751 bins per programme would add ~1,500
+     mostly-zero checks. The populated bins, the gate and the percentiles
+     are the whole content of the picture. */
+  var h2 = e2.histogramS();
+  lraVals.push(h2.bins.length, h2.gate, h2.p10 === null ? -999 : h2.p10,
+               h2.p95 === null ? -999 : h2.p95, h2.lra);
+  h2.bins.forEach(function (b) { lraVals.push(b.loudness, b.count); });
 });
 arr('EXP_LRA', lraVals);
 count('EXP_LRA_N', lraVals.length);

@@ -238,7 +238,7 @@ console.log('\n— float at the boundary —');
   var st = C.defaultState(); st.style = 'oak'; st.drive = 8; st.lid = -1.0;
   var r = hostRender(st, xL, xR, 512);
 
-  var over = 0, lidLin = Math.pow(10, -1.0 / 20);
+  var over = 0, lidLin = C._nd.dbToLin(-1.0);
   for (var i = 0; i < n; i++) {
     if (Math.abs(r.L[i]) > lidLin || Math.abs(r.R[i]) > lidLin) over++;
   }
@@ -312,7 +312,7 @@ console.log('\n— a structural change mid-stream —');
     if (lats.indexOf(lat) < 0) lats.push(lat);
     e.process(xL.subarray(pos, pos + blk), xR.subarray(pos, pos + blk),
               oL.subarray(pos, pos + blk), oR.subarray(pos, pos + blk));
-    var lidLin = Math.pow(10, (st.lid + st.margin) / 20);
+    var lidLin = C._nd.dbToLin(st.lid + st.margin);
     for (var i = pos; i < pos + blk; i++) {
       if (!isFinite(oL[i]) || !isFinite(oR[i])) nonFinite++;
       if (Math.abs(oL[i]) > lidLin || Math.abs(oR[i]) > lidLin) breach++;
@@ -323,6 +323,85 @@ console.log('\n— a structural change mid-stream —');
   ok(breach === 0, 'and the lid held through every one of them');
   ok(lats.length >= 8, 'the reported latency genuinely moved (' +
      lats.length + ' distinct values seen)');
+})();
+
+/* ============================================================
+   THE SNAPSHOT PATH — the newest part of the host boundary
+   ============================================================
+   Added 2026-08-19. Everything above tests what the host hands the engine;
+   this tests what the engine hands the EDITOR, which since the 2026-08-18
+   seam rewrite is a per-block operation on the audio thread rather than
+   something the UI reaches in and takes.
+
+   The plugin's version is C++ and its wiring is checked statically by
+   casket_plugin_test.js. What is checkable HERE — in the same JS engine the
+   twin is parity-exact against — is the behaviour the C++ depends on:
+
+     · meters() must be callable every block without disturbing the audio,
+       because processBlock now calls it every block. If it were not inert,
+       the seam rewrite would have quietly changed what CASKET renders.
+     · trace() RESETS ON READ, which is the entire reason the processor
+       accumulates. Reading it per block must therefore give per-block
+       peaks, and a caller that forgets to accumulate must visibly lose
+       peaks — that loss is what foldTrace exists to prevent, so it is
+       worth demonstrating rather than asserting.
+     · histogramS() must survive being called at the throttled cadence
+       without the engine having produced a full short-term window yet. */
+console.log('\n— the snapshot path (what the editor is handed) —');
+(function () {
+  var FSx = 48000, BLK = 512, N = BLK * 240;   /* ~2.5 s, several 3 s windows short */
+  var st = C.defaultState(), d = C.styleDefaults('velvet');
+  for (var k in d) st[k] = d[k];
+  st.lid = -1; st.drive = 10;
+
+  function render(pollEveryBlock) {
+    var e = C.createEngine(FSx);
+    e.setState(st);
+    var src = C.makeNoise(31337, N);
+    for (var i = 0; i < N; i++) { var v = src[i] * 4; src[i] = v > 1 ? 1 : (v < -1 ? -1 : v); }
+    var oL = new Float64Array(N), oR = new Float64Array(N);
+    var peaks = [];
+    for (var p = 0; p + BLK <= N; p += BLK) {
+      e.process(src.subarray(p, p + BLK), src.subarray(p, p + BLK),
+                oL.subarray(p, p + BLK), oR.subarray(p, p + BLK));
+      if (pollEveryBlock) { e.meters(); peaks.push(e.trace().outPeak); }
+    }
+    return { out: oL, peaks: peaks };
+  }
+
+  /* POLLING MUST NOT CHANGE THE AUDIO. processBlock does this every block
+     now; if it were not inert the seam rewrite would have altered every
+     render CASKET produces, silently. */
+  var quiet = render(false), polled = render(true);
+  var diff = 0;
+  for (var i = 0; i < N; i++) if (quiet.out[i] !== polled.out[i]) diff++;
+  ok(diff === 0,
+     'polling meters() and trace() every block leaves the audio BIT-IDENTICAL (' +
+     N.toLocaleString() + ' samples)');
+
+  /* TRACE RESETS ON READ — demonstrate the loss the accumulator prevents.
+     Per-block reads give per-block peaks; the maximum across them is the
+     real peak, and any single read is only its own block's. */
+  var maxPerBlock = 0, lastBlock = polled.peaks[polled.peaks.length - 1];
+  polled.peaks.forEach(function (p) { if (p > maxPerBlock) maxPerBlock = p; });
+  ok(polled.peaks.length > 100, 'the probe polled ' + polled.peaks.length + ' blocks');
+  ok(maxPerBlock > lastBlock,
+     'trace() resets on read: the loudest block (' + maxPerBlock.toFixed(4) +
+     ') is louder than the last one (' + lastBlock.toFixed(4) +
+     ') — a UI reading once per frame WOULD lose peaks without foldTrace');
+
+  /* the histogram at the throttled cadence, including before the 3 s
+     short-term window has filled — the "listening…" case in both faces */
+  var e2 = C.createEngine(FSx);
+  e2.setState(st);
+  var short = C.makeSine(1000, FSx, FSx, 0.25);           /* 1 s — under the window */
+  var a = new Float64Array(short.length), b = new Float64Array(short.length);
+  e2.process(short, short, a, b);
+  var hEarly = e2.histogramS();
+  ok(hEarly && Array.isArray(hEarly.bins),
+     'histogramS() is callable before the short-term window has filled');
+  ok(hEarly.bins.length === 0,
+     'and reports no bins yet (' + hEarly.bins.length + ') — which is what draws "listening..."');
 })();
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

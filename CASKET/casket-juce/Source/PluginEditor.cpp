@@ -12,22 +12,16 @@ static const juce::Colour C_DIM    { 0xff8a8494 };
 static const juce::Colour C_GOLD   { 0xffc9a227 };
 static const juce::Colour C_BLOOD  { 0xffd2405a };
 
-/* the browser's UIH.dbToY / grToPx, ported so both faces map identically.
-   If these two ever disagree, a screenshot from one instrument stops being
-   evidence about the other. */
-static float dbToY(double d, float h) {
-    double v = d > TOP ? TOP : (d < BOT ? BOT : d);
-    return (float)((TOP - v) / (TOP - BOT) * h);
-}
-static float grToPx(double gr, float h) {
-    double g = gr > 0 ? 0 : (gr < -GRMAX ? -GRMAX : gr);
-    return (float)((-g / GRMAX) * h);
-}
-static float meterFrac(double v, double lo, double hi) {
-    if (!std::isfinite(v)) return 0.0f;
-    double f = (v - lo) / (hi - lo);
-    return (float)(f < 0 ? 0 : (f > 1 ? 1 : f));
-}
+/* the browser's UIH.dbToY / grToPx / meterFrac, so both faces map
+   identically. If these two ever disagree, a screenshot from one instrument
+   stops being evidence about the other.
+   THE BODIES MOVED TO CasketCore.h on 2026-08-19 — they were `static` here,
+   which meant no test could reach them while the browser's copies were
+   asserted headlessly. These are thin casts now; the mapping itself is
+   tested in tests/handoff_stress.cpp against the same cases UIH passes. */
+static float dbToY(double d, float h)                { return (float)casket::dbToY(d, h, TOP, BOT); }
+static float grToPx(double gr, float h)              { return (float)casket::grToPx(gr, h, GRMAX); }
+static float meterFrac(double v, double lo, double hi) { return (float)casket::meterFrac(v, lo, hi); }
 
 /* ======================= the house look ======================= */
 CasketLook::CasketLook() {
@@ -216,9 +210,21 @@ CasketEditor::CasketEditor(CasketProcessor& p)
     grp(groupC, "THE LINING");
     grp(groupD, "THE DUST");
 
+    /* THE MINIMUM HEIGHT WAS TOO SMALL, and had been since before THE RANGE
+       existed — found 2026-08-19 by arithmetic rather than by looking, which
+       is the only way it could be found here.
+       The top 340 px is a FIXED band (header + the three panes); `resized()`
+       skips it entirely and lays out only the rack beneath. The rack needs
+       four rows of 74 px plus four 14 px group labels = 352 px, and a 620 px
+       window leaves it 620 − 340 − 12 = 268. The bottom row — THE DUST — was
+       being laid out below the window edge at the smallest permitted size.
+       704 is the exact fit; 720 leaves a little slack so a host that rounds
+       a DPI scale down cannot reintroduce it. Nothing to do with the third
+       pane: THE RANGE subdivides the fixed band and takes nothing from the
+       rack. */
     setResizable(true, true);
-    setResizeLimits(880, 620, 1800, 1200);
-    setSize(940, 680);
+    setResizeLimits(880, 720, 1800, 1200);
+    setSize(940, 720);
     startTimerHz(30);
 }
 
@@ -235,6 +241,10 @@ void CasketEditor::timerCallback() {
     hOut[hIdx] = (float)tr.outPeakDb;
     hGr[hIdx]  = (float)tr.gr;
     hIdx = (hIdx + 1) % HIST;
+    /* the processor republishes this about once a second; reading it at
+       30 Hz just means most reads return the same snapshot, which costs a
+       struct copy and keeps the draw path uniform */
+    hasHist = proc.latestHistogram(hist);
     repaint();
 }
 
@@ -304,11 +314,19 @@ void CasketEditor::paint(juce::Graphics& g) {
 
     drawHeader(g, top.removeFromTop(44));
 
+    /* Three panes now, as in the browser. THE RANGE is a distribution
+       rather than a level, so it wants width more than height: it sits
+       UNDER the plot, sharing the right-hand column, instead of stealing
+       another 280 px from the viewing — which is the pane a user actually
+       drags. */
     auto body = top.reduced(14, 6);
-    auto plotArea = body.removeFromRight(280);
+    auto rightCol = body.removeFromRight(280);
     body.removeFromRight(10);
+    auto rangeArea = rightCol.removeFromBottom(rightCol.getHeight() / 2 - 3);
+    rightCol.removeFromBottom(6);
     drawViewing(g, body);
-    drawPlot(g, plotArea);
+    drawPlot(g, rightCol);
+    drawRange(g, rangeArea);
 
     /* the rack's ground */
     g.setColour(panel.withAlpha(0.45f));
@@ -419,6 +437,88 @@ void CasketEditor::drawViewing(juce::Graphics& g, juce::Rectangle<int> area) {
     g.setColour(blood);
     g.drawText("weight", juce::Rectangle<float>(x0 + 60, y0 + 4, 60, 12),
                juce::Justification::centredLeft);
+}
+
+/* THE RANGE — the short-term loudness distribution the LRA figure is drawn
+   from. Deliberately the same picture as casket.html's third pane, down to
+   the colours: two faces of one program that disagree about what it
+   measures are worse than one face.
+
+   What is drawn, and why each part is here rather than in a tooltip:
+     · a bar per populated 0.1 LU bin — where the record actually sat
+     · gold lines at the 10th and 95th percentiles — the gap between them
+       IS the LRA number in the plot beside it, not an illustration of it
+     · a dashed red gate — bars left of it were measured, are shown, and
+       were then excluded from that number, per EBU Tech 3342. Showing them
+       greyed rather than hiding them is the point: if most of a record
+       sits left of the gate, the reported range describes a smaller slice
+       of it than a reader would assume.
+   The kept/gated test is `loudness > gate`, matching the core's `<= gate`
+   exclusion exactly — a bin sitting ON the gate is excluded. The browser
+   has the same rule in UIH.histBinKept, asserted at the boundary and swept
+   either side of it in casket_ui_test.js. */
+void CasketEditor::drawRange(juce::Graphics& g, juce::Rectangle<int> area) {
+    g.setColour(crypt);
+    g.fillRect(area);
+    g.setColour(line);
+    g.drawRect(area, 1);
+
+    auto inner = area.reduced(12, 10);
+    g.setColour(dim);
+    g.setFont(juce::Font(10.0f));
+    g.drawText("THE RANGE", inner.removeFromTop(14), juce::Justification::topLeft);
+
+    if (!hasHist) {
+        g.setColour(dim.withAlpha(0.6f));
+        g.setFont(juce::Font(11.0f));
+        g.drawText("listening...", inner, juce::Justification::centred);
+        return;
+    }
+
+    auto foot = inner.removeFromBottom(14);
+    auto plot = inner.reduced(0, 4);
+
+    const double LO = -40.0, HI = 0.0;
+    auto xOf = [&](double loud) {
+        double f = (loud - LO) / (HI - LO);
+        f = f < 0 ? 0 : (f > 1 ? 1 : f);
+        return (float)(plot.getX() + f * plot.getWidth());
+    };
+
+    double maxCount = 0;
+    for (int i = 0; i < 751; i++) if (hist.counts[i] > maxCount) maxCount = hist.counts[i];
+    if (maxCount <= 0) maxCount = 1;
+
+    const float barW = juce::jmax(1.0f, (float)plot.getWidth() / (float)((HI - LO) / 0.1));
+    for (int i = 0; i < 751; i++) {
+        if (hist.counts[i] == 0) continue;
+        double loud = -70.0 + (i + 0.5) * 0.1;
+        if (loud < LO) continue;
+        bool kept = !std::isfinite(hist.gate) || loud > hist.gate;
+        float h = (float)(plot.getHeight() * (hist.counts[i] / maxCount));
+        g.setColour(kept ? juce::Colour(0xff6b8fd2) : line.brighter(0.15f));
+        g.fillRect(xOf(loud), (float)plot.getBottom() - h, barW, h);
+    }
+
+    if (std::isfinite(hist.gate)) {
+        g.setColour(blood.withAlpha(0.6f));
+        float gx = xOf(hist.gate);
+        for (int y = plot.getY(); y < plot.getBottom(); y += 6)
+            g.fillRect(gx, (float)y, 1.0f, 3.0f);            /* dashed, by hand */
+    }
+    g.setColour(gold.withAlpha(0.85f));
+    if (hist.p10 != 0 || hist.p95 != 0) {
+        g.fillRect(xOf(hist.p10), (float)plot.getY(), 1.0f, (float)plot.getHeight());
+        g.fillRect(xOf(hist.p95), (float)plot.getY(), 1.0f, (float)plot.getHeight());
+    }
+
+    g.setColour(bone);
+    g.setFont(juce::Font(11.0f));
+    g.drawText(juce::String(hist.lra, 1) + " LU kept", foot, juce::Justification::centredLeft);
+    g.setColour(dim);
+    g.setFont(juce::Font(9.0f));
+    g.drawText("-40", foot, juce::Justification::centred);
+    g.drawText("0 LUFS", foot, juce::Justification::centredRight);
 }
 
 void CasketEditor::drawPlot(juce::Graphics& g, juce::Rectangle<int> area) {

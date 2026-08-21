@@ -202,6 +202,55 @@ near(meterOf([[-20, 20], [-25, 20], [-20, 20], [-25, 20]]).lra, 5.0, 1.0,
 /* a steady tone has no range at all */
 ok(meterOf([[-23, 30]]).lra < 1.0, 'a steady tone has essentially no loudness range');
 
+/* ---- THE TWO CASES ABOVE CANNOT TELL 3342 FROM A GUESS ----
+   Added 2026-08-19 after the mutation tester found both of these holes on
+   its first run against them. The 3342 reference programmes are two clean
+   levels, evenly split, and that shape is blind to the two constants that
+   actually make this loudness RANGE rather than a spread:
+
+     · the RELATIVE GATE (−20 LU, not integrated loudness's −10). With two
+       levels 10 LU apart, both sit within 10 LU of the mean, so either gate
+       keeps everything and the answer is identical. Swapping them changed
+       nothing and the suite stayed green.
+     · the 10th/95th PERCENTILES. On a 50/50 two-level distribution the 0th
+       and 10th percentiles land in the same level, as do the 95th and
+       100th. Min-to-max — the naive reading of "range" — gave the same
+       number.
+
+   Both mutants survived, which means the reference cases were confirming
+   the shape of the answer without touching either rule that produces it.
+   These two cases exist to discriminate, and each states which constant it
+   is sensitive to. */
+
+/* GATE DISCRIMINATOR. A quiet passage sitting between 10 and 20 LU below
+   the mean is kept by 3342's −20 gate and thrown away by a −10 one. Make it
+   brief so it does not drag the mean down past its own gate. */
+(function () {
+  /* The quiet passage must be a large enough SHARE of the programme to sit
+     above the 10th percentile — a brief one gets clipped by the percentile
+     rule before the gate rule ever matters, which is how the first attempt
+     at this case failed (8 s of quiet in 80 read 3.20 LU, not the 14 the
+     gate is responsible for). A third of the running time is comfortably
+     clear of that boundary. */
+  var lra = meterOf([[-18, 24], [-32, 24], [-18, 24]]).lra;
+  /* with the correct −20 gate the −32 passage survives and stretches the
+     range to ~14; with −10 it is discarded and the range collapses */
+  ok(lra > 10.0,
+     'GATE: a passage 14 LU down is INSIDE the range (' + lra.toFixed(2) +
+     ' LU) — a −10 gate would discard it and read near zero');
+})();
+
+/* PERCENTILE DISCRIMINATOR. One brief extreme at each end. The 10th/95th
+   percentiles clip both; min-to-max does not, and inflates the figure. */
+(function () {
+  var lra = meterOf([[-45, 4], [-20, 24], [-20, 24], [-20, 24], [-6, 4]]).lra;
+  /* the bulk sits at −20, so a percentile-clipped range is small; taking
+     min-to-max across the −45 and −6 excursions would report far more */
+  ok(lra < 20.0,
+     'PERCENTILES: brief extremes at both ends do not define the range (' +
+     lra.toFixed(2) + ' LU) — min-to-max would report far more');
+})();
+
 /* ============================================================
    THE OFFSET — why -0.691 exists at all
    ============================================================ */

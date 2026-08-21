@@ -27,11 +27,11 @@ function run(label, mutate) {
     e.setState(st);
     var inL = new Float64Array(BLOCK), inR = new Float64Array(BLOCK);
     var oL = new Float64Array(BLOCK), oR = new Float64Array(BLOCK);
-    var lidLin = Math.pow(10, (st.lid + st.margin) / 20);
+    var lidLin = C._nd.dbToLin(st.lid + st.margin);
     for (var b = 0; b < BLOCKS; b++) {
       mutate(st, r, b);
       var s2 = C.sanitizeState(st);
-      lidLin = Math.pow(10, (s2.lid + s2.margin) / 20);
+      lidLin = C._nd.dbToLin(s2.lid + s2.margin);
       e.setState(s2);
       for (var i = 0; i < BLOCK; i++) {
         var v = (r() * 2 - 1) * 6;

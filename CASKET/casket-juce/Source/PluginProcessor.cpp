@@ -138,6 +138,17 @@ void CasketProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     oL.assign(cap, 0.0); oR.assign(cap, 0.0);
     lastLatency = -1;
     refreshLatency();
+
+    /* Seed the editor-facing snapshots while the audio thread is not yet
+       running (prepareToPlay is a safe point — the host guarantees no
+       concurrent processBlock). Without this, an editor opened before the
+       first block would read zero-initialised structs and briefly show
+       0.0 LUFS / 0 dB instead of silence's honest −inf. */
+    engine.meters(lastMeters);
+    metersPub.publish(lastMeters);
+    traceAcc = emptyTrace();
+    lastTrace = traceAcc;
+    tracePub.publish(traceAcc);
 }
 
 bool CasketProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {
@@ -160,6 +171,14 @@ void CasketProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiB
        will smear every parallel path in the session. */
     engine.setState(buildState());
     refreshLatency();
+
+    /* Service the editor's reset request here, on the thread that owns the
+       meter — the button used to call engine.resetMeters() directly from
+       the message thread, which raced every field the reset clears. */
+    {
+        unsigned req = meterResetReq.load(std::memory_order_acquire);
+        if (meterResetSeen != req) { meterResetSeen = req; engine.resetMeters(); }
+    }
 
     /* NO ALLOCATION HERE. The previous version resized the scratch
        vectors whenever the host sent more samples than it had promised in
@@ -189,6 +208,49 @@ void CasketProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiB
         for (int i = 0; i < take; i++) wL[off + i] = (float)oL[(size_t)i];
         if (wR) for (int i = 0; i < take; i++) wR[off + i] = (float)oR[(size_t)i];
         off += take;
+    }
+
+    /* ---- publish the editor's view, from the thread that owns the data ----
+       No allocation, no locks: meters() walks arrays the engine owns, the
+       Handoff publish is a struct copy and one release store. This is what
+       makes latestMeters()/latestTrace() safe to call from the editor's
+       timer — the message thread now reads a snapshot, never the engine.
+
+       MEASURED, not assumed (casket_bench.js, 2026-08-19): meters() + trace()
+       cost 12.2 µs per 512-sample block — ×1.023 of the render itself, or
+       0.11% of the block period at 48 kHz. Worth measuring because this work
+       is NEW in the real-time path: before the seam rewrite the editor did
+       it on its own thread, and "we fixed a race and quietly bought a
+       performance problem" is exactly the trade that ships unnoticed. It
+       did not happen; the number is here so the next person does not have to
+       take that on faith either. */
+    casket::Meters m;
+    engine.meters(m);
+    metersPub.publish(m);
+
+    /* trace: engine.trace() resets on read, and that is now harmless
+       because the read happens HERE. Accumulate across blocks so the
+       editor's 30 Hz frame sees every peak since its last frame, not just
+       the final block's; clear only after the editor confirms a frame. */
+    casket::Trace t;
+    engine.trace(t);
+    {
+        unsigned req = traceResetReq.load(std::memory_order_acquire);
+        if (traceResetSeen != req) { traceResetSeen = req; traceAcc = emptyTrace(); }
+    }
+    /* the fold rule lives in CasketCore.h so tests/handoff_stress.cpp can
+       exercise it without JUCE — peaks as maxima, gr as a minimum */
+    casket::foldTrace(traceAcc, t);
+    tracePub.publish(traceAcc);
+
+    /* THE RANGE, about once a second. Not per block: the chart describes a
+       3 s short-term window, so a faster cadence redraws the same picture. */
+    histCount += n;
+    if (histCount >= (int)sr) {
+        histCount = 0;
+        casket::Hist h;
+        engine.histogram(h);
+        histPub.publish(h);
     }
 }
 
