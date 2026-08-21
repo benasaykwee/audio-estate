@@ -13,7 +13,17 @@ name: AUTOPSY
 
 on:
   push:
+    paths: ['AUTOPSY/**', 'shared/**', '.github/workflows/autopsy.yml']
   pull_request:
+    paths: ['AUTOPSY/**', 'shared/**', '.github/workflows/autopsy.yml']
+
+# ADDED 2026-08-18. Every trilogy workflow used to trigger on every push with
+# no filter, so a CASKET-only commit still paid for AUTOPSY's, RIGOR's and
+# PALLBEARER's own harnesses AND their 10x-billed macOS plugin builds, for no
+# reason found in any of their triggers. shared/** stays in the filter
+# deliberately — AUTOPSY's own tests import it directly, and this workflow is
+# the thing that actually runs when shared/ moves, same idea as casket.yml's
+# autopsy-tripwire job in reverse.
 
 jobs:
   harnesses:

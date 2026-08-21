@@ -11,6 +11,7 @@ FetchContent_MakeAvailable(JUCE)
 
 juce_add_plugin(Autopsy
   COMPANY_NAME "Ben Asaykwee"
+  BUNDLE_ID "com.benasaykwee.autopsy"
   PLUGIN_MANUFACTURER_CODE Basy
   PLUGIN_CODE Atps
   FORMATS AU VST3 Standalone
