@@ -91,8 +91,12 @@ cp3
 # --- harness scratch -------------------------------------------------------
 # RIGOR's mutation harness writes these while it runs. Committing one would
 # capture a deliberately broken core as though it were the real thing.
-*.__mut.js
-*.__probe.js
+# WIDENED 2026-08-21. These were `.js`-only, written when the probe tooling
+# emitted nothing else. It has since grown .html and .cpp probes, and two of
+# them (casket.__probe.html, core_parity.__probe.cpp) reached the index before
+# anyone noticed. The rule now covers the extension, whatever it turns out to be.
+*.__mut.*
+*.__probe.*
 .__mut_test.js
 *.tailmark
 __wtest.txt

@@ -1,0 +1,7 @@
+.DS_Store
+build/
+build-*/
+cmake-build-*/
+node_modules/
+dist/
+*.log
