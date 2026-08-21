@@ -1843,7 +1843,31 @@ var CASKET = (function (NM, ND) {
      round to 1e-9 LU before branching — nine orders of magnitude coarser
      than compiler-reordering noise (~1e-15 relative) and eight orders
      tighter than the 0.1 LU this function already calls "reached". Applied
-     only where it decides direction; the returned lufs/error stay exact. */
+     only where it decides direction; the returned lufs/error stay exact.
+
+     CORRECTED 2026-08-21, AFTER THE FIRST CI RUN ON x86-64. Two claims above
+     are now known to be wrong, and this fix did not hold.
+
+     (1) "compiler-reordering noise (~1e-15 relative)". CI's own -O3 log
+         reports residuals of 19,212 and 34,148 ulp, i.e. ~1e-11 relative.
+         canon9's margin over the real noise floor is therefore about 30x,
+         not the 1e6x this paragraph claims.
+     (2) "auto-vectorisation reordering the summation". `g++ -O3 -Q
+         --help=optimizers` reports -fassociative-math DISABLED at -O3, and
+         GCC will not reassociate a floating-point reduction without it. So
+         the named mechanism cannot be what happens. The cause is UNMEASURED.
+
+     What IS measured (tests/autodrive_probe.cpp reproduces it): the -O3
+     twin's reported lufs for [noise][pine], [noise][lead] and [sine][pine]
+     are, to all 17 digits, the LUFS at drive exactly -9.75 — the last
+     bisection midpoint, unquantised. quantize(-9.75, 0.1) returns -9.7 in
+     both twins, so a merely flipped branch cannot produce it: a flipped
+     branch still goes through the quantiser. Injecting BOTH a dead lo-rail
+     probe AND a skipped quantise into this file reproduces all three values
+     bit-exactly. So there are at least two faults, not one.
+
+     Keep canon9 — desensitising a branch is still right — but do not read
+     it as the fix, and do not read the paragraph above as a diagnosis. */
   function canon9(x) { return Math.round(x * 1e9) / 1e9; }
 
   function autoDrive(state, inL, inR, fs, targetLufs, iters, step) {

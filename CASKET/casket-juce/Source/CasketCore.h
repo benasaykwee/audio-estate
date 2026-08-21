@@ -1203,7 +1203,38 @@ struct DriveResult {
    Rounding to 1e-9 LU before branching absorbs that noise (nine orders of
    magnitude coarser than the ~1e-15 relative noise, eight orders tighter
    than the 0.1 LU this function already calls "reached") without touching
-   the exact values this function returns. */
+   the exact values this function returns.
+
+   CORRECTED 2026-08-21, AFTER THE FIRST CI RUN ON x86-64. This fix did not
+   hold, and the two claims above that justify it are both wrong.
+
+   The "~1e-15 relative" figure: CI's -O3 log reports residuals of 19,212 and
+   34,148 ulp, which is ~1e-11 relative. canon9 clears the real noise floor
+   by roughly 30x, not by nine orders of magnitude.
+
+   The "auto-vectorisation" mechanism: `g++ -O3 -Q --help=optimizers` reports
+   -fassociative-math DISABLED at -O3, and GCC will not reassociate a
+   floating-point reduction without it. The named cause therefore cannot be
+   what is happening. It was never measured — it was inferred, and a fix was
+   built on the inference.
+
+   What IS measured, by tests/autodrive_probe.cpp: the -O3 twin's lufs for
+   [noise][pine], [noise][lead] and [sine][pine] equals, to all 17 digits,
+   the LUFS at drive exactly -9.75 — the last bisection midpoint, UNQUANTISED.
+   quantize(-9.75, 0.1) is floor(-97.5 + 0.5)/10 = -9.7 here and in the JS,
+   so a flipped comparison alone cannot produce it; a flipped branch still
+   passes through the quantiser. Reproducing all three values in the JS twin
+   needs TWO injected faults: a lo-rail probe that never registers, and a
+   quantise that never runs.
+
+   Separately, the rail[6] residual is a divergence in renderOffline's own
+   `integrated` at a FIXED drive of 24. That is a render that is not
+   reproducible at -O3, which no amount of desensitising a comparison can
+   reach. canon9 was aimed at the wrong layer for that half.
+
+   Keep canon9 anyway — a branch that turns on the last bits of a long
+   summation deserves a guard — but treat the paragraph above it as a
+   hypothesis that failed, not as the explanation. */
 inline double canon9(double x) { return std::round(x * 1e9) / 1e9; }
 
 inline DriveResult autoDrive(const State& state, const double* inL, const double* inR,

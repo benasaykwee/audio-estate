@@ -203,6 +203,41 @@ jobs:
             ./cp$O
           done
 
+      # ADDED 2026-08-21. `if: always()` because the step above EXITS 1 on the
+      # -O3 failure, and the whole point of this one is to describe that
+      # failure. Without it the diagnostic only ever runs when there is
+      # nothing to diagnose.
+      #
+      # The gate reports one mismatching scalar at a time and all seven fields
+      # of a DriveResult share the label "autoDrive[noise][pine]", so reading
+      # four sampled lines out of it is how a previous session concluded the
+      # bisection was flipping a branch. This prints the WHOLE result for every
+      # case, plus the LUFS at every drive the search can visit, at all three
+      # -O levels. A reported lufs can then be traced back to the drive that
+      # produced it instead of guessed at.
+      #
+      # It asserts nothing and never fails the build. It is an instrument.
+      - name: What autoDrive actually returns at each -O level (diagnostic)
+        if: always()
+        run: |
+          for O in 0 2 3; do
+            g++ -std=c++17 -O$O -ffp-contract=off -o ad$O tests/autodrive_probe.cpp \
+              || { echo "-O$O: probe failed to compile"; continue; }
+            echo "==================== -O$O ===================="
+            ./ad$O || echo "-O$O: probe crashed"
+          done
+          echo ""
+          echo "==================== DIFFS ===================="
+          ./ad0 > ad0.out 2>&1 || true
+          ./ad2 > ad2.out 2>&1 || true
+          ./ad3 > ad3.out 2>&1 || true
+          if diff -u ad0.out ad2.out; then echo "  -O0 and -O2 agree"; fi
+          if diff -u ad2.out ad3.out; then echo "  -O2 and -O3 agree"; else
+            echo ""
+            echo "::warning::-O2 and -O3 disagree above. Match any differing lufs"
+            echo "::warning::against THE LADDER to find the drive that produced it."
+          fi
+
   counts:
     name: The docs' numbers are derived, not remembered
     runs-on: ubuntu-latest
