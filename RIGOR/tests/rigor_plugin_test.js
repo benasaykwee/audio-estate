@@ -1,9 +1,23 @@
 /* RIGOR plugin lint — static checks on the JUCE sources.
-   There is no JUCE in the sandbox, so the first real build happens on CI.
+
    These are the checks that do NOT need a compiler, and they cover the
    class of bug that has actually bitten this project: an editor control
    bound to a parameter ID that does not exist, or a processor reading a
    state field the core no longer has.
+
+   CORRECTION, 2026-08-22. This header used to open "there is no JUCE in
+   the sandbox, so the first real build happens on CI", and that sentence
+   did real damage: it made a compiler feel unavailable when it was one
+   `git clone` away, and a one-token scope error rode a green suite all the
+   way to the macOS runner. JUCE can be fetched here and the C++ FRONT END
+   runs fine — `tests/rigor_juce_syntax.sh` now does exactly that.
+
+   That gate is deliberately NOT in CI: the macOS job already compiles for
+   real, so cloning JUCE into the Linux job would buy nothing it does not
+   already prove, and cost minutes on every run. Its job is to fail on your
+   own machine before you spend a runner finding out. This lint stays in
+   CI because it needs nothing and takes two seconds.
+
    node tests/rigor_plugin_test.js */
 'use strict';
 var fs = require('fs');
@@ -175,6 +189,72 @@ ok(twinVer === R.VERSION,
 });
 
 /* ---- 6. the laws ---- */
+/* ---- 6. NAMESPACE QUALIFICATION ----
+   THE BUG THIS EXISTS FOR, 2026-08-22. `PluginEditor.cpp:315` wrote
+   `(juce_wchar)` where the type is `juce::juce_wchar`. It was the single
+   error in the macOS build and it cost RIGOR the first compiled binary in
+   the estate — the only instrument still without one.
+
+   Two things made it survive review. The double-barrelled name READS as
+   though it is already qualified, and every other JUCE symbol in these
+   files is written out in full, so nothing looked out of place. And these
+   files carry no `using namespace juce`, so there is no fallback lookup.
+
+   The rule is narrow and derivable: JUCE's lowercase `juce_`-prefixed
+   types live inside namespace juce, so an unqualified one is always
+   wrong here. Uppercase `JUCE_` macros are preprocessor and unaffected.
+   This runs in the harness job in about two seconds, which is the point:
+   it fails before a runner spends seventy of them finding out. */
+console.log('\n— namespace qualification —');
+(function () {
+  var files = [['PluginEditor.cpp', edit], ['PluginEditor.h', editH],
+               ['PluginProcessor.cpp', proc], ['PluginProcessor.h', procH],
+               ['RigorCore.h', core]];
+  /* The premise. If someone ever adds `using namespace juce`, the check
+     below stops being meaningful and should be reconsidered rather than
+     left running as decoration. */
+  var usingNs = files.filter(function (f) { return /using namespace juce\s*;/.test(f[1]); });
+  ok(usingNs.length === 0,
+     'no file says `using namespace juce`, so every juce symbol must be qualified' +
+     (usingNs.length ? ' — FOUND IN: ' + usingNs.map(function (f) { return f[0]; }).join(', ') : ''));
+
+  var offenders = [];
+  files.forEach(function (f) {
+    /* Strip comments and #include lines before scanning. A scan that reads
+       prose as code reports defects that are not there — and the comment
+       four lines above this one names `juce_wchar` deliberately. Include
+       paths legitimately contain `juce_audio_processors/juce_...h`. */
+    var src = f[1]
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/^[ \t]*\/\/.*$/gm, ' ')
+      .replace(/^[ \t]*#\s*include.*$/gm, ' ');
+    var re = /(::)?\bjuce_[a-z]\w*/g, m;
+    while ((m = re.exec(src)) !== null) {
+      if (m[1] === '::') continue;                       // already juce::juce_x
+      var name = m[0];
+      if (/^juce_(audio|core|events|graphics|gui|dsp|data)/.test(name)) continue; // module names
+      var line = src.slice(0, m.index).split('\n').length;
+      offenders.push(f[0] + ':' + line + ' — ' + name);
+    }
+  });
+  ok(offenders.length === 0,
+     'every juce_-prefixed type is written juce::juce_… — the bare form does ' +
+     'not compile and looks qualified when it is not' +
+     (offenders.length ? '\n      OFFENDERS: ' + offenders.join('\n                 ') : ''));
+
+  /* PROVEN TO BITE. Reintroduce the exact defect against the real rule and
+     watch it fail — a lint nobody has seen fail is a lint nobody should
+     trust, and this project has shipped two of those already. */
+  var probe = 'void f(){ x.set(juce::String::charToString((juce_wchar)(65))); }';
+  var pm = /(::)?\bjuce_[a-z]\w*/.exec(probe);
+  ok(pm && pm[1] !== '::' && pm[0] === 'juce_wchar',
+     'and the rule is proven to catch the exact line that broke the macOS build');
+  var clean = 'void f(){ x.set(juce::String::charToString(static_cast<juce::juce_wchar>(65))); }';
+  var cm = /(::)?\bjuce_[a-z]\w*/.exec(clean);
+  ok(cm && cm[1] === '::',
+     'while the corrected form reads as qualified and passes');
+})();
+
 console.log('\n— INTERCHANGE laws —');
 var cmake = fs.readFileSync(path.join(__dirname, '..', 'rigor-juce', 'CMakeLists.txt'), 'utf8');
 ok(/-ffp-contract=off/.test(cmake), 'LAW 1: CMake sets -ffp-contract=off');

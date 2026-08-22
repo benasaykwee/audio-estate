@@ -312,7 +312,16 @@ RigorAudioProcessorEditor::RigorAudioProcessorEditor(RigorAudioProcessor& p)
         proc.apvts, "place", placeBox);
 
     for (int i = 0; i < RigorAudioProcessor::NUM_CASES; ++i) {
-        caseBtn[i].setButtonText(juce::String::charToString((juce_wchar)('A' + i)));
+        /* `juce::juce_wchar`, NOT bare `juce_wchar`. The type is declared
+           inside namespace juce (juce_core.h opens the namespace before
+           including juce_CharacterFunctions.h), and nothing in this plugin
+           says `using namespace juce` — every other JUCE symbol in these
+           three files is fully qualified. The bare form cost RIGOR its
+           first compiled binary: it was the single error in the macOS
+           build, and the double-barrelled name is precisely what makes it
+           look already-qualified when you read it. */
+        caseBtn[i].setButtonText(
+            juce::String::charToString(static_cast<juce::juce_wchar>('A' + i)));
         caseBtn[i].setClickingTogglesState(false);
         caseBtn[i].onClick = [this, i] { proc.recallCase(i); syncStyleButtons(); };
         addAndMakeVisible(caseBtn[i]);
