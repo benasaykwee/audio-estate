@@ -112,7 +112,17 @@ jobs:
       # runs on every push rather than nightly. It also runs its own controls:
       # if the unprotected arm stops tearing, the run reports itself
       # inconclusive rather than passing.
+      # `shell: bash` is REQUIRED, not cosmetic — added 2026-08-21. Without it
+      # windows-latest runs this in PowerShell, where a failed g++ does not
+      # stop the script and the next line reports the missing binary as
+      # "'./build/handoff' is not recognized as a name of a cmdlet". That is a
+      # COMPILE error wearing a runtime error's clothes, and it cost a session:
+      # the real cause (M_PI undefined on MinGW, now fixed in necromath.h) had
+      # scrolled off, so the failure was read as a threading fault in the seam
+      # and hunted as a memory-ordering bug for a day. Under bash the compile
+      # failure aborts the step and prints as itself.
       - name: The audio/UI seam (trace fold, then Handoff under contention)
+        shell: bash
         run: |
           mkdir -p build
           g++ -std=c++17 -O2 -pthread -o build/handoff tests/handoff_stress.cpp

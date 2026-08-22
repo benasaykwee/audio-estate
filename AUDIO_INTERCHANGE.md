@@ -184,6 +184,48 @@ There is an external consumer: **Masterbox**, a separate mastering tool with an 
 ## 7. THE LOG
 *Every change that crossed a project boundary. Newest first. If you touch `shared/`, you add a line.*
 
+### 2026-08-21 — `M_PI` was never ours to assume, and it cost a day of chasing the wrong bug
+
+`shared/necromath.h` gains a guarded `#define M_PI`. Blast radius: every C++
+core in the estate. **No computed value moves on any platform that was already
+building** — the guard is a no-op wherever `M_PI` already exists, and the
+literal is the same one glibc uses, verified bit-identical:
+
+```
+glibc M_PI  = 3.1415926535897931  0x400921FB54442D18
+our literal = 3.1415926535897931  0x400921FB54442D18   BIT-IDENTICAL
+```
+
+**Why it was needed.** `M_PI` is POSIX, not ISO C++. glibc and libc++ hand it
+out through `<cmath>`, so Linux and macOS never noticed; MSVC and MinGW do not,
+unless `_USE_MATH_DEFINES` is set *before* `<cmath>` is first pulled in — which
+no TU here can guarantee, since JUCE and the standard library both include it
+ahead of us. **33 uses across five shipped headers were resting on a platform
+accident.** Any Windows build of any plugin in this estate could not compile.
+
+**How it hid.** CASKET's `windows-latest` cells failed at the audio/UI seam
+step, which runs `g++ … handoff_stress.cpp` and then `./build/handoff`. That
+step had no `shell: bash`, so Windows ran it in PowerShell, where a failed
+compile does not stop the script. The visible error was:
+
+```
+The term './build/handoff' is not recognized as a name of a cmdlet…
+```
+
+A compile error wearing a runtime error's clothes. It was read as a threading
+fault in the seam and hunted as a memory-ordering bug for a day. The step now
+sets `shell: bash` so the compile failure aborts and prints as itself.
+
+**Checked before landing:** AUTOPSY's regression baselines unmoved (the
+tripwire's whole purpose), CASKET parity bit-exact at -O0/-O2/-O3, and a
+bites-proof both ways — a TU that `#undef`s `M_PI` compiles with the guard and
+fails with `'M_PI' was not declared in this scope` without it.
+
+**Still open:** `NECROPHONE-repo/necrophone-juce/Source/NecrophoneCore.h` uses
+`M_PI` but does **not** include `necromath.h`, so it is not covered by this fix
+and will still fail a Windows build. NECROPHONE is outside the trilogy and was
+left alone rather than edited from a CASKET session.
+
 ### 2026-08-18 — the nightly said 1,076 samples got out; the harness was wrong about the lid
 
 `shared/` untouched; blast radius CASKET's harnesses, with a new LAW 2 rule for

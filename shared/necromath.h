@@ -9,6 +9,31 @@
 #pragma once
 #include <cmath>
 
+/* M_PI IS NOT STANDARD C++ — added 2026-08-21, and this is why every
+   windows-latest cell went red.
+
+   M_PI comes from POSIX, not ISO C. glibc and libc++ hand it out through
+   <cmath> anyway, so Linux and macOS never noticed; MSVC and MinGW do not,
+   unless _USE_MATH_DEFINES is defined BEFORE <cmath> is first included —
+   which no translation unit in this estate can guarantee, because JUCE and
+   the standard library both pull <cmath> in ahead of us. Defining the
+   constant ourselves is the portable answer and does not depend on include
+   order.
+
+   33 uses across five shipped headers depended on a platform accident.
+   The Windows CI failure LOOKED like a threading fault in the seam test
+   because the compile error scrolled past and PowerShell then reported the
+   missing binary as "'./build/handoff' is not recognized" — a compile
+   failure wearing a runtime failure's clothes.
+
+   PARITY SAFETY: this is the identical decimal literal glibc uses, so it
+   rounds to the same double (0x400921FB54442D18) and the guard is a no-op
+   anywhere M_PI already exists. No computed value moves on any platform
+   that was already building, which is what keeps AUTOPSY's tripwire quiet. */
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 /* ---------- nm: portable "necromath" (mirror of NM in the JS core) ----------
    Same IEEE ops in the same order as the JS — this is what makes the
    parity gate bit-exact instead of "within a few ulp of libm". */
