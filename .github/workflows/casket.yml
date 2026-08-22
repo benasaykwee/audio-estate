@@ -248,6 +248,40 @@ jobs:
             echo "::warning::against THE LADDER to find the drive that produced it."
           fi
 
+      # ADDED 2026-08-21, and this is now the prime suspect.
+      #
+      # THE FINDING THAT PUT IT HERE. On this runner, this commit, this
+      # compiler and these flags, tests/autodrive_probe.cpp at -O3 returns
+      # autoDrive[noise][pine] = drive -12, lufs -10.610348533556301 (the
+      # correct JS truth) and its -O0/-O2/-O3 outputs are byte-identical.
+      # tests/core_parity.cpp at -O3 calls the SAME function with the SAME
+      # inputs on the SAME machine and gets -8.3603485335562979.
+      #
+      # Same function, different translation unit, different answer. That is
+      # not a bug in autoDrive's arithmetic, and no amount of canonicalising
+      # a comparison will reach it. What differs is that core_parity.cpp pulls
+      # in 575 KB of parity_expected.h and runs thousands of checks before it
+      # ever calls autoDrive — so the candidates are memory corruption in an
+      # earlier section, or an IPA/inlining miscompile only a TU this large
+      # provokes.
+      #
+      # ASan and UBSan are the cheap discriminator: an overrun in an earlier
+      # section surfaces immediately, and UB surfaces whether or not the -O3
+      # codegen happens to expose it.
+      #
+      # CAVEAT, so nobody misreads a green: ASan changes stack layout, so a
+      # corruption bug CAN go quiet under it. A clean run does not clear the
+      # hypothesis. A dirty one convicts.
+      - name: Sanitisers on the parity gate (is something corrupting it?)
+        if: always()
+        run: |
+          g++ -std=c++17 -O3 -ffp-contract=off -g \
+              -fsanitize=address,undefined -fno-omit-frame-pointer \
+              -o cp3san tests/core_parity.cpp \
+            || { echo "sanitiser build failed — not treating that as a verdict"; exit 0; }
+          ASAN_OPTIONS=detect_leaks=0 ./cp3san 2>&1 | tail -45 || true
+          echo "(diagnostic only — this step never fails the build)"
+
   counts:
     name: The docs' numbers are derived, not remembered
     runs-on: ubuntu-latest
