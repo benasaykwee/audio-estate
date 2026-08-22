@@ -66,18 +66,95 @@ jobs:
           g++ -std=c++17 -O2 -ffp-contract=off -o build/pb_parity tests/core_parity.cpp
           ./build/pb_parity
 
-      # LAW 1 is a claim about this project, so it gets re-proved on this
-      # project. If a future compiler ever makes the unflagged build pass,
-      # that is worth knowing immediately — it would mean the evidence for
-      # the law had quietly evaporated.
-      - name: LAW 1 still bites (unflagged build must FAIL)
+      # LAW 1's control USED TO LIVE HERE, and it is why runs #1 and #2 both
+      # died at 27 and 28 seconds without either plugin job ever executing.
+      # It has moved to the law1-arm job below, where it can actually be false.
+      # What stays here is the measurement that explains the move — it asserts
+      # nothing, it just records what the flag is worth on this architecture.
+      - name: What -ffp-contract=off is worth on this architecture (evidence, not a gate)
         run: |
-          g++ -std=c++17 -O2 -o build/pb_fma tests/core_parity.cpp
-          if ./build/pb_fma > /dev/null 2>&1; then
-            echo "::error::parity passed WITHOUT -ffp-contract=off — LAW 1's evidence has changed"
+          set -uo pipefail
+          echo "arch: $(uname -m)"
+          echo "baseline FMA macros:"
+          g++ -dM -E -x c++ /dev/null | grep -E '__FMA__|__FP_FAST_FMA\b|__ARM_FEATURE_FMA' \
+            || echo "  (none — this target has no baseline FMA instruction)"
+
+          # The decisive test, and the reason it is a test rather than an
+          # argument: if the flag changes nothing in the generated object
+          # code, then the flagged and unflagged parity binaries are the same
+          # program and no control built on the difference can ever fail.
+          g++ -std=c++17 -O2 -ffp-contract=off -c -o /tmp/with.o    tests/core_parity.cpp
+          g++ -std=c++17 -O2                   -c -o /tmp/without.o tests/core_parity.cpp
+          if cmp -s /tmp/with.o /tmp/without.o; then
+            echo "::notice::-ffp-contract=off is a NO-OP on $(uname -m) — object code byte-identical, so the LAW 1 control cannot fail on this runner"
+          else
+            echo "::notice::-ffp-contract=off CHANGES codegen on $(uname -m) — the control is meaningful here"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # LAW 1's control, on an architecture where it can be false.
+  #
+  # WHY THIS JOB EXISTS. Runs #1 and #2 both failed at "LAW 1 still bites"
+  # inside the harnesses job on ubuntu-latest. The unflagged build PASSED
+  # parity there, so the guard fired, exited 1, and killed the run before
+  # plugin-compile-check or plugin-macos had executed even once.
+  #
+  # The guard was not broken. It was architecture-blind. Baseline x86-64 has
+  # no FMA instruction without -mfma or a raised -march, so there is nothing
+  # for -ffp-contract=off to switch off and the two builds are the same
+  # program. Baseline aarch64 defines __ARM_FEATURE_FMA, GCC contracts freely,
+  # and the law bites enormously: 8,693 of 13,335 checks fail, worst
+  # 14,301,684 ulp, measured 2026-08-21.
+  #
+  # The mechanism, disassembled 2026-08-22 rather than argued: compiling
+  # tests/core_parity.cpp on aarch64 WITHOUT the flag emits 358 fmadd and 43
+  # fmsub instructions. WITH the flag it emits zero of either. That is the
+  # whole of LAW 1 in two numbers — 401 fused operations that each keep an
+  # intermediate at infinite precision instead of rounding it.
+  #
+  # So the control moves to arm64 rather than being relaxed. A gate that stops
+  # biting is evidence, not noise, and the fix for a silent gate is to run it
+  # somewhere it can speak — never to soften what it asserts. arm64 runners are
+  # free on public repositories and this repository is public.
+  law1-arm:
+    name: LAW 1 still bites (arm64, where the control is real)
+    runs-on: ubuntu-24.04-arm
+    defaults:
+      run:
+        working-directory: PALLBEARER
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: The unflagged build must FAIL parity
+        run: |
+          set -uo pipefail
+          mkdir -p build
+          echo "arch: $(uname -m)"
+          g++ -dM -E -x c++ /dev/null | grep -E '__ARM_FEATURE_FMA|__FP_FAST_FMA\b' || true
+
+          # COMPILE AND RUN ARE SEPARATED DELIBERATELY, and this is the second
+          # fault the old step had. It read:
+          #
+          #     g++ ... -o build/pb_fma tests/core_parity.cpp
+          #     if ./build/pb_fma > /dev/null 2>&1; then ... exit 1; fi
+          #     echo "confirmed: the unflagged build still fails, as it must"
+          #
+          # If g++ FAILED there was no binary, the `if` went false, and the
+          # step printed "confirmed" and passed. A build that does not compile
+          # is not evidence about floating-point contraction — it is a broken
+          # build wearing a green tick.
+          if ! g++ -std=c++17 -O2 -o build/pb_fma tests/core_parity.cpp; then
+            echo "::error::the unflagged parity gate did not COMPILE — that is a build failure, not evidence about LAW 1"
+            exit 1
+          fi
+
+          if ./build/pb_fma > /tmp/unflagged.txt 2>&1; then
+            echo "::error::parity passed WITHOUT -ffp-contract=off on $(uname -m) — LAW 1's evidence has changed. Re-measure the claim; do not relax the gate."
+            tail -5 /tmp/unflagged.txt
             exit 1
           fi
           echo "confirmed: the unflagged build still fails, as it must"
+          grep -Ei "failed|mismatch" /tmp/unflagged.txt | tail -3 || true
 
   plugin-compile-check:
     name: Compile the plugin sources (Linux, fast)
