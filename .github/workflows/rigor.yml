@@ -31,8 +31,8 @@ jobs:
       run:
         working-directory: RIGOR
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
 
@@ -121,7 +121,7 @@ jobs:
       run:
         working-directory: RIGOR
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Configure
         run: cmake -B build -S rigor-juce -DCMAKE_BUILD_TYPE=Release
@@ -136,7 +136,7 @@ jobs:
       # apply — these must be spelled from the repo root or the upload finds
       # nothing and only warns.
       - name: Upload plugin artefacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: rigor-plugins-macos
           path: |
