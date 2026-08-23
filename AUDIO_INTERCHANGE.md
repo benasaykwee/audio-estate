@@ -5,7 +5,7 @@
 
 Read this before touching anything in `shared/`. Add to §7 whenever you do.
 
-**Last updated:** 2026-08-16
+**Last updated:** 2026-08-23
 
 ---
 
@@ -61,6 +61,34 @@ measured, and updating it to today's total would invent an experiment nobody
 ran. Those carry no marker. The rule is that a number describing **now** is
 generated, and a number describing **then** is evidence — and evidence is not
 maintenance.*
+
+### 1.1 The JUCE split — Linux build advice is no longer uniform
+
+*Added 2026-08-23. The estate is no longer on one JUCE, and the difference is
+not cosmetic: it changes what a Linux runner must install.*
+
+| project | JUCE pin | `juce_graphics` linuxPackages | Linux apt needs |
+|---|---|---|---|
+| AUTOPSY · RIGOR · CASKET · PALLBEARER | 7.0.12 | `freetype2` | freetype only |
+| SÉANCE | 8.0.4 | `freetype2 fontconfig` | **+ fontconfig** |
+| NECROPHONE | 8.0.6 | `freetype2 fontconfig` | **+ fontconfig** |
+
+**The mechanism, read from both source trees rather than assumed.** Each JUCE
+module declares its Linux dependencies in its own header; `juce_graphics.h`
+line 48 under 7.0.12 says `freetype2`, and line 57 under 8.0.4 says
+`freetype2 fontconfig`. CMake passes that whole list to **one** `pkg_check_modules`
+query, so a missing *second* package fails the *whole* query and **no cflags flow
+at all** — including freetype's include path. The symptom is therefore a lie:
+the build dies on `ft2build.h: No such file or directory` while
+`libfreetype6-dev` is installed and correct. pkg-config names the real culprit
+one line earlier, as `Package 'fontconfig', required by 'virtual:world', not found`.
+
+**The corollary matters more than the fix.** The estate's `build.yml` installs
+freetype without fontconfig and is **not** broken by this — the four plugins it
+builds are on JUCE 7, which never asks for fontconfig. It is a **conditional**
+fault, not a latent one: it fires the day any trilogy project takes a JUCE 8
+upgrade, and it will present as a freetype error rather than a fontconfig one.
+Whoever performs that upgrade adds `libfontconfig1-dev` in the same commit.
 
 ---
 
@@ -183,6 +211,46 @@ There is an external consumer: **Masterbox**, a separate mastering tool with an 
 
 ## 7. THE LOG
 *Every change that crossed a project boundary. Newest first. If you touch `shared/`, you add a line.*
+
+### 2026-08-23 — the estate immunised itself against `M_PI` and NECROPHONE caught it anyway
+
+**Nothing in `shared/` changed.** This entry is here because the exposure was
+already known, already written down, and still cost a red run.
+
+NECROPHONE's first three-platform CI run died on Windows with **six `C2065:
+'M_PI': undeclared identifier`** in `NecrophoneCore.h` — the *same wound*, in the
+same compiler, that this log recorded as closed on **2026-08-21**, when
+`shared/necromath.h` gained its guarded `#define`. That fix could not reach
+NECROPHONE, because NECROPHONE's row in §1 reads **"own copy"** for NM and its
+core includes `<cmath>` and four other standard headers, never `necromath.h`.
+
+**And it was predicted, in writing, by the session that did the fixing.** The
+2026-08-21 work left an explicit note that `NecrophoneCore.h` uses `M_PI` without
+including `necromath.h`, that the fix therefore would not reach it, and that this
+was being left alone deliberately as outside the trilogy's business. Every word
+of that was correct. It still cost a red CI run two days later.
+
+**So the finding is not "we forgot" — it is that the note was filed in the wrong
+place.** A "still exposed" line lodged in the *fixer's* records never became a
+to-do in the *exposed project's* work queue, and NECROPHONE's own docs, memory
+and roadmap said nothing about it. Deferring a cross-project fix is legitimate;
+deferring it without writing the item where the other project will trip over it
+is how a known issue gets rediscovered by a compiler. **When a `shared/` fix
+cannot reach a consumer, the follow-up goes into that consumer's own docs the
+same day** — and "own copy" in the §1 table should be read as *this project
+inherits none of our repairs*, not as a neutral implementation note.
+
+The guard is now duplicated in `NecrophoneCore.h` with the identical literal;
+smoke, blend, tunefx and the new codec gate were all re-proven byte-identical
+after the change, so no computed value moved. The longer-term choice — whether
+NECROPHONE eventually consumes `shared/` — is a real DSP decision that can
+re-bless baselines, and belongs to a round, not to a CI hotfix.
+
+*Also fixed in the same run, and written up in §1.1 rather than here because it
+is standing advice rather than an event: **JUCE 8 requires `fontconfig` on Linux
+and JUCE 7 does not**, so the estate's apt list and NECROPHONE's can no longer be
+the same list. The estate's is correct for JUCE 7 and becomes wrong the moment
+anything there upgrades.*
 
 ### 2026-08-22 — CASKET's CPU gate could not see `NM.sin`, so a Node upgrade read as a 40% regression
 
