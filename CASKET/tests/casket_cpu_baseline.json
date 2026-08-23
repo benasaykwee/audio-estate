@@ -1,5 +1,5 @@
 {
-  "note": "Ratios against a same-machine bypass calibration. Re-blessing is a deliberate act — record it in AUDIO_INTERCHANGE.md §7.",
+  "note": "Ratios against a same-machine calibration. The arrangements use a bypass render, the offline tools use one real render, and the transcendental-bound resamplers use an NM.sin/NM.cos throughput calibration (added 2026-08-22 after a Node change moved only those two entries by ~40%). Re-blessing is a deliberate act - record it in AUDIO_INTERCHANGE.md §7.",
   "blessed": "2026-08-16",
   "tolerance": 0.3,
   "ratios": {
@@ -15,8 +15,6 @@
     "autoMargin (4 passes)": 4.392,
     "difference (two states)": 1.979,
     "matchReference": 12.843,
-    "resample 44.1 → 96": 3.47,
-    "resample 96 → 44.1": 1.611,
     "batchRender ×3": 2.975,
     "batchRender ×3 gapless": 3.495,
     "albumMaster ×3 (6 passes)": 32.476

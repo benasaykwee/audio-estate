@@ -148,6 +148,89 @@ SUBJECTS.forEach(function (s) {
   console.log('  one render (3 s stereo, velvet): ' + one.toFixed(1) + ' ms');
   if (one <= 0) return;
 
+  /* ------------------------------------------------------------------
+     A THIRD CALIBRATION, added 2026-08-22, because two were not enough.
+
+     WHAT WENT WRONG. Run #18 on 2026-08-23 failed with exactly two of
+     seventeen entries regressed: both resamplers, at +38% and +41%.
+     Everything else moved by 3% or less. No "the runner was busy"
+     explanation produces that shape — a loaded box slows everything.
+
+     MEASURED, NOT ARGUED. Neither commit since the baseline was blessed
+     touches `resample`; zero lines in either diff. shared/necromath.js
+     has not changed since the estate's founding commit. The resampler's
+     code was byte-identical to what was blessed. The only thing that
+     changed was the runner's Node, via actions/setup-node@v4 -> @v5.
+
+     WHY ONLY THOSE TWO. The resampler is a windowed sinc, and per tap
+     per output sample it calls NM.sin once for the sinc and NM.cos
+     twice for the Blackman window. NM.sin is not a library call: it is
+     a hand-rolled Taylor polynomial, eight terms for sine and nine for
+     cosine, plus quadrant reduction. Pure arithmetic, so how fast it
+     runs is entirely a question of how V8 chose to compile it that day.
+
+     BOTH EXISTING CALIBRATIONS ARE BLIND TO THAT. `calib` is a bypass
+     render and `one` is a real render; both are dominated by memory
+     traffic and the limiter, and neither touches a transcendental in
+     anger. Measured on one machine:
+
+         resample / bypass calibration    x5424
+         resample / NM.sin+cos throughput  x119
+
+     Sixteen entries are memory-bound and the existing yardsticks serve
+     them honestly. The two resamplers are transcendental-bound and were
+     being scored against work that shares nothing with them.
+
+     SO THIS CALIBRATES LIKE FOR LIKE. It runs the resampler's own inner
+     shape — one NM.sin plus two NM.cos per iteration, through C._nm so
+     it is provably the same instance the resampler uses, not a second
+     copy that could drift. A V8 change now moves calibration and
+     measurement together and the ratio holds, which is the same
+     argument the header already makes about slow runners, applied one
+     level deeper.
+
+     WHAT THIS DOES NOT FIX. If NM.sin genuinely gets slower and nothing
+     else does, this gate will now stay quiet about it. That is the
+     deliberate trade: this gate defends the SHAPE of CASKET's cost, and
+     the speed of the shared transcendental library is necromath's own
+     property to defend. If that ever wants a gate, it belongs in
+     shared/, watching NM against Math, and not here. Written down
+     rather than left as a silent hole.
+
+     THE SIZE OF THIS LOOP IS MEASURED, NOT CHOSEN. A calibration that is
+     too short is worse than the wrong calibration, because timer noise and
+     JIT warm-up swamp the signal and the ratio wobbles on its own. The
+     first draft used 120k taps, and the control below caught it:
+
+         120,000 taps ->  calibration   2.7 ms   ratio spread 24.3%
+       1,200,000 taps ->  calibration  47.0 ms   ratio spread  0.6%
+       3,000,000 taps ->  calibration 121.0 ms   ratio spread  1.9%
+
+     Four repeats each, same machine, same process. 1.2M is the size where
+     the ratio settles, and at 0.6% it is steadier run to run than the
+     render yardstick it replaces, which measured 1.8% on the same trials.
+     3M costs two and a half times as long to buy nothing.
+
+     If this is ever retuned, re-run that table. A calibration nobody has
+     measured the stability of is a calibration nobody has evidence about.  */
+  var NM = C._nm;
+  var TWO_PI = 6.283185307179586;
+  var TRIG_TAPS = 1200000;
+  var trigSink = 0;
+  var trig = t(function () {
+    var acc = 0;
+    for (var i = 1; i <= TRIG_TAPS; i++) {
+      var a = i * 1e-5;
+      var tt = TWO_PI * 0.5 * a;
+      var u = (a % 1);
+      acc += NM.sin(tt) / tt
+           + 0.42 - 0.5 * NM.cos(TWO_PI * u) + 0.08 * NM.cos(2 * TWO_PI * u);
+    }
+    trigSink += acc;                 /* keep the loop from being optimised away */
+  });
+  console.log('  NM.sin/cos calibration (' + (TRIG_TAPS / 1000) + 'k sinc+window taps): ' + trig.toFixed(1) + ' ms');
+  if (trig <= 0) { console.log('  timer too coarse for the trig calibration; resamplers not gated'); }
+
   var rec = [
     { name: 'a', L: tL, R: tR },
     { name: 'b', L: tL, R: tR },
@@ -162,8 +245,6 @@ SUBJECTS.forEach(function (s) {
         C.difference(st, b2, tL, tR, FS);
       }],
     ['matchReference', function () { C.matchReference(st, tL, tR, tL, tR, FS); }],
-    ['resample 44.1 → 96', function () { C.resample(tL, tR, 44100, 96000); }],
-    ['resample 96 → 44.1', function () { C.resample(tL, tR, 96000, 44100); }],
     ['batchRender ×3', function () { C.batchRender(st, rec, FS); }],
     ['batchRender ×3 gapless', function () { C.batchRender(st, rec, FS, { gapless: true }); }],
     ['albumMaster ×3 (6 passes)', function () { C.albumMaster(st, rec, FS, -14, { passes: 6 }); }]
@@ -175,6 +256,26 @@ SUBJECTS.forEach(function (s) {
     console.log('  ' + tool[0].padEnd(26) + ms.toFixed(1).padStart(9) + ' ms' +
                 ('×' + ratio.toFixed(2)).padStart(10) + ' one render');
   });
+  /* THE TRANSCENDENTAL-BOUND ENTRIES, scored against the trig calibration
+     rather than against a render. The keys are deliberately RENAMED so the
+     old ms/render numbers in the baseline can never be compared against the
+     new ms/trig ones — those are different quantities and silently reusing
+     the key would produce a confident, meaningless percentage. The old keys
+     have been removed from casket_cpu_baseline.json for the same reason.
+     These two will report as new until somebody blesses them from a real
+     runner, and the gate does not fail on a new entry. */
+  if (trig > 0) {
+    [['resample 44.1 → 96 (vs trig)', function () { C.resample(tL, tR, 44100, 96000); }],
+     ['resample 96 → 44.1 (vs trig)', function () { C.resample(tL, tR, 96000, 44100); }]
+    ].forEach(function (tool) {
+      var ms = t(tool[1]);
+      var ratio = ms / trig;
+      now[tool[0]] = Math.round(ratio * 1000) / 1000;
+      console.log('  ' + tool[0].padEnd(30) + ms.toFixed(1).padStart(9) + ' ms' +
+                  ('×' + ratio.toFixed(2)).padStart(10) + ' trig calibration');
+    });
+  }
+
   /* THE SANITY CHECK THAT IS NOT ABOUT SPEED. albumMaster with 6 passes
      probes both rails plus 6 midpoints plus one verification render, over
      3 tracks — so it must cost roughly 27 renders. If it ever costs 3,

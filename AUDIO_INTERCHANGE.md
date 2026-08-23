@@ -184,6 +184,69 @@ There is an external consumer: **Masterbox**, a separate mastering tool with an 
 ## 7. THE LOG
 *Every change that crossed a project boundary. Newest first. If you touch `shared/`, you add a line.*
 
+### 2026-08-22 — CASKET's CPU gate could not see `NM.sin`, so a Node upgrade read as a 40% regression
+
+**Nothing in `shared/` changed.** This entry is here anyway, because the finding is
+about `shared/necromath.js` and the next project to build a performance gate needs it.
+
+CASKET's CPU gate failed on run #18 with **exactly two of seventeen entries regressed**:
+both resamplers, at +38% and +41%. Everything else moved by 3% or less. A loaded runner
+slows everything, so that shape ruled out noise immediately.
+
+**Measured, not argued.** Neither commit since the baseline was blessed touches
+`resample`, zero lines in either diff, and `shared/necromath.js` has not changed since
+the estate's founding commit `74bc832`. The resampler's code was byte-identical to what
+was blessed. The only thing that changed was the runner's Node, via
+`actions/setup-node@v4` to `@v5`.
+
+**Why only those two.** The resampler is a windowed sinc: per tap per output sample it
+calls `NM.sin` once for the sinc and `NM.cos` twice for the Blackman window. `NM.sin` is
+not a library call. It is `sincos_`, a hand-rolled Taylor polynomial, eight terms for sine
+and nine for cosine, plus quadrant reduction. Pure arithmetic, so its speed is entirely a
+question of how V8 chose to compile it that day.
+
+**The blast radius is every future performance gate in the estate.** Any harness that
+scores transcendental-bound work against a memory-bound calibration has this hole. CASKET's
+gate had two calibrations, a bypass render and a real render, and both are dominated by
+memory traffic and the limiter:
+
+```
+resample / bypass calibration     x5424
+resample / NM.sin+cos throughput   x119
+```
+
+**The fix** adds a third calibration running the resampler's own inner shape through
+`C._nm`, so it is provably the same NM instance and not a second copy that could drift.
+A V8 change now moves calibration and measurement together.
+
+**The size of that loop is measured, not chosen**, and the first draft was wrong:
+
+```
+  120,000 taps ->  calibration   2.7 ms   ratio spread 24.3%
+1,200,000 taps ->  calibration  47.0 ms   ratio spread  0.6%
+3,000,000 taps ->  calibration 121.0 ms   ratio spread  1.9%
+```
+
+At 120k the calibration was so short that timer noise swamped it and the gate would have
+wobbled worse than the problem it fixed. 1.2M settles at 0.6%, steadier than the 1.8% of
+the render yardstick it replaces.
+
+**Verified:** 15 within tolerance, 0 regressed, exit 0. Estate lint 31 passed, 0 failed.
+The two resampler entries were **renamed**, not re-blessed, because ms/render and ms/trig
+are different quantities and reusing the key would have produced a confident, meaningless
+percentage. Their old keys were removed from `casket_cpu_baseline.json`. They now report
+as new and **still need blessing from a real runner** — nothing on aarch64 should be
+written into that file as x86-64 truth.
+
+**Lesson recorded, and it is the same one §7 keeps learning:** a gate is only as honest as
+what it compares against. This is the twin of the UNDERWORLD gate rebuilt the same night,
+which hashed three sibling projects' full state and called the result an UNDERWORLD
+regression. Both were measuring something other than what their label claimed.
+
+**Not fixed, deliberately:** if `NM.sin` itself gets slower and nothing else does, this
+gate will now stay quiet. That belongs to `shared/`, not to CASKET, and would want its own
+harness watching NM against `Math`. Recorded here rather than left as a silent hole.
+
 ### 2026-08-21 — `M_PI` was never ours to assume, and it cost a day of chasing the wrong bug
 
 `shared/necromath.h` gains a guarded `#define M_PI`. Blast radius: every C++
