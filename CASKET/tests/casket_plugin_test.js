@@ -173,10 +173,19 @@ var faceless = declared.filter(function (id) { return bound.indexOf(id) < 0; });
 ok(faceless.length === 0, 'every declared parameter has a control on the face' +
    (faceless.length ? ' — NO CONTROL: ' + faceless.join(', ') : ''));
 
+/* count CONSTRUCTION SITES, not raw string occurrences. The old heuristic
+   ("the id appears more than twice anywhere") false-positived the moment
+   the arrangement fix (2026-08-23) made "style" legitimately appear three
+   times — its Chooser, applyArrangement's set(), the timer's reflect read —
+   of which only the first is a control. A control is a dial/latch/chooser
+   factory call or a direct `apvts, "id"` construction; a second one of
+   those for the same id is still exactly the defect this gate exists for. */
 var boundTwice = [];
 bound.forEach(function (id) {
-  var n = (edit.match(new RegExp('"' + id + '"', 'g')) || []).length;
-  if (n > 2) boundTwice.push(id + '×' + n);
+  var f = (edit.match(new RegExp('\\b(?:dial|latch|chooser)\\s*\\(\\s*"' + id + '"\\s*,', 'g')) || []).length;
+  var a = (edit.match(new RegExp('apvts,\\s*"' + id + '"', 'g')) || []).length;
+  var n = f + a;
+  if (n > 1) boundTwice.push(id + '×' + n);
 });
 ok(boundTwice.length === 0, 'no parameter is wired to two controls' +
    (boundTwice.length ? ' — ' + boundTwice.join(', ') : ''));
@@ -223,6 +232,107 @@ var unread = Object.keys(ringFeeds).filter(function (r) {
 });
 ok(unread.length === 0, 'every history trace written is also drawn' +
    (unread.length ? ' — WRITTEN BUT NEVER DRAWN: ' + unread.join(', ') : ''));
+
+/* ---------- 5b. the arrangement applies its recipe ----------
+   Found by EARS, not by a harness — Ben, GarageBand, 2026-08-23, the first
+   listening session: "the arrangements all sound the same." They did. The
+   dropdown was an ordinary attached parameter, so it moved only the two
+   traits the engine derives from style, while vigil/release/knee/lining/
+   margin/autoRel/sat/seal — the audible recipe, Lead's seal above all —
+   sat wherever they were. The browser never had this hole because
+   UIH.applyStyle merges every styleDefaults field on every pick.
+   These gates keep the two faces meaning the same thing by "arrangement":
+   the editor must apply EVERY field styleDefaults defines (enumerated from
+   the JS core, so a field added there turns this red here), the C++ table
+   it reads must agree with the JS table value for value, and the wiring
+   must be gesture-only so automation and preset loads cannot stomp a
+   saved session's knobs. */
+console.log('\n— the arrangement applies its recipe —');
+
+var STYLE_NAMES = ['pine', 'velvet', 'oak', 'iron', 'lead'];
+var FIELD_TO_PARAM = { vigil: 'vigil', release: 'release', knee: 'knee',
+                       lining: 'lining', margin: 'margin', autoRel: 'auto_rel',
+                       sat: 'sat', seal: 'seal' };
+var recipeFields = Object.keys(C.styleDefaults('pine'));
+var unmapped = recipeFields.filter(function (f) { return !(f in FIELD_TO_PARAM); });
+ok(unmapped.length === 0, 'every styleDefaults field has a parameter mapping here' +
+   (unmapped.length ? ' — UNMAPPED (extend FIELD_TO_PARAM and the editor): ' +
+    unmapped.join(', ') : ''));
+
+var applyBody = (edit.match(/void CasketEditor::applyArrangement[\s\S]*?\n\}/) || [''])[0];
+ok(applyBody.length > 100, 'applyArrangement located in the editor');
+function unappliedIn(body) {
+  return recipeFields.filter(function (f) {
+    return !(new RegExp('set\\("' + FIELD_TO_PARAM[f] + '"').test(body));
+  });
+}
+var unapplied = unappliedIn(applyBody);
+ok(unapplied.length === 0, 'applyArrangement applies every styleDefaults field' +
+   (unapplied.length ? ' — NOT APPLIED: ' + unapplied.join(', ') : ''));
+ok(/set\("style"/.test(applyBody), 'and the style parameter itself');
+ok(/casket::styleDef/.test(applyBody),
+   'the recipe is read from casket::styleDef — the table the ENGINE uses, no third copy');
+ok(/beginChangeGesture/.test(applyBody) && /endChangeGesture/.test(applyBody) &&
+   /setValueNotifyingHost/.test(applyBody),
+   'every move is a proper host gesture the DAW can record and undo');
+ok(/\{ 1, 2, 4, 8, 16 \}/.test(applyBody) && /\{ 1, 2, 4, 8, 16 \}/.test(proc),
+   'the lining factor→index table is the inverse of buildState\'s, same values');
+
+/* the C++ StyleDef table must agree with the JS STYLE map, value for value.
+   Both twins have carried this table since sealed arrangements landed; the
+   parity gate proves the ENGINE reads them identically, but the d-fields
+   (the recipe) were engine-invisible until the editor started applying
+   them — so they get their own diff, here. */
+var sdBlock = (core.match(/static const StyleDef T\[5\] = \{([\s\S]*?)\};/) || ['', ''])[1];
+var sdRows = [];
+sdBlock.replace(/\{([^{}]*)\}/g, function (m, r) {
+  sdRows.push(r.split(',').map(function (x) { return x.trim(); }));
+  return m;
+});
+ok(sdRows.length === 5, 'the twin StyleDef table has five arrangements (found ' +
+   sdRows.length + ')');
+function styleTableDiff(rows) {
+  var POS = { vigil: 2, release: 3, knee: 4, lining: 5, margin: 6,
+              autoRel: 7, sat: 8, seal: 9 };
+  var diffs = [];
+  STYLE_NAMES.forEach(function (n, i) {
+    var d = C.styleDefaults(n);
+    Object.keys(POS).forEach(function (f) {
+      var cpp = rows[i] ? rows[i][POS[f]] : undefined;
+      var got = cpp === 'true' ? true : cpp === 'false' ? false : parseFloat(cpp);
+      if (got !== d[f]) diffs.push(n + '.' + f + ' cpp=' + cpp + ' js=' + d[f]);
+    });
+  });
+  return diffs;
+}
+var tblDiffs = styleTableDiff(sdRows);
+ok(tblDiffs.length === 0, 'twin StyleDef agrees with JS styleDefaults, all five × eight' +
+   (tblDiffs.length ? ' — ' + tblDiffs.join('; ') : ''));
+
+/* the wiring must be gesture-only: the style box has NO attachment, its
+   user pick routes through applyArrangement, and external moves reach the
+   box only through the quiet reflect() in the timer */
+ok(/new Chooser\([^;]*"style"[^;]*applyArrangement/.test(edit),
+   'the style box is the callback Chooser, wired to applyArrangement');
+var tcBody = (edit.match(/void CasketEditor::timerCallback[\s\S]*?\n\}/) || [''])[0];
+ok(/choosers\[0\]->reflect/.test(tcBody) && /"style"/.test(tcBody),
+   'the timer reflects external style moves into the box');
+var reflBody = (edit.match(/void Chooser::reflect[\s\S]*?\n\}/) || [''])[0];
+ok(/dontSendNotification/.test(reflBody),
+   'reflect() is quiet — it can never re-trigger the recipe');
+ok(/\{\s*"Pine", "Velvet", "Oak", "Iron", "Lead"\s*\}/.test(proc),
+   'the dropdown order is the index order both twins assume');
+
+/* and these gates must bite, per the house standard */
+(function () {
+  var noSeal = applyBody.replace(/set\("seal"[^;]*;/, '');
+  ok(unappliedIn(noSeal).indexOf('seal') >= 0,
+     'BITES: an applyArrangement that forgot the seal would be caught');
+  var doctored = sdRows.map(function (r) { return r.slice(); });
+  if (doctored[4]) doctored[4][2] = '3.0';   /* lead vigil 5 → 3 */
+  ok(styleTableDiff(doctored).length > 0,
+     'BITES: a drifted lead.vigil in the twin table would be caught');
+})();
 
 /* ---------- 6. real-time safety in processBlock ---------- */
 console.log('\n— the audio thread —');

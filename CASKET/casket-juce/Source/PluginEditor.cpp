@@ -139,6 +139,28 @@ Chooser::Chooser(juce::AudioProcessorValueTreeState& apvts, const juce::String& 
     att = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         apvts, pid, box);
 }
+
+/* the callback form — arrangement box only; see the header for why it has
+   no attachment. The box starts on the parameter's current value and stays
+   honest through reflect() from the editor's timer. */
+Chooser::Chooser(juce::AudioProcessorValueTreeState& apvts, const juce::String& pid,
+                 const juce::String& caption, std::function<void(int)> onUserPick)
+    : cap(caption) {
+    if (auto* p = dynamic_cast<juce::AudioParameterChoice*>(apvts.getParameter(pid))) {
+        box.addItemList(p->choices, 1);
+        box.setSelectedItemIndex(p->getIndex(), juce::dontSendNotification);
+    }
+    addAndMakeVisible(box);
+    box.onChange = [this, cb = std::move(onUserPick)] {
+        const int idx = box.getSelectedItemIndex();
+        if (idx >= 0 && cb) cb(idx);
+    };
+}
+
+void Chooser::reflect(int idx) {
+    if (idx != box.getSelectedItemIndex())
+        box.setSelectedItemIndex(idx, juce::dontSendNotification);
+}
 void Chooser::resized() {
     auto r = getLocalBounds();
     r.removeFromTop(13);
@@ -186,7 +208,24 @@ CasketEditor::CasketEditor(CasketProcessor& p)
     dial("ms_side", "Side");       // 10
     dial("target_lufs", "Target"); // 11
 
-    chooser("style", "Arrangement");  // 0
+    /* THE ARRANGEMENT BOX IS DIFFERENT, and the difference was found by
+       EARS, not by a harness — Ben, GarageBand, 2026-08-23, first listening
+       session: "the arrangements all sound the same." They did. In the
+       browser, picking an arrangement pours in its whole recipe
+       (UIH.applyStyle merges every styleDefaults field); here the dropdown
+       was one host parameter among many, so it changed only the two traits
+       the ENGINE derives from style (release shape, smoothing span) while
+       vigil, release, knee, lining, margin, autoRel, sat and — above all —
+       Lead's seal sat wherever they were. Four faint coats of Velvet.
+       Now a user pick applies the full recipe (applyArrangement below);
+       automation and preset loads still move only the style parameter,
+       exactly because a host restoring a saved session must not have the
+       arrangement stomp the knobs the user had tweaked away from it. */
+    {
+        auto* c = new Chooser(proc.apvts, "style", "Arrangement",
+                              [this](int idx) { applyArrangement(idx); }); // 0
+        choosers.add(c); addAndMakeVisible(c);
+    }
     chooser("lining", "Lining");      // 1
     chooser("dust", "Dust");          // 2
     chooser("dust_bits", "Depth");    // 3
@@ -230,6 +269,42 @@ CasketEditor::CasketEditor(CasketProcessor& p)
 
 CasketEditor::~CasketEditor() { setLookAndFeel(nullptr); }
 
+/* A user picked an arrangement: apply its WHOLE recipe, the same merge the
+   browser performs in UIH.applyStyle. The values come from casket::styleDef
+   in CasketCore.h — the same table the ENGINE reads, which the parity gate
+   holds bit-exact against casket_core.js's STYLE map. No third copy here to
+   drift; casket_plugin_test.js asserts every styleDefaults field is applied
+   and that the two tables agree field for field.
+   Everything OUTSIDE the recipe (drive, lid, hold, link, ms, dust, target)
+   is deliberately untouched, exactly as in the browser: the arrangement is
+   a character, not a session reset.
+   All on the message thread, through proper host gestures, so a DAW sees
+   eight automatable moves it can record and undo. */
+void CasketEditor::applyArrangement(int styleIndex) {
+    const casket::StyleDef& d = casket::styleDef(styleIndex);
+    auto set = [this](const char* pid, float plain) {
+        if (auto* p = proc.apvts.getParameter(pid)) {
+            p->beginChangeGesture();
+            p->setValueNotifyingHost(p->convertTo0to1(plain));
+            p->endChangeGesture();
+        }
+    };
+    set("style",    (float)styleIndex);
+    set("vigil",    (float)d.vigil);
+    set("release",  (float)d.release);
+    set("knee",     (float)d.knee);
+    set("margin",   (float)d.margin);
+    set("sat",      (float)d.sat);
+    set("auto_rel", d.autoRel ? 1.0f : 0.0f);
+    set("seal",     d.seal    ? 1.0f : 0.0f);
+    /* lining is a choice parameter: factor -> index, the inverse of the
+       LIN table buildState() uses */
+    static const int LIN[5] = { 1, 2, 4, 8, 16 };
+    int li = 2;
+    for (int i = 0; i < 5; i++) if (LIN[i] == d.lining) li = i;
+    set("lining", (float)li);
+}
+
 void CasketEditor::timerCallback() {
     proc.latestMeters(m);
     proc.latestTrace(tr);
@@ -245,6 +320,11 @@ void CasketEditor::timerCallback() {
        30 Hz just means most reads return the same snapshot, which costs a
        struct copy and keeps the draw path uniform */
     hasHist = proc.latestHistogram(hist);
+    /* the arrangement box is unattached (see applyArrangement); keep its
+       face honest when style moves from anywhere that is not the box —
+       automation, a preset load, setStateInformation. reflect() is quiet,
+       so this can never re-trigger the recipe. */
+    choosers[0]->reflect((int)proc.apvts.getRawParameterValue("style")->load());
     repaint();
 }
 

@@ -62,11 +62,24 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Latch)
 };
 
-/* a chooser and its caption, bound to one parameter */
+/* a chooser and its caption, bound to one parameter.
+
+   Two wirings. The attached form is the ordinary one: the box IS the
+   parameter, via a ComboBoxAttachment. The callback form exists for the
+   arrangement box alone, and deliberately has NO attachment: a user pick
+   is a gesture with consequences beyond one parameter (see
+   CasketEditor::applyArrangement), and an attachment cannot tell a user's
+   pick from the host moving the parameter — automation or a preset load
+   arriving through the same onChange would stomp every knob the session
+   had saved. So the callback form reports the pick, displays the
+   parameter via reflect(), and wires nothing automatically. */
 class Chooser : public juce::Component {
 public:
     Chooser(juce::AudioProcessorValueTreeState&, const juce::String& pid,
             const juce::String& caption);
+    Chooser(juce::AudioProcessorValueTreeState&, const juce::String& pid,
+            const juce::String& caption, std::function<void(int)> onUserPick);
+    void reflect(int idx);   /* quiet display update; never fires the callback */
     void resized() override;
     void paint(juce::Graphics&) override;
 private:
@@ -86,6 +99,7 @@ public:
 
 private:
     void timerCallback() override;
+    void applyArrangement(int styleIndex);
     void drawViewing(juce::Graphics&, juce::Rectangle<int>);
     void drawPlot(juce::Graphics&, juce::Rectangle<int>);
     void drawRange(juce::Graphics&, juce::Rectangle<int>);
