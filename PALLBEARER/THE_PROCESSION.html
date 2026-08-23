@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE PROCESSION — PALLBEARER, where it stands</title>
+<style>
+:root{
+  --ink:#07060a; --slab:#141019; --slab2:#1b1522;
+  --gold:#c9a227; --gold-lo:#8a6f1a; --gold-hi:#f0d67a;
+  --blood:#a4161a; --emerald:#1f6f5c; --sapphire:#2b4a7d; --amethyst:#6b3f7a;
+  --bone:#e8e1d4; --mute:#9a8f80; --line:#2a2233;
+  --mint:#8fd0b8; --rose:#e8a0a2; --sky:#7fa8dd; --lilac:#b48ac9;
+}
+*{box-sizing:border-box}
+body{margin:0;background:
+  radial-gradient(1200px 760px at 10% -10%,#1a1424 0%,transparent 62%),
+  radial-gradient(980px 640px at 94% 2%,#16121f 0%,transparent 56%),
+  var(--ink);
+  color:var(--bone);
+  font:16px/1.65 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  padding:0 0 90px}
+.wrap{max-width:1060px;margin:0 auto;padding:0 24px}
+
+header{padding:60px 0 30px;text-align:center}
+header:after{content:"";display:block;width:210px;height:1px;margin:28px auto 0;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.kicker{letter-spacing:.42em;text-transform:uppercase;font-size:10px;color:var(--gold-lo);
+  font-family:ui-sans-serif,system-ui,sans-serif}
+h1{font-size:60px;letter-spacing:.14em;margin:14px 0 6px;font-weight:400;color:var(--gold);
+  text-shadow:0 0 34px rgba(201,162,39,.24)}
+.tag{font-style:italic;color:var(--mute);font-size:17px}
+.stamp{margin-top:15px;font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--mute);font-family:ui-sans-serif,system-ui,sans-serif}
+
+.verdict{margin:28px 0;padding:20px;border-radius:3px;text-align:center;
+  font-family:ui-sans-serif,system-ui,sans-serif;letter-spacing:.24em;text-transform:uppercase;font-size:12.5px}
+.verdict.gold{background:rgba(201,162,39,.12);border:1px solid rgba(201,162,39,.5);color:var(--gold-hi)}
+
+.vitals{display:grid;grid-template-columns:repeat(auto-fit,minmax(126px,1fr));gap:12px;margin:28px 0}
+.vital{background:linear-gradient(180deg,var(--slab2),var(--slab));border:1px solid var(--line);
+  border-radius:3px;padding:16px 10px;text-align:center;position:relative;overflow:hidden}
+.vital:before{content:"";position:absolute;inset:0 0 auto 0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.55}
+.vital.alarm:before{background:linear-gradient(90deg,transparent,var(--blood),transparent);opacity:.9}
+.vital b{display:block;font-size:24px;color:var(--gold-hi);font-weight:400;letter-spacing:.02em}
+.vital.alarm b{color:var(--rose)}
+.vital span{display:block;font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--mute);margin-top:6px;font-family:ui-sans-serif,system-ui,sans-serif;line-height:1.45}
+
+section{margin:52px 0}
+h2{font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);
+  font-family:ui-sans-serif,system-ui,sans-serif;font-weight:600;border-bottom:1px solid var(--line);
+  padding-bottom:10px;margin:0 0 22px;display:flex;align-items:center;gap:10px}
+h2:before{content:"✚";color:var(--blood);font-size:13px}
+h3{font-size:15.5px;color:var(--gold-hi);font-weight:400;letter-spacing:.03em;margin:30px 0 10px}
+.sub{color:var(--mute);font-size:13.5px;margin:-4px 0 16px}
+
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:ui-sans-serif,system-ui,sans-serif;font-size:9.5px;letter-spacing:.17em;
+  text-transform:uppercase;color:var(--gold-lo);font-weight:600}
+td.num{text-align:right;font-family:"SF Mono",ui-monospace,Menlo,monospace;color:var(--gold-hi);white-space:nowrap}
+td.ok{color:var(--mint);font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;letter-spacing:.13em}
+td.bad{color:var(--rose);font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;letter-spacing:.13em}
+td.warn{color:var(--gold-hi);font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;letter-spacing:.13em}
+
+.card{background:linear-gradient(180deg,rgba(27,21,34,.92),rgba(20,16,25,.92));
+  border:1px solid var(--line);border-left:3px solid var(--gold-lo);border-radius:3px;
+  padding:16px 20px;margin:16px 0}
+.card.blood{border-left-color:var(--blood)}
+.card.em{border-left-color:var(--emerald)}
+.card.sa{border-left-color:var(--sapphire)}
+.card.am{border-left-color:var(--amethyst)}
+.card p:first-child{margin-top:0}.card p:last-child{margin-bottom:0}
+
+ul{padding-left:20px}li{margin:7px 0}
+code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12.5px;background:#100d16;
+  border:1px solid var(--line);border-radius:2px;padding:1px 5px;color:var(--gold-hi)}
+.lede{font-size:18px}
+
+/* ---- timeline ---- */
+.tl{position:relative;margin:26px 0 8px;padding-left:30px}
+.tl:before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:1px;
+  background:linear-gradient(180deg,transparent,var(--gold-lo) 12%,var(--gold-lo) 88%,transparent)}
+.tl .ev{position:relative;padding:0 0 22px 6px}
+.tl .ev:before{content:"";position:absolute;left:-26px;top:7px;width:9px;height:9px;border-radius:50%;
+  background:var(--ink);border:1.5px solid var(--gold)}
+.tl .ev.now:before{background:var(--gold);box-shadow:0 0 12px rgba(201,162,39,.8)}
+.tl .ev.red:before{border-color:var(--blood)}
+.tl .d{font-family:ui-sans-serif,system-ui,sans-serif;font-size:9.5px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--gold-lo)}
+.tl .t{color:var(--gold-hi);font-size:16px;margin:1px 0 2px}
+.tl .b{color:var(--mute);font-size:14px}
+
+/* ---- task lists ---- */
+ol.order{padding-left:0;list-style:none;counter-reset:step}
+ol.order>li{counter-increment:step;position:relative;padding:15px 0 15px 58px;border-bottom:1px solid var(--line)}
+ol.order>li:before{content:counter(step);position:absolute;left:0;top:15px;width:38px;text-align:center;
+  font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;color:var(--gold);
+  border:1px solid var(--gold-lo);border-radius:2px;padding:3px 0}
+ol.order.blood>li:before{color:var(--rose);border-color:var(--blood)}
+ol.order>li b{color:var(--gold-hi);font-weight:400;display:block;font-size:17px;margin-bottom:3px}
+ol.order>li .why{color:var(--mute);font-size:14px}
+.pill{display:inline-block;font-family:ui-sans-serif,system-ui,sans-serif;font-size:8.5px;
+  letter-spacing:.16em;text-transform:uppercase;padding:2px 7px;border-radius:2px;
+  border:1px solid var(--line);color:var(--mute);margin-left:8px;vertical-align:2px}
+.pill.hi{color:var(--rose);border-color:rgba(164,22,26,.55)}
+.pill.md{color:var(--gold-hi);border-color:rgba(201,162,39,.45)}
+.pill.lo{color:var(--mint);border-color:rgba(31,111,92,.5)}
+
+svg{display:block;max-width:100%;height:auto;margin:6px auto 0}
+.legend{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;margin-top:12px;
+  font-family:ui-sans-serif,system-ui,sans-serif;font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--mute)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+
+footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--line);text-align:center;
+  color:var(--mute);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">pallbearer · physically modelled bass · fifth of the estate</div>
+  <h1>THE PROCESSION</h1>
+  <div class="tag">Six carry the box. Four carry the song.</div>
+  <div class="stamp">22 August 2026 · core v0.3 · six days old</div>
+</header>
+
+<div class="verdict gold">✚ every gate green · in the repository · CI unblocked · no binary yet ✚</div>
+
+<div class="vitals">
+  <div class="vital"><b>13,335</b><span>Parity checks<br>bit-exact</span></div>
+  <div class="vital"><b>107,802</b><span>Total checks<br>per run</span></div>
+  <div class="vital"><b>37</b><span>Parameters</span></div>
+  <div class="vital"><b>8,403</b><span>Lines of<br>source</span></div>
+  <div class="vital"><b>0.088</b><span>Cents worst<br>tuning error</span></div>
+  <div class="vital alarm"><b>1</b><span>Known fault<br>open</span></div>
+</div>
+
+<section>
+  <h2>Where it stands</h2>
+  <p class="lede">PALLBEARER is six days old. In that time it went from an argument about
+  whether Trilian could be cloned to a 37-parameter physically modelled bass with a C++
+  twin that matches its JavaScript source bit-for-bit across 13,335 checks, a plugin that
+  compiles against real JUCE headers, and a place in the estate repository.</p>
+  <p>Two things it does not have. It has <b>never been built into a loadable plugin</b>,
+  because until this morning its CI died 27 seconds into every run. And it has one open
+  fault in the sound: String Coupling turns the instrument into a self-sustaining drone
+  above roughly a third of its range.</p>
+</section>
+
+<section>
+  <h2>The road so far</h2>
+  <div class="tl">
+    <div class="ev">
+      <div class="d">16 August · morning</div>
+      <div class="t">v0.1 — the founding decision</div>
+      <div class="b">Trilian is 34 GB and 21,000 samples of instruments nobody here owns.
+      MODO Bass reaches the same place from physics, which is what this estate already
+      ships. Waveguide, dispersion, pickup combs, body resonance, and the fingering brain.
+      27 parameters, 120 assertions, worst tuning error 0.089 cents.</div>
+    </div>
+    <div class="ev">
+      <div class="d">16 August · evening</div>
+      <div class="t">v0.2 — full estate member, same day</div>
+      <div class="b">The C++ twin, the parity gate, deterministic humanisation on a portable
+      xorshift, the attack-layer renderer that made all three paths audible, fret buzz,
+      three-mode body, articulations. 9,095 parity checks, 11 byte-stable baselines,
+      86,648 fuzz cases. Writing the C++ found a bug the JS harness had missed.</div>
+    </div>
+    <div class="ev">
+      <div class="d">17 August</div>
+      <div class="t">v0.3 — ten more solo items</div>
+      <div class="b">Sympathetic coupling through a bridge bus, hand momentum, pickup coil
+      resonance, the JUCE plugin body, the WAV sample loader that made hybrid and sampled
+      paths live in the browser, the CPU cost gate. 37 parameters, 188 assertions,
+      13,335 parity checks. Both translation units compiled clean, first try.</div>
+    </div>
+    <div class="ev red">
+      <div class="d">17–20 August</div>
+      <div class="t">The silent stall</div>
+      <div class="b">Zero files in version control. The workflow existed, the allowlist
+      admitted it, and the sources were never committed — so the macOS build job did not
+      fail, it was never asked. A stale <code>.git/index.lock</code> then froze the whole
+      estate for 29 hours, because the folder mount denies unlink.</div>
+    </div>
+    <div class="ev">
+      <div class="d">21 August</div>
+      <div class="t">Into the ground</div>
+      <div class="b">Committed at last, grouped by project, after every gate in four
+      projects was run green. THE VIEWING audit measured the coupling fault. You pushed.</div>
+    </div>
+    <div class="ev now">
+      <div class="d">22 August · today</div>
+      <div class="t">CI unblocked</div>
+      <div class="b">The LAW 1 guard had two faults: an architecture-blind control that
+      could never be false on x86-64, and a compile failure that read as success. Both
+      fixed and both proved. Both plugin translation units compile clean against pinned
+      JUCE 7.0.12 locally. The next run reaches the macOS job for the first time.</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Growth — what six days of building looks like</h2>
+  <p class="sub">Each panel has its own scale. Putting 188 assertions and 94,241 fuzz cases
+  on one axis would tell you nothing except that one number is bigger.</p>
+
+  <svg viewBox="0 0 1000 300" xmlns="http://www.w3.org/2000/svg" role="img"
+       aria-label="Four panels showing growth in assertions, parity checks, fuzz cases and total verification surface across v0.1, v0.2 and v0.3">
+    <defs>
+      <linearGradient id="gbar" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0%" stop-color="#8a6f1a"/><stop offset="100%" stop-color="#f0d67a"/>
+      </linearGradient>
+      <linearGradient id="gbar2" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0%" stop-color="#2b4a7d"/><stop offset="100%" stop-color="#7fa8dd"/>
+      </linearGradient>
+      <linearGradient id="gbar3" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0%" stop-color="#6b3f7a"/><stop offset="100%" stop-color="#b48ac9"/>
+      </linearGradient>
+      <linearGradient id="gbar4" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0%" stop-color="#1f6f5c"/><stop offset="100%" stop-color="#8fd0b8"/>
+      </linearGradient>
+    </defs>
+
+    <!-- PANEL 1: assertions — baseline y=230, tallest bar 200px tall (top y=30) -->
+    <g transform="translate(20,0)">
+      <text x="0" y="18" fill="#8a6f1a" font-family="ui-sans-serif,system-ui" font-size="10" letter-spacing="2.4">HARNESS ASSERTIONS</text>
+      <line x1="0" y1="230" x2="215" y2="230" stroke="#2a2233"/>
+      <rect x="20"  y="102" width="46" height="128" fill="url(#gbar)" opacity=".85"/>
+      <rect x="87"  y="60"  width="46" height="170" fill="url(#gbar)" opacity=".92"/>
+      <rect x="154" y="30"  width="46" height="200" fill="url(#gbar)"/>
+      <text x="43"  y="94"  fill="#f0d67a" font-size="15" text-anchor="middle" font-family="SF Mono,ui-monospace,Menlo">120</text>
+      <text x="110" y="52"  fill="#f0d67a" font-size="15" text-anchor="middle" font-family="SF Mono,ui-monospace,Menlo">160</text>
+      <text x="177" y="22"  fill="#f0d67a" font-size="15" text-anchor="middle" font-family="SF Mono,ui-monospace,Menlo">188</text>
+      <text x="43"  y="248" fill="#9a8f80" font-size="11" text-anchor="middle">v0.1</text>
+      <text x="110" y="248" fill="#9a8f80" font-size="11" text-anchor="middle">v0.2</text>
+      <text x="177" y="248" fill="#9a8f80" font-size="11" text-anchor="middle">v0.3</text>
+      <text x="107" y="276" fill="#9a8f80" font-size="11" text-anchor="middle" font-style="italic">+57% in two days</text>
+    </g>
+
+    <!-- PANEL 2: parity -->
+    <g transform="translate(275,0)">
+      <text x="0" y="18" fill="#8a6f1a" font-family="ui-sans-serif,system-ui" font-size="10" letter-spacing="2.4">PARITY CHECKS · JS vs C++</text>
+      <line x1="0" y1="230" x2="215" y2="230" stroke="#2a2233"/>
+      <rect x="20"  y="227" width="46" height="3"   fill="#2a2233"/>
+      <rect x="87"  y="94"  width="46" height="136" fill="url(#gbar2)" opacity=".9"/>
+      <rect x="154" y="30"  width="46" height="200" fill="url(#gbar2)"/>
+      <text x="43"  y="219" fill="#9a8f80" font-size="13" text-anchor="middle" font-family="SF Mono,ui-monospace,Menlo">0</text>
+      <text x="110" y="86"  fill="#7fa8dd" font-size="14" text-anchor="middle" font-family="SF Mono,ui-monospace,Menlo">9,095</text>
+      <text x="177" y="22"  fill="#7fa8dd" font-size="14" text-anchor="middle" font-family="SF Mono,ui-monospace,Menlo">13,335</text>
+      <text x="43"  y="248" fill="#9a8f80" font-size="11" text-anchor="middle">v0.1</text>
+      <text x="110" y="248" fill="#9a8f80" font-size="11" text-anchor="middle">v0.2</text>
+      <text x="177" y="248" fill="#9a8f80" font-size="11" text-anchor="middle">v0.3</text>
+      <text x="107" y="276" fill="#9a8f80" font-size="11" text-anchor="middle" font-style="italic">the twin arrives at v0.2</text>
+    </g>
+
+    <!-- PANEL 3: fuzz -->
+    <g transform="translate(530,0)">
+      <text x="0" y="18" fill="#8a6f1a" font-family="ui-sans-serif,system-ui" font-size="10" letter-spacing="2.4">HOSTILE FUZZ CASES</text>
+      <line x1="0" y1="230" x2="215" y2="230" stroke="#2a2233"/>
+      <rect x="20"  y="227" width="46" height="3"   fill="#2a2233"/>
+      <rect x="87"  y="46"  width="46" height="184" fill="url(#gbar3)" opacity=".9"/>
+      <rect x="154" y="30"  width="46" height="200" fill="url(#gbar3)"/>
+      <text x="43"  y="219" fill="#9a8f80" font-size="13" text-anchor="middle" font-family="SF Mono,ui-monospace,Menlo">0</text>
+      <text x="110" y="38"  fill="#b48ac9" font-size="13" text-anchor="middle" font-family="SF Mono,ui-monospace,Menlo">86,648</text>
+      <text x="177" y="22"  fill="#b48ac9" font-size="13" text-anchor="middle" font-family="SF Mono,ui-monospace,Menlo">94,241</text>
+      <text x="43"  y="248" fill="#9a8f80" font-size="11" text-anchor="middle">v0.1</text>
+      <text x="110" y="248" fill="#9a8f80" font-size="11" text-anchor="middle">v0.2</text>
+      <text x="177" y="248" fill="#9a8f80" font-size="11" text-anchor="middle">v0.3</text>
+      <text x="107" y="276" fill="#9a8f80" font-size="11" text-anchor="middle" font-style="italic">no NaN, no throw, no runaway</text>
+    </g>
+
+    <!-- PANEL 4: total surface -->
+    <g transform="translate(785,0)">
+      <text x="0" y="18" fill="#8a6f1a" font-family="ui-sans-serif,system-ui" font-size="10" letter-spacing="2.4">TOTAL CHECKS / RUN</text>
+      <line x1="0" y1="230" x2="195" y2="230" stroke="#2a2233"/>
+      <rect x="15"  y="227" width="42" height="3"   fill="#2a2233"/>
+      <rect x="76"  y="52"  width="42" height="178" fill="url(#gbar4)" opacity=".9"/>
+      <rect x="137" y="30"  width="42" height="200" fill="url(#gbar4)"/>
+      <text x="36"  y="219" fill="#9a8f80" font-size="12" text-anchor="middle" font-family="SF Mono,ui-monospace,Menlo">120</text>
+      <text x="97"  y="44"  fill="#8fd0b8" font-size="12.5" text-anchor="middle" font-family="SF Mono,ui-monospace,Menlo">95,903</text>
+      <text x="158" y="22"  fill="#8fd0b8" font-size="12.5" text-anchor="middle" font-family="SF Mono,ui-monospace,Menlo">107,802</text>
+      <text x="36"  y="248" fill="#9a8f80" font-size="11" text-anchor="middle">v0.1</text>
+      <text x="97"  y="248" fill="#9a8f80" font-size="11" text-anchor="middle">v0.2</text>
+      <text x="158" y="248" fill="#9a8f80" font-size="11" text-anchor="middle">v0.3</text>
+      <text x="97"  y="276" fill="#9a8f80" font-size="11" text-anchor="middle" font-style="italic">898× the first day</text>
+    </g>
+  </svg>
+
+  <table style="margin-top:26px">
+    <thead><tr><th>Measure</th><th style="text-align:right">v0.1</th><th style="text-align:right">v0.2</th><th style="text-align:right">v0.3 / today</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>Parameters</td><td class="num">27</td><td class="num">—</td><td class="num">37</td><td style="color:var(--mute);font-size:13px">v0.2's count was never recorded separately</td></tr>
+      <tr><td>Tunings</td><td class="num">6</td><td class="num">6</td><td class="num">6</td><td style="color:var(--mute);font-size:13px">4-, 5- and 6-string, plus drop-D, high-C and tenor</td></tr>
+      <tr><td>Playing styles × articulations</td><td class="num">5 × 1</td><td class="num">5 × 4</td><td class="num">5 × 5</td><td style="color:var(--mute);font-size:13px">dead-note added at v0.3</td></tr>
+      <tr><td>Byte-stable baselines</td><td class="num">0</td><td class="num">11</td><td class="num">11</td><td style="color:var(--mute);font-size:13px">hashes of rendered audio</td></tr>
+      <tr><td>Plugin-parameter checks</td><td class="num">0</td><td class="num">0</td><td class="num">38</td><td style="color:var(--mute);font-size:13px">incl. enum ORDER, which hosts store as an index</td></tr>
+      <tr><td>Worst tuning error, cents</td><td class="num">0.089</td><td class="num">0.085</td><td class="num">0.088</td><td style="color:var(--mute);font-size:13px">with coupling pinned off; see the open fault</td></tr>
+      <tr><td>Reference case vs realtime</td><td class="num">—</td><td class="num">—</td><td class="num">759×</td><td style="color:var(--mute);font-size:13px">heaviest six-string case still 193×</td></tr>
+      <tr><td>Source lines (js + h + cpp + sh)</td><td class="num">—</td><td class="num">—</td><td class="num">8,403</td><td style="color:var(--mute);font-size:13px">core is 1,181 of them; the twin 759</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Connectivity — inside the estate</h2>
+  <p class="sub">What PALLBEARER shares, what it deliberately refuses, and where its audio goes.</p>
+
+  <svg viewBox="0 0 1000 470" xmlns="http://www.w3.org/2000/svg" role="img"
+       aria-label="Diagram of the audio estate showing shared necromath feeding four projects, necrodynamics feeding three, and PALLBEARER rendering audio into The Underworld">
+    <defs>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#8a6f1a"/>
+      </marker>
+      <marker id="arG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#c9a227"/>
+      </marker>
+      <marker id="arR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#a4161a"/>
+      </marker>
+    </defs>
+
+    <!-- shared NM -->
+    <rect x="330" y="14" width="340" height="46" rx="3" fill="#1b1522" stroke="#c9a227" stroke-width="1.2"/>
+    <text x="500" y="34" fill="#f0d67a" font-size="14" text-anchor="middle" font-family="SF Mono,ui-monospace,Menlo">shared/necromath  ·  NM</text>
+    <text x="500" y="50" fill="#9a8f80" font-size="11" text-anchor="middle">the estate's arithmetic — one copy, embedded verbatim</text>
+
+    <!-- four projects -->
+    <g font-family="ui-sans-serif,system-ui" font-size="12.5">
+      <rect x="40"  y="150" width="160" height="62" rx="3" fill="#141019" stroke="#2a2233"/>
+      <text x="120" y="174" fill="#e8e1d4" text-anchor="middle" letter-spacing="1.5">AUTOPSY</text>
+      <text x="120" y="192" fill="#9a8f80" font-size="10.5" text-anchor="middle">EQ · 9,292 parity</text>
+
+      <rect x="220" y="150" width="160" height="62" rx="3" fill="#141019" stroke="#2a2233"/>
+      <text x="300" y="174" fill="#e8e1d4" text-anchor="middle" letter-spacing="1.5">RIGOR</text>
+      <text x="300" y="192" fill="#9a8f80" font-size="10.5" text-anchor="middle">compressor · 62,642</text>
+
+      <rect x="400" y="150" width="160" height="62" rx="3" fill="#141019" stroke="#2a2233"/>
+      <text x="480" y="174" fill="#e8e1d4" text-anchor="middle" letter-spacing="1.5">CASKET</text>
+      <text x="480" y="192" fill="#9a8f80" font-size="10.5" text-anchor="middle">limiter · 23,013</text>
+
+      <rect x="600" y="146" width="200" height="70" rx="3" fill="#1b1522" stroke="#c9a227" stroke-width="1.6"/>
+      <text x="700" y="172" fill="#f0d67a" text-anchor="middle" font-size="14" letter-spacing="2">PALLBEARER</text>
+      <text x="700" y="190" fill="#9a8f80" font-size="10.5" text-anchor="middle">bass instrument · 13,335</text>
+      <text x="700" y="205" fill="#8fd0b8" font-size="10" text-anchor="middle">the only one that MAKES sound</text>
+    </g>
+
+    <!-- NM edges -->
+    <path d="M 420 60 L 130 146" stroke="#8a6f1a" fill="none" marker-end="url(#ar)" opacity=".75"/>
+    <path d="M 465 60 L 300 146" stroke="#8a6f1a" fill="none" marker-end="url(#ar)" opacity=".75"/>
+    <path d="M 500 60 L 490 144" stroke="#8a6f1a" fill="none" marker-end="url(#ar)" opacity=".75"/>
+    <path d="M 590 60 L 690 142" stroke="#c9a227" fill="none" marker-end="url(#arG)" stroke-width="1.5"/>
+
+    <!-- ND -->
+    <rect x="150" y="272" width="330" height="44" rx="3" fill="#141019" stroke="#2b4a7d"/>
+    <text x="315" y="291" fill="#7fa8dd" font-size="13" text-anchor="middle" font-family="SF Mono,ui-monospace,Menlo">shared/necrodynamics · ND</text>
+    <text x="315" y="307" fill="#9a8f80" font-size="10.5" text-anchor="middle">envelopes, detectors, gain computers</text>
+    <path d="M 130 212 L 210 272" stroke="#2b4a7d" fill="none" marker-end="url(#ar)" opacity=".6"/>
+    <path d="M 300 212 L 305 272" stroke="#2b4a7d" fill="none" marker-end="url(#ar)" opacity=".6"/>
+    <path d="M 470 212 L 420 272" stroke="#2b4a7d" fill="none" marker-end="url(#ar)" opacity=".6"/>
+
+    <!-- deliberate refusal -->
+    <path d="M 640 216 L 500 272" stroke="#a4161a" fill="none" stroke-dasharray="5 5" opacity=".85"/>
+    <g transform="translate(570,244)">
+      <circle r="11" fill="#07060a" stroke="#a4161a" stroke-width="1.4"/>
+      <path d="M -5 -5 L 5 5 M 5 -5 L -5 5" stroke="#a4161a" stroke-width="1.6"/>
+    </g>
+    <text x="620" y="262" fill="#e8a0a2" font-size="10.5" font-family="ui-sans-serif,system-ui">refuses ND, on purpose</text>
+    <text x="620" y="276" fill="#9a8f80" font-size="10">an instrument that wants compression is handed to RIGOR</text>
+
+    <!-- underworld -->
+    <rect x="300" y="378" width="400" height="66" rx="3" fill="#1b1522" stroke="#6b3f7a" stroke-width="1.4"/>
+    <text x="500" y="402" fill="#b48ac9" font-size="14" text-anchor="middle" letter-spacing="2.4" font-family="ui-sans-serif,system-ui">THE UNDERWORLD</text>
+    <text x="500" y="420" fill="#9a8f80" font-size="10.5" text-anchor="middle">the mastering brain — drives AUTOPSY → RIGOR → CASKET</text>
+    <text x="500" y="435" fill="#9a8f80" font-size="10" text-anchor="middle">LAW 0 is one-way: preset and signal only, never the reverse</text>
+
+    <path d="M 700 216 C 760 300, 700 340, 620 378" stroke="#c9a227" fill="none" marker-end="url(#arG)" stroke-width="1.6"/>
+    <text x="740" y="300" fill="#f0d67a" font-size="10.5" font-family="ui-sans-serif,system-ui">48 kHz stereo WAV</text>
+    <text x="740" y="314" fill="#9a8f80" font-size="10">+ patch as a flat object</text>
+
+    <path d="M 315 316 L 420 378" stroke="#6b3f7a" fill="none" marker-end="url(#ar)" opacity=".6"/>
+
+    <!-- adjacent, not connected -->
+    <g font-family="ui-sans-serif,system-ui" font-size="11">
+      <rect x="830" y="272" width="150" height="52" rx="3" fill="#0f0c14" stroke="#2a2233" stroke-dasharray="3 3"/>
+      <text x="905" y="292" fill="#9a8f80" text-anchor="middle" letter-spacing="1.4">NECROPHONE</text>
+      <text x="905" y="308" fill="#6f665c" font-size="9.5" text-anchor="middle">Bone &amp; Sinew — superseded</text>
+
+      <rect x="830" y="336" width="150" height="52" rx="3" fill="#0f0c14" stroke="#2a2233" stroke-dasharray="3 3"/>
+      <text x="905" y="356" fill="#9a8f80" text-anchor="middle" letter-spacing="1.4">keepScore</text>
+      <text x="905" y="372" fill="#6f665c" font-size="9.5" text-anchor="middle">notation — no seam yet</text>
+
+      <rect x="830" y="400" width="150" height="52" rx="3" fill="#0f0c14" stroke="#2a2233" stroke-dasharray="3 3"/>
+      <text x="905" y="420" fill="#9a8f80" text-anchor="middle" letter-spacing="1.4">SEANCE</text>
+      <text x="905" y="436" fill="#6f665c" font-size="9.5" text-anchor="middle">not in any repository</text>
+    </g>
+  </svg>
+
+  <div class="legend">
+    <span><i style="background:#c9a227"></i>PALLBEARER's own edges</span>
+    <span><i style="background:#8a6f1a"></i>shared arithmetic</span>
+    <span><i style="background:#2b4a7d"></i>shared dynamics</span>
+    <span><i style="background:#a4161a"></i>deliberate refusal</span>
+    <span><i style="background:#2a2233;border:1px dashed #6f665c"></i>adjacent, unconnected</span>
+  </div>
+
+  <div class="card am">
+    <p><b>The refusal is the interesting edge.</b> Three of the four estate DSP projects
+    consume <code>shared/necrodynamics</code>. PALLBEARER does not, and that was a decision
+    rather than an omission: an instrument that grows its own compressor ends up with two
+    compressors in the chain and no way to reason about either. It renders, and hands the
+    result to the tools built to shape it.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Connectivity — the world outside</h2>
+  <p class="sub">Everything PALLBEARER already speaks to, everything it is about to, and the
+  two commercial instruments it was measured against.</p>
+
+  <svg viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg" role="img"
+       aria-label="Layered diagram of PALLBEARER's external connections: MIDI sources, JUCE framework, plugin formats, hosts, validation, CI and file interchange">
+    <defs>
+      <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#8a6f1a"/>
+      </marker>
+      <marker id="aoD" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#6f665c"/>
+      </marker>
+    </defs>
+
+    <!-- column headers -->
+    <g font-family="ui-sans-serif,system-ui" font-size="9.5" letter-spacing="2.2" fill="#8a6f1a">
+      <text x="90"  y="22" text-anchor="middle">GOES IN</text>
+      <text x="330" y="22" text-anchor="middle">THE INSTRUMENT</text>
+      <text x="600" y="22" text-anchor="middle">WRAPPED AS</text>
+      <text x="860" y="22" text-anchor="middle">PLAYED IN</text>
+    </g>
+
+    <!-- inputs -->
+    <g font-family="ui-sans-serif,system-ui" font-size="11.5">
+      <rect x="18" y="48" width="150" height="48" rx="3" fill="#141019" stroke="#2a2233"/>
+      <text x="93" y="68" fill="#e8e1d4" text-anchor="middle">MIDI note + velocity</text>
+      <text x="93" y="84" fill="#9a8f80" font-size="9.5" text-anchor="middle">sample-accurate, per block</text>
+
+      <rect x="18" y="108" width="150" height="48" rx="3" fill="#141019" stroke="#2a2233"/>
+      <text x="93" y="128" fill="#e8e1d4" text-anchor="middle">Yamaha P-155</text>
+      <text x="93" y="144" fill="#9a8f80" font-size="9.5" text-anchor="middle">your controller</text>
+
+      <rect x="18" y="168" width="150" height="48" rx="3" fill="#141019" stroke="#2a2233"/>
+      <text x="93" y="188" fill="#e8e1d4" text-anchor="middle">.wav attack layer</text>
+      <text x="93" y="204" fill="#9a8f80" font-size="9.5" text-anchor="middle">root pitch auto-detected</text>
+
+      <rect x="18" y="228" width="150" height="48" rx="3" fill="#0f0c14" stroke="#2a2233" stroke-dasharray="3 3"/>
+      <text x="93" y="248" fill="#9a8f80" text-anchor="middle">Host automation</text>
+      <text x="93" y="264" fill="#6f665c" font-size="9.5" text-anchor="middle">37 params, untested in a host</text>
+    </g>
+
+    <!-- the instrument -->
+    <rect x="212" y="60" width="236" height="216" rx="4" fill="#1b1522" stroke="#c9a227" stroke-width="1.6"/>
+    <text x="330" y="92" fill="#f0d67a" font-size="16" text-anchor="middle" letter-spacing="2.6" font-family="ui-sans-serif,system-ui">PALLBEARER</text>
+    <line x1="240" y1="106" x2="420" y2="106" stroke="#2a2233"/>
+    <g font-family="SF Mono,ui-monospace,Menlo" font-size="10.5" fill="#9a8f80">
+      <text x="330" y="128" text-anchor="middle">pallbearer_core.js — the truth</text>
+      <text x="330" y="148" text-anchor="middle">PallbearerCore.h — the twin</text>
+      <text x="330" y="168" text-anchor="middle" fill="#8fd0b8">13,335 checks say they agree</text>
+    </g>
+    <line x1="240" y1="186" x2="420" y2="186" stroke="#2a2233"/>
+    <g font-family="ui-sans-serif,system-ui" font-size="10.5" fill="#9a8f80">
+      <text x="330" y="206" text-anchor="middle">waveguide · dispersion · pickup combs</text>
+      <text x="330" y="222" text-anchor="middle">body · coupling · the fingering brain</text>
+      <text x="330" y="244" text-anchor="middle" fill="#f0d67a">0 megabytes of samples in the string</text>
+      <text x="330" y="262" text-anchor="middle" font-size="9.5">Trilian is 34 GB · MODO Bass is the lineage</text>
+    </g>
+
+    <!-- framework -->
+    <rect x="212" y="300" width="236" height="52" rx="3" fill="#141019" stroke="#2b4a7d"/>
+    <text x="330" y="322" fill="#7fa8dd" font-size="12.5" text-anchor="middle" font-family="ui-sans-serif,system-ui">JUCE 7.0.12 (pinned)</text>
+    <text x="330" y="339" fill="#9a8f80" font-size="9.5" text-anchor="middle">both TUs compile clean · JUCE 8 broke two siblings</text>
+    <path d="M 330 276 L 330 300" stroke="#2b4a7d" fill="none" marker-end="url(#ao)"/>
+
+    <!-- browser path -->
+    <rect x="212" y="380" width="236" height="52" rx="3" fill="#141019" stroke="#6b3f7a"/>
+    <text x="330" y="402" fill="#b48ac9" font-size="12.5" text-anchor="middle" font-family="ui-sans-serif,system-ui">Web Audio · AudioWorklet</text>
+    <text x="330" y="419" fill="#9a8f80" font-size="9.5" text-anchor="middle">pallbearer.html — playable today, no install</text>
+    <path d="M 300 276 C 260 330, 250 350, 280 380" stroke="#6b3f7a" fill="none" marker-end="url(#ao)" opacity=".8"/>
+
+    <!-- formats -->
+    <g font-family="ui-sans-serif,system-ui" font-size="11.5">
+      <rect x="510" y="82" width="180" height="56" rx="3" fill="#141019" stroke="#c9a227"/>
+      <text x="600" y="104" fill="#f0d67a" text-anchor="middle">Audio Unit — .component</text>
+      <text x="600" y="122" fill="#9a8f80" font-size="10" text-anchor="middle" font-family="SF Mono,ui-monospace,Menlo">aumu · Pbrr · Basy</text>
+
+      <rect x="510" y="152" width="180" height="56" rx="3" fill="#141019" stroke="#c9a227"/>
+      <text x="600" y="174" fill="#f0d67a" text-anchor="middle">VST3 — .vst3</text>
+      <text x="600" y="192" fill="#9a8f80" font-size="10" text-anchor="middle">cross-platform sibling</text>
+
+      <rect x="510" y="228" width="180" height="56" rx="3" fill="#0f0c14" stroke="#a4161a" stroke-dasharray="4 3"/>
+      <text x="600" y="250" fill="#e8a0a2" text-anchor="middle">auval</text>
+      <text x="600" y="268" fill="#9a8f80" font-size="9.5" text-anchor="middle">will exercise MIDI — untested surface</text>
+
+      <rect x="510" y="300" width="180" height="52" rx="3" fill="#141019" stroke="#2a2233"/>
+      <text x="600" y="321" fill="#e8e1d4" text-anchor="middle">GitHub Actions</text>
+      <text x="600" y="338" fill="#9a8f80" font-size="9.5" text-anchor="middle">x86 · arm64 · macos-14</text>
+
+      <rect x="510" y="380" width="180" height="52" rx="3" fill="#141019" stroke="#2a2233"/>
+      <text x="600" y="401" fill="#e8e1d4" text-anchor="middle">48 kHz WAV out</text>
+      <text x="600" y="418" fill="#9a8f80" font-size="9.5" text-anchor="middle">→ THE UNDERWORLD, → anywhere</text>
+    </g>
+
+    <path d="M 448 130 L 510 110" stroke="#8a6f1a" fill="none" marker-end="url(#ao)"/>
+    <path d="M 448 160 L 510 180" stroke="#8a6f1a" fill="none" marker-end="url(#ao)"/>
+    <path d="M 448 326 L 510 326" stroke="#8a6f1a" fill="none" marker-end="url(#ao)" opacity=".7"/>
+    <path d="M 448 406 L 510 406" stroke="#8a6f1a" fill="none" marker-end="url(#ao)" opacity=".7"/>
+    <path d="M 600 208 L 600 228" stroke="#a4161a" fill="none" marker-end="url(#ao)" opacity=".8"/>
+    <path d="M 168 72 L 212 100" stroke="#8a6f1a" fill="none" marker-end="url(#ao)"/>
+    <path d="M 168 132 L 212 140" stroke="#8a6f1a" fill="none" marker-end="url(#ao)"/>
+    <path d="M 168 192 L 212 186" stroke="#8a6f1a" fill="none" marker-end="url(#ao)"/>
+    <path d="M 168 252 L 212 230" stroke="#6f665c" fill="none" marker-end="url(#aoD)" stroke-dasharray="3 3"/>
+
+    <!-- hosts -->
+    <g font-family="ui-sans-serif,system-ui" font-size="11.5">
+      <rect x="760" y="82" width="180" height="56" rx="3" fill="#141019" stroke="#2a2233"/>
+      <text x="850" y="104" fill="#e8e1d4" text-anchor="middle">Logic Pro</text>
+      <text x="850" y="122" fill="#9a8f80" font-size="9.5" text-anchor="middle">your destination, in transition</text>
+
+      <rect x="760" y="152" width="180" height="56" rx="3" fill="#141019" stroke="#2a2233"/>
+      <text x="850" y="174" fill="#e8e1d4" text-anchor="middle">GarageBand</text>
+      <text x="850" y="192" fill="#9a8f80" font-size="9.5" text-anchor="middle">where the studio is today</text>
+
+      <rect x="760" y="228" width="180" height="56" rx="3" fill="#0f0c14" stroke="#2a2233" stroke-dasharray="3 3"/>
+      <text x="850" y="250" fill="#9a8f80" text-anchor="middle">Any AU / VST3 host</text>
+      <text x="850" y="268" fill="#6f665c" font-size="9.5" text-anchor="middle">Reaper, Live, Cubase, Studio One</text>
+
+      <rect x="760" y="330" width="180" height="102" rx="3" fill="#0f0c14" stroke="#2a2233"/>
+      <text x="850" y="352" fill="#9a8f80" text-anchor="middle" font-size="10" letter-spacing="2">MEASURED AGAINST</text>
+      <line x1="785" y1="362" x2="915" y2="362" stroke="#2a2233"/>
+      <text x="850" y="382" fill="#e8e1d4" font-size="11" text-anchor="middle">Spectrasonics Trilian</text>
+      <text x="850" y="396" fill="#6f665c" font-size="9" text-anchor="middle">34 GB · 21,000 samples · not clonable</text>
+      <text x="850" y="415" fill="#e8e1d4" font-size="11" text-anchor="middle">IK Multimedia MODO Bass</text>
+      <text x="850" y="429" fill="#6f665c" font-size="9" text-anchor="middle">physics, not recordings · the lineage</text>
+    </g>
+
+    <path d="M 690 110 L 760 110" stroke="#8a6f1a" fill="none" marker-end="url(#ao)"/>
+    <path d="M 690 130 L 760 174" stroke="#8a6f1a" fill="none" marker-end="url(#ao)" opacity=".7"/>
+    <path d="M 690 190 L 760 250" stroke="#6f665c" fill="none" marker-end="url(#aoD)" stroke-dasharray="3 3"/>
+
+    <text x="500" y="470" fill="#6f665c" font-size="10.5" text-anchor="middle" font-style="italic">Solid edges exist and have been exercised. Dashed edges are designed and untested.</text>
+  </svg>
+
+  <div class="card blood">
+    <p><b>The dashed red box is where the risk lives.</b> <code>auval</code> instantiates the
+    plugin, renders audio, ramps automation, and checks that it correctly refuses an illegal
+    buffer size. For PALLBEARER it will also exercise MIDI input, because you are the estate's
+    first <code>aumu</code> rather than an <code>aufx</code>. AUTOPSY, CASKET and RIGOR have all
+    passed through validation without a single note event between them. That surface has never
+    been tested in a host, only in a harness.</p>
+  </div>
+</section>
+
+<section>
+  <h2>The one open fault</h2>
+  <div class="card blood">
+    <p><b>String Coupling self-oscillates.</b> Above roughly 0.30 to 0.42 depending on how many
+    strings the tuning has, a single plucked note stops decaying, turns around, and climbs to
+    the soft clipper's ceiling where it sits at a flat +4.1 dB forever. That is not a loud
+    note; it is an oscillator held still by a saturator.</p>
+    <p>The cause is one missing divisor: the coupling bus is the raw <i>sum</i> of every other
+    string's bridge output, so loop gain scales with string count. Multiply each measured
+    threshold by (N − 1) and the three numbers collapse to 1.26, 1.36 and 1.35. Normalising by
+    the number of contributing strings should move the threshold to about 1.3 for every tuning,
+    which is outside the control's own range, and would make the parameter mean the same thing
+    on a four-string as on a six.</p>
+    <p style="color:var(--mute)">Nothing caught it because <b>peak-bounded is not stable</b>. A
+    drone pinned at the ceiling has no NaN, never throws, and never exceeds 1.6, so it is the
+    best-behaved signal in the fuzz corpus. Full working in <code>THE_VIEWING.html</code>.</p>
+  </div>
+</section>
+
+<section>
+  <h2>The next five things — yours, not mine</h2>
+  <p class="sub">These need your machine, your ears, your money or your judgement. I cannot do
+  any of them from here.</p>
+  <ol class="order blood">
+    <li><b>Push, and watch the run reach macOS<span class="pill hi">15 min</span></b>
+      <div class="why"><code>cd ~/Desktop/CLAUDE &amp;&amp; git push origin main</code>. The LAW 1 fix is
+      committed and waiting. This is the first run that can reach <code>plugin-macos</code>, and
+      whichever way it goes it is the most informative fifteen minutes available to this project.
+      If it fails, save the full log before GitHub truncates it.</div></li>
+    <li><b>Install the artifact and run <code>auval</code><span class="pill hi">20 min</span></b>
+      <div class="why">Download <code>pallbearer-plugins-macos</code>, and remember Safari may
+      auto-unzip it to the Desktop rather than Downloads. Then the step that actually matters:
+      <code>xattr -dr com.apple.quarantine</code> on both bundles. Right-click-Open is for apps
+      and will not substitute. Then <code>auval -v aumu Pbrr Basy</code>. You want
+      <b>AU VALIDATION SUCCEEDED</b> on the last line.</div></li>
+    <li><b>Play it from the P-155 in Logic and tell me what is wrong with it<span class="pill md">an hour</span></b>
+      <div class="why">Every number in this report is a measurement. Not one of them is a
+      judgement about whether it sounds like a bass. You are the only one who can say whether
+      the attack is right, whether the fingering brain picks the string a player would, and
+      whether the slap style is embarrassing. That report is worth more to me than any gate.</div></li>
+    <li><b>Decide the Apple Developer ID question<span class="pill md">money, not code</span></b>
+      <div class="why">These builds are runner-signed, not notarised. They install on your
+      machine after the <code>xattr</code> dance; a stranger's machine would refuse them. That
+      gates any distribution at all, free or paid, and it is $99/year plus paperwork rather than
+      anything I can write. It is worth settling before the licensing question, because the
+      answer changes what licensing even means.</div></li>
+    <li><b>Say what String Coupling is <i>for</i><span class="pill lo">five minutes</span></b>
+      <div class="why">I know how to make it stable. I do not know what you want it to do at
+      100%. Should the top of the dial be "a lot of sympathetic ring," or should it be the
+      unhinged drone it currently is, kept deliberately and relabelled? Both are defensible.
+      The fix is different depending on the answer, so tell me before I pick.</div></li>
+  </ol>
+</section>
+
+<section>
+  <h2>The next ten things — mine, no input needed</h2>
+  <p class="sub">Ordered by what I would do first. Everything here is inside
+  <code>PALLBEARER/</code> and provable by a gate before you ever see it.</p>
+  <ol class="order">
+    <li><b>Normalise the coupling injection and kill the oscillator</b>
+      <div class="why">Divide by the number of contributing strings. JS first, mirror to
+      <code>PallbearerCore.h</code>, re-emit parity, then re-bless the eleven baselines
+      deliberately and say so in the commit, because they should all move and a silent
+      re-blessing is how a project loses its own history.</div></li>
+    <li><b>Build the stability gate that would have caught it</b>
+      <div class="why">Pluck once, sweep <code>couple</code> across its range against every
+      tuning, assert the last window is quieter than the window at one second. Fifteen lines.
+      It is the only item on this list that prevents the fault class rather than the fault, and
+      the same assertion is missing from RIGOR and NECROPHONE.</div></li>
+    <li><b>Harden the MIDI surface before <code>auval</code> gets to it</b>
+      <div class="why">The one place I expect the validator to bite. All-notes-off, sustain
+      pedal, pitch bend, overlapping note-ons on one string, note-off for a note never started,
+      and a note-on at the very last sample of a block. Every one of those is a harness test I
+      can write and gate without a host.</div></li>
+    <li><b>Pin <code>couple: 0</code> in the tuning test and gate the value, not the limit</b>
+      <div class="why">Restores the honest 0.088 cents, and replaces "under 2 cents" with
+      "within a hair of the recorded figure" so the next 115% drift is loud instead of silent.</div></li>
+    <li><b>Stereo out</b>
+      <div class="why">Both channels are currently identical. A bass with two pickups at
+      different positions along the string has an obvious and physically motivated answer, and
+      it costs nothing at the sample level.</div></li>
+    <li><b>Oversample the drive stage</b>
+      <div class="why">It aliases at high settings. The Interchange warns that oversampler taps
+      are the first thing the compiler wants to fuse, so this one arrives with a parity re-run
+      at all three optimisation levels rather than a claim.</div></li>
+    <li><b>Make the attack layer survive a session save</b>
+      <div class="why">State carries a version stamp but not the audio, so a hybrid or sampled
+      patch reloads silent. A file path would break the moment the file moved, which is worse,
+      so the audio goes in the state itself.</div></li>
+    <li><b>Extract a real patch library</b>
+      <div class="why">Nine presets currently live as a literal inside the HTML, which means the
+      plugin cannot see them. Same data, one file, both faces, and a gate that every preset
+      loads and renders without clipping.</div></li>
+    <li><b>Correct the three stale claims and regenerate THE CARRY</b>
+      <div class="why">The README says 0.085 cents where the harness prints 0.184, and says
+      coupling costs 2.6× where the gate's own baseline says 4.27×. The second figure has
+      already escaped into the project notes, which is how a wrong number becomes a fact.</div></li>
+    <li><b>Draft the bespoke editor</b>
+      <div class="why">Last deliberately. Generic sliders plus a neck diagram is the honest
+      placeholder, and writing a rich JUCE editor is the one item on this list a compiler-less
+      session can spend itself on for nothing. Once a binary exists, that changes.</div></li>
+  </ol>
+</section>
+
+<footer>
+  THE PROCESSION · PALLBEARER v0.3 · 22 August 2026<br>
+  <i>Six carry the box. Four carry the song. None of them has been outside yet.</i>
+</footer>
+
+</div>
+</body>
+</html>
