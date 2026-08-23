@@ -74,8 +74,8 @@
           "measured": "2026-08-16"
         },
         "casket_plugin_test": {
-          "value": 77,
-          "measured": "2026-08-19"
+          "value": 92,
+          "measured": "2026-08-23"
         },
         "casket_host": {
           "value": 24,
@@ -96,9 +96,9 @@
       },
       "parity": 23013,
       "baselines": 16,
-      "assertions": 634,
+      "assertions": 649,
       "harnessCount": 12,
-      "measured": "2026-08-19"
+      "measured": "2026-08-23"
     },
     "pallbearer": {
       "harnesses": {
@@ -124,7 +124,7 @@
   },
   "estate": {
     "parity": 108282,
-    "assertions": 1484,
+    "assertions": 1499,
     "baselines": 67
   }
 }
