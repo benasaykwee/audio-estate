@@ -1337,12 +1337,28 @@ var CASKET = (function (NM, ND) {
     var inv = 1 / grid;
     var targetC = canon9(targetLufs);
 
-    function lufsAt(d) {
+    /* ONE RENDER PATH. Mirrors the C++ twin, changed 2026-08-23.
+       This returned only `integrated`, and the verification pass at the end
+       of the function was a SEPARATE inlined copy of these four lines. In
+       JavaScript that duplicate is harmless, because nothing here reorders
+       or elides a call. In the C++ twin at -O3 on x86-64 it returned the
+       PREVIOUS render's meters, so autoDrive reported the LUFS of whatever
+       midpoint it happened to probe last while correctly reporting the
+       drive it had chosen. Three handoffs recorded that `drive` never
+       mismatches while lufs, truePeak and error always do, and filed it as
+       a curiosity; it was the whole answer.
+
+       Mirrored here even though JS cannot exhibit the fault, because this
+       file is the TRUTH the twin is measured against, and leaving the
+       reference implementation carrying the shape that broke its twin is
+       how somebody ports the bug into a third language later. */
+    function renderAt(d) {
       var s = sanitizeState(state);
       s.drive = d;
       s.unity = false;              // unity would defeat the measurement
-      return renderOffline(s, inL, inR, fs).meters.integrated;
+      return renderOffline(s, inL, inR, fs).meters;
     }
+    function lufsAt(d) { return renderAt(d).integrated; }
     function consider(d, got) {
       if (!isFinite(got)) return;
       if (best === null || Math.abs(canon9(got) - targetC) < Math.abs(canon9(best.lufs) - targetC)) {
@@ -1375,10 +1391,7 @@ var CASKET = (function (NM, ND) {
     var drive = clamp(quantize(best.drive, grid), -12, 24);
     /* THE VERIFICATION PASS. Everything returned below comes from this
        render and no other. */
-    var vs = sanitizeState(state);
-    vs.drive = drive;
-    vs.unity = false;
-    var v = renderOffline(vs, inL, inR, fs).meters;
+    var v = renderAt(drive);
     var err = isFinite(v.integrated) ? v.integrated - targetLufs : Infinity;
     return {
       drive: drive,                 // already on the grid; callers must not re-round

@@ -1294,15 +1294,47 @@ inline DriveResult autoDrive(const State& state, const double* inL, const double
     double inv = 1.0 / grid;
     double targetC = canon9(targetLufs);
 
-    struct LufsAt {
+    /* ONE RENDER PATH, and the whole bug lived in there being two.
+       ------------------------------------------------------------------
+       Until 2026-08-23 this functor returned only `integrated`, and the
+       VERIFICATION render at the end of the function was a separate,
+       inlined copy of these same four lines. At -O3 on x86-64 that copy
+       returned the PREVIOUS render's meters instead of running, so
+       autoDrive reported the LUFS of the last midpoint it happened to
+       probe while correctly reporting the drive it had chosen.
+
+       Traced from inside the failing call in CASKET #23, five calls, four
+       different pass counts, the same result every time:
+
+         search done: bestDrive=-12 bestLufs=-10.610348533556301
+         quantize(-12, 0.1) = -12  ->  clamped drive = -12
+         verification render at drive=-12 -> lufs=-8.3603485335562979
+                                                  ^ lufsAt(-9.75)'s answer
+
+       That is also why three handoffs recorded that `drive` never
+       mismatches while `lufs`, `truePeak` and `error` always do, and
+       treated it as a curiosity. drive comes from the search, which was
+       always right. The other three came from the stale render.
+
+       THE FUNCTOR ITSELF WAS NEVER AFFECTED. It is called six times per
+       search with six different arguments and returns six different
+       correct values, which is exactly the evidence that routing the
+       verification through it is safe rather than hopeful. And autoMargin
+       next door, which has always used ONE render path for both its probe
+       and its result, has never shown this fault.
+
+       So it now returns full Meters and everything goes through it. The
+       fix is a deletion. */
+    struct RenderAt {
         const State& state; const double* inL; const double* inR; int n; double fs;
-        double operator()(double d) const {
+        Meters operator()(double d) const {
             State s = sanitize(state);
             s.drive = d;
             s.unity = false;
-            return renderOffline(s, inL, inR, n, fs).meters.integrated;
+            return renderOffline(s, inL, inR, n, fs).meters;
         }
-    } lufsAt{state, inL, inR, n, fs};
+    } renderAt{state, inL, inR, n, fs};
+    auto lufsAt = [&](double d) { return renderAt(d).integrated; };
 
     auto consider = [&](double d, double got) {
         if (!std::isfinite(got)) return;
@@ -1345,10 +1377,10 @@ inline DriveResult autoDrive(const State& state, const double* inL, const double
     double drive = nd::clamp(quantize(bestDrive, grid), -12.0, 24.0);
     CK_AD_TRACE("    quantize(%.17g, %.17g) = %.17g  -> clamped drive = %.17g\n",
                 bestDrive, grid, quantize(bestDrive, grid), drive);
-    State vs = sanitize(state);
-    vs.drive = drive;
-    vs.unity = false;
-    Meters v = renderOffline(vs, inL, inR, n, fs).meters;
+    /* THE VERIFICATION PASS, through the SAME render path the search uses.
+       This was four inlined lines duplicating RenderAt above, and that
+       duplicate is what returned stale meters at -O3 on x86-64. */
+    Meters v = renderAt(drive);
     CK_AD_TRACE("    verification render at drive=%.17g -> lufs=%.17g truePeak=%.17g\n",
                 drive, v.integrated, v.truePeakDb);
     double err = std::isfinite(v.integrated)
