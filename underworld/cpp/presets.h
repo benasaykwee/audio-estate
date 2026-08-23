@@ -44,7 +44,13 @@ inline void describe(const std::string& t, MasteringSettings& s) {
   if (has("boomy") || has("bass")) s.eqLow += 3;
   if (has("scoop")) { s.eqLowMid -= 2; s.eqHighMid += 2; }
   if (has("present") || has("clear")) s.eqHighMid += 2;
-  if (s.compAmount < 0) s.compAmount = 0; if (s.compAmount > 1) s.compAmount = 1;
+  // Two clamps, both unconditional. They were on one line, which made the
+  // second read as if the first `if` guarded it and earned a
+  // -Wmisleading-indentation warning on every translation unit that includes
+  // this header. The behaviour was already correct; the shape was the kind
+  // that hides a real bug later.
+  if (s.compAmount < 0) s.compAmount = 0;
+  if (s.compAmount > 1) s.compAmount = 1;
   if (s.width < 0) s.width = 0;
 }
 
