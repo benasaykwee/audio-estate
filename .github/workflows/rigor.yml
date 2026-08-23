@@ -135,6 +135,86 @@ jobs:
       # `path:` is an input to a `uses:` action, so working-directory does NOT
       # apply — these must be spelled from the repo root or the upload finds
       # nothing and only warns.
+      # ---- SIGN AND NOTARIZE, added 2026-08-23 ----------------------------
+      # Runs ONLY when the six MACOS_* secrets exist, and skips with a clear
+      # message otherwise, so this workflow stays green today and starts
+      # producing installable bundles the moment Ben enrols. It is the only
+      # step in the estate that needs his Apple account.
+      #
+      # WHY THIS MATTERS MORE THAN IT SOUNDS. Without a Developer ID these
+      # plugins fail SILENTLY on anyone else's Mac. No dialog, no warning,
+      # the plugin simply never appears, and the person concludes it is
+      # broken rather than unsigned. Right-click Open does not substitute:
+      # that trick is for apps, and a plugin has no icon anyone opens.
+      #
+      # PROVENANCE. Not written from scratch. This block already existed,
+      # fully formed, in .github/workflows/build.yml, NECROPHONE's workflow,
+      # which is not tracked by this repo and which nobody had read. The
+      # standing handoff recorded this work as "NOT yet built" while it sat
+      # finished in an untracked file. Ported here rather than reinvented.
+      #
+      # CORRECTION TO THE HANDOFF: it calls this "a two-secret change". It is
+      # SIX, and the list is below. Cheap either way, but a person planning
+      # an evening around it should know.
+      #
+      # WHAT IS AND IS NOT VERIFIED. The SKIP path is tested: with no secrets
+      # set the step prints and exits 0, which is the behaviour that has to
+      # hold today. The SIGNING path cannot be tested from here at all, since
+      # it needs a macOS runner and a real certificate. It is faithful to the
+      # NECROPHONE original rather than improved, deliberately.
+      #
+      # ONE KNOWN WART, carried over rather than silently changed: `--deep`
+      # is discouraged by Apple for distribution signing, which prefers
+      # nested code signed individually. It is very likely fine for a JUCE
+      # bundle. Flagged so the first real signing run knows where to look if
+      # notarization is rejected.
+      - name: Sign and notarize (only when the secrets exist)
+        if: runner.os == 'macOS'
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          DEV_ID: ${{ secrets.MACOS_DEV_ID }}
+          NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
+          NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
+        shell: bash
+        run: |
+          set -e
+          if [ -z "$CERT_P12" ] || [ -z "$DEV_ID" ]; then
+            echo "No macOS signing secrets set, so skipping signing."
+            echo "Expected until the six MACOS_* repo secrets exist:"
+            echo "  MACOS_CERT_P12           base64 of the Developer ID .p12"
+            echo "  MACOS_CERT_PASSWORD      the .p12 password"
+            echo "  MACOS_DEV_ID             e.g. Developer ID Application: NAME (TEAMID)"
+            echo "  MACOS_NOTARY_APPLE_ID    the Apple ID that owns the account"
+            echo "  MACOS_NOTARY_TEAM_ID     the team identifier"
+            echo "  MACOS_NOTARY_PASSWORD    an app-specific password, not the account one"
+            echo "The unsigned bundle above is fine on the machine that built it."
+            exit 0
+          fi
+          KPW=$(uuidgen)
+          security create-keychain -p "$KPW" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KPW" build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          echo "$CERT_P12" | base64 --decode > cert.p12
+          security import cert.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KPW" build.keychain
+          rm -f cert.p12
+          find build \( -name '*.vst3' -o -name '*.component' \) -print | while read -r b; do
+            echo "signing $b"
+            codesign --force --deep --options runtime --timestamp --sign "$DEV_ID" "$b"
+          done
+          find build \( -name '*.vst3' -o -name '*.component' \) -print | while read -r b; do
+            echo "notarizing $b"
+            ditto -c -k --keepParent "$b" "$b.zip"
+            xcrun notarytool submit "$b.zip" --apple-id "$NOTARY_APPLE_ID" \
+              --team-id "$NOTARY_TEAM_ID" --password "$NOTARY_PASSWORD" --wait
+            xcrun stapler staple "$b"
+            rm -f "$b.zip"
+          done
+          echo "signed and notarized. These bundles install with no Gatekeeper warning."
+
       - name: Upload plugin artefacts
         uses: actions/upload-artifact@v5
         with:
