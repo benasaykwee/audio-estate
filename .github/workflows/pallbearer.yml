@@ -40,6 +40,27 @@ jobs:
       - name: Core harness
         run: node pallbearer_test.js
 
+      # ADDED 2026-08-23. A gate audit found PALLBEARER was the only
+      # instrument with no test for its tests: AUTOPSY has an audit harness,
+      # RIGOR has an audit and a mutation tester, CASKET has three, and
+      # PALLBEARER had none while carrying the largest parity count in the
+      # estate. Green said something about the engine and nothing about the
+      # harness.
+      #
+      # It earned its place the day it was written. Ten hand-written
+      # mutations, THREE survived every harness on the project, and the
+      # assertions that now kill them are section XXIII of the core harness.
+      # A short-decay boundary, the open-string preference in the fingering
+      # brain, and an inclusive fret bound: none of them were covered by the
+      # named assertions, the byte-stable baselines OR the fuzzer.
+      #
+      # It runs the full sweep because a partial one is how a mutant quietly
+      # stops being checked. Generous timeout: each mutant runs the witness
+      # in a child process, and a mutant that HANGS is itself a finding.
+      - name: Mutation tester (a test for the tests)
+        run: node tests/pallbearer_mutate.js
+        timeout-minutes: 30
+
       - name: Plugin parameter parity (no compiler needed)
         run: node tests/pallbearer_plugin_test.js
 

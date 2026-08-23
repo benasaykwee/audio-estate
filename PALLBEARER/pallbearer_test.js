@@ -1041,6 +1041,70 @@ ok('LAW 4 — nm-src precedes core-src by byte position',
    htmlSrc.indexOf('id="nm-src"') < htmlSrc.indexOf('id="core-src"'));
 
 // -------------------------------------------------------------------
+S('XXIII · the three holes the mutation tester found');
+// -------------------------------------------------------------------
+/* ADDED 2026-08-23. Every assertion below exists because a deliberate break
+   of the core slipped past this entire suite, the byte-stable baselines AND
+   the fuzzer. They were found the first day `tests/pallbearer_mutate.js`
+   existed, which is the argument for having written it.
+
+   Each one names the mutant it kills. If one of these is ever deleted, the
+   corresponding mutant goes green again and this file quietly gets smaller
+   than it looks. */
+
+/* Kills mutant 2, "the short-decay floor halves".
+   loopGainFor floors `trips` at 1 so a very short decay on a very low
+   string cannot ask the waveguide for a gain it will not survive. Nothing
+   tested the floor, only the comfortable middle, and a boundary is where
+   every bug in this estate has lived so far. */
+(function () {
+  var sr = 48000;
+  var g = PB.loopGainFor(31, 0.01, sr);          // 0.31 trips: deep under the floor
+  ok('loop gain stays under unity at the short-decay boundary', g < 1,
+     'f0 31 Hz, decay 10 ms → gain ' + g.toFixed(6));
+  /* The floor's actual value, asserted directly. Below one trip the answer
+     must not keep falling, or the gain collapses toward zero and a short
+     decay on a low string stops sounding at all. */
+  var atFloor = PB.loopGainFor(100, 0.01, sr);   // 1.0 trips exactly
+  var under = PB.loopGainFor(50, 0.01, sr);      // 0.5 trips, clamped to 1
+  ok('the floor clamps at one round trip, not below', near(under, atFloor, 1e-12),
+     'under ' + under.toFixed(9) + ' vs at-floor ' + atFloor.toFixed(9));
+})();
+
+/* Kills mutant 5, "open strings lose their free pass".
+   An open string costs nothing to reach, so the fingering brain gives fret
+   0 a zero movement cost. Remove that and it starts fretting notes a
+   bassist would always play open — the chosen string changes while every
+   individual sample still looks fine, which is the hardest class of bug to
+   hear and the easiest to assert. */
+(function () {
+  var open = [28, 33, 38, 43];                   // E A D G, standard bass
+  var far = PB.chooseString(33, open, 24, 12, null, 0);
+  ok('an open string wins even with the hand far up the neck',
+     far && far.fret === 0,
+     'note A1 with hand at fret 12 → string ' + (far && far.string) +
+     ' fret ' + (far && far.fret));
+})();
+
+/* Kills mutant 8, "the top fret falls off the neck".
+   fretPositions uses an INCLUSIVE upper bound. Off by one and the highest
+   fret on every string silently disappears, so the top of the instrument's
+   range either migrates to another string or stops sounding. The range was
+   asserted in its middle and never at its edge. */
+(function () {
+  var open = [28, 33, 38, 43];
+  var frets = 24;
+  var top = PB.fretPositions(open[0] + frets, open, frets);
+  ok('the top fret is reachable — the bound is inclusive',
+     top.some(function (c) { return c.string === 0 && c.fret === frets; }),
+     'note ' + (open[0] + frets) + ' on a ' + frets + '-fret neck → ' +
+     top.length + ' position(s)');
+  var past = PB.fretPositions(open[0] + frets + 1, open, frets);
+  ok('one fret past the end is NOT reachable (the control)',
+     !past.some(function (c) { return c.string === 0; }));
+})();
+
+// -------------------------------------------------------------------
 console.log('\n' + '═'.repeat(64));
 console.log('  PALLBEARER v' + PB.VERSION + ' — ' + pass + ' passed, ' + fail + ' failed');
 console.log('  worst tuning error across the range: ' + worstCents.toFixed(3) + ' cents');

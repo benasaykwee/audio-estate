@@ -103,8 +103,8 @@
     "pallbearer": {
       "harnesses": {
         "pallbearer_test": {
-          "value": 188,
-          "measured": "2026-08-17"
+          "value": 193,
+          "measured": "2026-08-23"
         },
         "pallbearer_plugin_test": {
           "value": 38,
@@ -117,14 +117,14 @@
       },
       "parity": 13335,
       "baselines": 11,
-      "assertions": 251,
+      "assertions": 256,
       "harnessCount": 3,
-      "measured": "2026-08-17"
+      "measured": "2026-08-23"
     }
   },
   "estate": {
     "parity": 108282,
-    "assertions": 1479,
+    "assertions": 1484,
     "baselines": 67
   }
 }
