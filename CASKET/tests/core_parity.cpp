@@ -403,6 +403,72 @@ int main() {
                       check(ar.reached ? 1.0 : 0.0, EXP_OFFLINE[n++], w);
                   } }
 
+                /* ---- RAIL-PROBE FORENSICS, added 2026-08-22 -----------------
+                   Prints. Never checks, so it cannot turn this gate red.
+
+                   WHY IT IS HERE AND NOT IN autodrive_probe.cpp: the fault is
+                   translation-unit dependent. autodrive_probe.cpp gets the RIGHT
+                   answer at -O3 on the same runner and commit, so an instrument
+                   living there measures the healthy case. This has to run inside
+                   the sick TU, after the same 575 KB of parity_expected.h and the
+                   same thousands of checks, or it is measuring something else.
+
+                   WHAT THE CI LOG ALREADY ESTABLISHES, as arithmetic on the
+                   printed numbers rather than a theory about the compiler:
+
+                     * Every large mismatch is EXACTLY +2.25. Not approximately.
+                       Nine of nine, across [noise][pine], [noise][lead] and
+                       [sine][pine], and across the plain call and rail[-40].
+                     * autoDrive searches [lo=-12, hi=24] with iters=4, so its
+                       four midpoints are 6, -3, -7.5 and -9.75. The floor rail is
+                       -12 and -9.75 - (-12) = 2.25 exactly.
+                     * Every failing case is one whose HONEST ANSWER IS THE FLOOR
+                       RAIL: target -14 (unreachably quiet for this material, which
+                       still reads -10.61 at drive -12) and rail[-40]. Every
+                       rail[6] case, whose honest answer is the CEILING rail,
+                       passes but for deltas of 5e-13 to 3e-11 — at or under the
+                       measured -O3 noise floor of ~1e-11, so those are a
+                       tolerance question and not this bug at all. The old handoff
+                       read them as one fault; they are two.
+                     * LUFS moves 1:1 with drive here because this material is
+                       nowhere near the lid at these drives, which is why the LUFS
+                       delta is also exactly 2.25.
+
+                   REPRODUCED IN THE JS TWIN. Suppress the single line
+                   `consider(lo, lufsAt(lo))` and nothing else, and autoDrive
+                   returns -9.75 instead of -12 with both drive and LUFS exactly
+                   +2.25. That is the whole signature from one deleted line.
+
+                   THE HYPOTHESIS THIS TESTS: at -O3 in this TU, the LOW rail
+                   probe's result never reaches `best`, so the search falls back
+                   to its last midpoint. The ceiling probe evidently survives,
+                   since rail[6] is fine.
+
+                   HOW TO READ THE OUTPUT. This calls the REAL autoDrive, not a
+                   copy, at iters 1 through 4. A copy could be optimised
+                   differently and would prove nothing.
+
+                     healthy : -12  -12  -12  -12     (the rail wins every time)
+                     sick    :   6   -3  -7.5  -9.75  (always the last midpoint)
+
+                   Those two are impossible to confuse, and one push settles it
+                   instead of the multi-run TU bisect step 2 of the handoff plan
+                   asks for. If it prints the sick sequence, the search is fine and
+                   the question narrows to why one call's result is discarded. If
+                   it prints -12 four times while the checks above still fail, the
+                   hypothesis is wrong and the ASan route is next. */
+                if (mi == 0 && si == 0) {
+                    std::printf("# rail-probe forensics (prints only) — %s/%s, target -14\n",
+                                MATN[mi], STYN[si]);
+                    std::printf("#   healthy expects -12 -12 -12 -12 ; sick expects 6 -3 -7.5 -9.75\n");
+                    std::printf("#   iters:");
+                    for (int it = 1; it <= 4; it++) {
+                        DriveResult f = autoDrive(st, A, B, N, 48000, -14, it, 0.1);
+                        std::printf("  %d -> %.6g", it, f.drive);
+                    }
+                    std::printf("\n");
+                }
+
                 MarginResult am = autoMargin(st, A, B, N, 48000, 3);
                 std::snprintf(w, sizeof(w), "autoMargin[%s][%s]", MATN[mi], STYN[si]);
                 check(am.truePeak,     EXP_OFFLINE[n++], w);
