@@ -17,6 +17,48 @@
 #include "../../../shared/necromath.h"
 #include "../../../shared/necrodyn.h"
 
+/* ---- AUTODRIVE TRACE HOOK, added 2026-08-23 ---------------------------------
+   OFF BY DEFAULT AND COSTS NOTHING. Undefined, CK_AD_TRACE expands to `((void)0)`,
+   so every shipping build, every plugin build and the parity gate's own normal
+   build stay BYTE-IDENTICAL to what they were before this existed. Nothing here
+   reaches a DAW.
+
+   WHY IT EXISTS. On 2026-08-23, CASKET #22 disproved the standing hypothesis in
+   the most useful way available. At -O3, in the parity gate's own translation
+   unit, autoDrive returned the WRONG answer to a check and the RIGHT answer to
+   the forensics probe a few calls later, with identical arguments:
+
+     line 22  MISMATCH autoDrive[noise][pine]: got -8.3603485 expected -10.6103485
+     line 31  #   iters:  1 -> -12  2 -> -12  3 -> -12  4 -> -12     (healthy)
+
+   So the fault is not a code path compiled wrong. Asked directly, the same
+   compiled function gets it right. It is CALL dependent, not translation-unit
+   dependent, which is a different bug from the one three handoffs have described.
+
+   WHAT THIS SEPARATES. Two explanations remain and no evidence yet divides them:
+   the search inside the failing call reached a wrong `best`, or the search was
+   right and the answer was corrupted between `best` and the caller. Watching from
+   outside cannot tell those apart. This watches from inside.
+
+   HOW IT IS MEANT TO BE USED, and the caution that matters. Build core_parity.cpp
+   a SECOND time with -DCASKET_TRACE_AUTODRIVE, as a diagnostic step. Do NOT turn
+   it on in the gate itself: printf in the hot path changes inlining, register
+   pressure and stack layout, and this bug is already behaving like something
+   sensitive to exactly those. Leaving the gate untouched keeps the failure
+   reproducible while the trace build asks its question separately.
+
+   AND IF THE TRACE BUILD COMES BACK CLEAN, that is a RESULT rather than a dead
+   end. A fault that vanishes when observed is strong evidence for the memory or
+   layout family and against a logic error, and it points the next step exactly
+   where the Aug 21 handoff already warned: a passing ASan run does not clear that
+   hypothesis, because ASan changes stack layout too.  */
+#ifdef CASKET_TRACE_AUTODRIVE
+  #include <cstdio>
+  #define CK_AD_TRACE(...) do { std::printf(__VA_ARGS__); std::fflush(stdout); } while (0)
+#else
+  #define CK_AD_TRACE(...) ((void)0)
+#endif
+
 namespace casket {
 
 static const char* VERSION = "0.1";
@@ -1264,21 +1306,30 @@ inline DriveResult autoDrive(const State& state, const double* inL, const double
 
     auto consider = [&](double d, double got) {
         if (!std::isfinite(got)) return;
-        if (!have || std::fabs(canon9(got) - targetC) < std::fabs(canon9(bestLufs) - targetC)) {
-            have = true; bestDrive = d; bestLufs = got;
-        }
+        bool took = (!have || std::fabs(canon9(got) - targetC) < std::fabs(canon9(bestLufs) - targetC));
+        CK_AD_TRACE("    consider d=%.17g lufs=%.17g  dist=%.17g  bestDist=%s  -> %s\n",
+                    d, got, std::fabs(canon9(got) - targetC),
+                    have ? "…" : "(none yet)", took ? "TAKEN" : "kept");
+        if (took) { have = true; bestDrive = d; bestLufs = got; }
     };
     /* the rails first — bisection computes midpoints and never visits its
        own endpoints, so without these it cannot return a boundary answer */
+    CK_AD_TRACE("  autoDrive ENTER target=%.17g passes=%d grid=%.17g lo=%.17g hi=%.17g\n",
+                targetLufs, passes, grid, lo, hi);
     consider(lo, lufsAt(lo));
     consider(hi, lufsAt(hi));
+    CK_AD_TRACE("    after rails: have=%d bestDrive=%.17g bestLufs=%.17g\n",
+                (int)have, bestDrive, bestLufs);
     for (int k = 0; k < passes; k++) {
         double mid = (lo + hi) / 2;
         double got = lufsAt(mid);
         if (!std::isfinite(got)) { lo = mid; continue; }
         consider(mid, got);
         if (canon9(got) < targetC) lo = mid; else hi = mid;
+        CK_AD_TRACE("    pass %d: mid=%.17g lufs=%.17g  window now [%.17g, %.17g]  best=%.17g\n",
+                    k, mid, got, lo, hi, bestDrive);
     }
+    CK_AD_TRACE("    search done: bestDrive=%.17g bestLufs=%.17g\n", bestDrive, bestLufs);
     DriveResult out;
     out.target = targetLufs;
     out.grid = grid;
@@ -1292,10 +1343,14 @@ inline DriveResult autoDrive(const State& state, const double* inL, const double
         return out;
     }
     double drive = nd::clamp(quantize(bestDrive, grid), -12.0, 24.0);
+    CK_AD_TRACE("    quantize(%.17g, %.17g) = %.17g  -> clamped drive = %.17g\n",
+                bestDrive, grid, quantize(bestDrive, grid), drive);
     State vs = sanitize(state);
     vs.drive = drive;
     vs.unity = false;
     Meters v = renderOffline(vs, inL, inR, n, fs).meters;
+    CK_AD_TRACE("    verification render at drive=%.17g -> lufs=%.17g truePeak=%.17g\n",
+                drive, v.integrated, v.truePeakDb);
     double err = std::isfinite(v.integrated)
                    ? v.integrated - targetLufs
                    : std::numeric_limits<double>::infinity();

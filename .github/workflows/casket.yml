@@ -272,6 +272,46 @@ jobs:
       # CAVEAT, so nobody misreads a green: ASan changes stack layout, so a
       # corruption bug CAN go quiet under it. A clean run does not clear the
       # hypothesis. A dirty one convicts.
+      # ADDED 2026-08-23, after CASKET #22 disproved the low-rail hypothesis.
+      # In that run, at -O3, in THIS translation unit, autoDrive returned the
+      # wrong answer to a check and the RIGHT answer to the forensics probe a
+      # few calls later, with identical arguments. So the fault is CALL
+      # dependent, not translation-unit dependent, and the two remaining
+      # explanations cannot be told apart from outside the call:
+      #
+      #   * the search reached a wrong `best`, or
+      #   * the search was right and the answer was corrupted on the way out.
+      #
+      # This builds the SAME file a second time with the trace hook compiled in
+      # and prints autoDrive's whole decision path: every candidate weighed,
+      # which one was taken, the window at each pass, the quantise, and the
+      # verification render. Whichever line first disagrees with the healthy
+      # trace names the bug.
+      #
+      # A SECOND BUILD ON PURPOSE. The gate above is left completely untouched,
+      # because printf in the hot path changes inlining, register pressure and
+      # stack layout, and this bug already behaves like something sensitive to
+      # exactly those. Instrumenting the gate itself could easily make the
+      # failure disappear and teach nothing. With the macro undefined the object
+      # code is byte-identical, verified by compiling both ways and comparing
+      # md5 (bd691d45... both), so the gate really is unchanged.
+      #
+      # AND IF THIS TRACE COMES BACK HEALTHY while the gate above stays red,
+      # that is a RESULT, not a failure: a fault that vanishes when observed is
+      # evidence for the memory and layout family and against a logic error.
+      - name: autoDrive's decision path, from INSIDE the failing call (diagnostic)
+        if: always()
+        run: |
+          g++ -std=c++17 -O3 -ffp-contract=off -DCASKET_TRACE_AUTODRIVE \
+              -o cp3trace tests/core_parity.cpp \
+            || { echo "trace build failed — not treating that as a verdict"; exit 0; }
+          echo "Healthy looks like: the -12 rail TAKEN first, every midpoint kept,"
+          echo "search done bestDrive=-12, quantize -12, verification render -10.6103485."
+          echo "Roughly 325 lines and 22 traced calls on a clean machine."
+          echo "=============================================================="
+          ./cp3trace 2>&1 | head -120 || true
+          echo "(diagnostic only — this step never fails the build)"
+
       - name: Sanitisers on the parity gate (is something corrupting it?)
         if: always()
         run: |
