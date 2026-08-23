@@ -158,6 +158,20 @@ Two things exist in more than one place **on purpose**, each with a test holding
 
 **Sanitise on the way in.** Every core exports `sanitizeState`. Anything crossing a boundary — a saved file, a URL hash, another program's output — goes through it.
 
+**Parameter display is not parameter value.** A JUCE float parameter with no
+string-from-value function and a zero step interval displays **seven decimal
+places** — `Attack 0.9001075`. The tempting fix is a step interval, and it is the
+wrong one *when reached for as a formatting tool*: an interval quantizes the real
+value, coarsening automation and moving the number away from whatever the twin
+computes. **Format the string; only quantize when quantizing is what you mean.**
+AUTOPSY's 0.01 dB gain step is a deliberate, musically-irrelevant grid and is
+fine; NECROPHONE cannot use one at all, because its values must match a
+continuous browser engine bit for bit. **CASKET is the house exemplar** — seven
+formatters (`dbText`, `msText`) attached via `AudioParameterFloatAttributes`.
+Sliders that own their text boxes need `setNumDecimalPlacesToDisplay` *as well*,
+called **after** any `SliderAttachment`, whose constructor calls `setRange` and
+resets the count.
+
 ---
 
 ## 5. If you want to connect these to each other
@@ -211,6 +225,52 @@ There is an external consumer: **Masterbox**, a separate mastering tool with an 
 
 ## 7. THE LOG
 *Every change that crossed a project boundary. Newest first. If you touch `shared/`, you add a line.*
+
+### 2026-08-23 (evening) — a file that a tool parses has no comments, and half the estate shows seven decimals
+
+**Nothing in `shared/` changed.** Two findings from the first hour anyone had
+ever *played* one of these plugins, both of which apply to every project here.
+
+**1. Seven decimal places, and the fix that would have been worse.** The first
+NECROPHONE build in a DAW showed `Attack 0.9001075`, `Master Width 1.9218490` —
+every float, seven places. That is JUCE's widest fallback, reached when a
+parameter has neither a string-from-value function nor a step interval, and all
+123 had neither. **The obvious fix is a step interval and it would have been a
+real defect:** an interval quantizes the *value*, not the display, which coarsens
+automation and — for NECROPHONE specifically — would push values off the
+continuous browser engine its parity gate compares against. The fix is a
+display-only formatter, proven display-only by running the browser's own
+`parseCppParams` over the file before and after: 123 parameters both times,
+every id, range, default and option list byte-identical. There is a second
+mechanism worth knowing: a `Slider` that owns its text box derives decimals from
+its *own* interval and never sees the parameter's formatter, so it needs
+`setNumDecimalPlacesToDisplay` — **after** the `SliderAttachment`, because that
+constructor calls `setRange` and resets the count. Standing rule now in §4.
+
+**Where the estate actually stands, measured today:** **CASKET is the exemplar**
+(seven formatters — `dbText`, `msText` — via `AudioParameterFloatAttributes`).
+**AUTOPSY** uses explicit intervals, deliberately and defensibly (0.01 dB on
+band gain). **RIGOR, PALLBEARER and SÉANCE have no formatters at all** and will
+be showing the same seven places to anyone who opens them. Cheap to fix, and the
+pattern to copy is already in this estate.
+
+**2. A file that a tool parses has no comments.** NECROPHONE's parameter-parity
+gate reads `Parameters.h` **as text**, finding parameters by regex on a helper
+name followed by a bracket. While fixing the above, a comment was added warning
+future editors not to introduce that pattern — and the comment **spelled the
+pattern out**, so the parser matched the warning and reported two malformed
+parameters. Caught in seconds, because the gate was run before and after rather
+than trusted; it was invisible to the compiler, which sees a comment.
+
+**The general form, and it has teeth here.** Any file consumed by a text-matching
+tool has no inert regions: prose, comments and examples are all input.
+**This document is an instance.** §1's parity figures sit between
+`<!--c:…-->` markers that `tools/counts.js` rewrites and CI fails on, so writing
+*about* those markers in ordinary prose can corrupt the table the same way. When
+documenting a pattern that a tool matches, **describe it rather than quote it**,
+or the documentation becomes the bug.
+
+---
 
 ### 2026-08-23 — the estate immunised itself against `M_PI` and NECROPHONE caught it anyway
 
