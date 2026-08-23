@@ -1,5 +1,5 @@
 {
-  "changed": "2026-08-19",
+  "changed": "2026-08-23",
   "projects": {
     "autopsy": {
       "harnesses": {
@@ -33,15 +33,15 @@
           "measured": "2026-08-18"
         },
         "rigor_plugin_test": {
-          "value": 28,
-          "measured": "2026-08-16"
+          "value": 32,
+          "measured": "2026-08-23"
         }
       },
       "parity": 62642,
       "baselines": 35,
-      "assertions": 437,
+      "assertions": 441,
       "harnessCount": 3,
-      "measured": "2026-08-18"
+      "measured": "2026-08-23"
     },
     "casket": {
       "harnesses": {
@@ -124,7 +124,7 @@
   },
   "estate": {
     "parity": 108282,
-    "assertions": 1475,
+    "assertions": 1479,
     "baselines": 67
   }
 }

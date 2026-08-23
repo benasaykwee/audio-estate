@@ -52,7 +52,7 @@ requires it to be correctly rounded, so the two already agree.
 
 Every project holds its C++ twin bit-exact against its JavaScript.
 <!--c:estate.parity-->108,282<!--/c--> parity checks across the three gates,
-plus <!--c:estate.assertions-->1,475<!--/c--> assertions and
+plus <!--c:estate.assertions-->1,479<!--/c--> assertions and
 <!--c:estate.baselines-->67<!--/c--> byte-stable render baselines.
 
 **Those numbers are generated, not typed.** `tools/counts.js` compiles and runs
