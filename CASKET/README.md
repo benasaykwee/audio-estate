@@ -32,10 +32,10 @@ The render is **latency-compensated**, so it drops straight back into a session 
 ## Run the suite
 
 <!--c:casket.harnesses-->12<!--/c--> asserting harnesses,
-**<!--c:casket.assertions-->634<!--/c--> assertions**, plus
+**<!--c:casket.assertions-->649<!--/c--> assertions**, plus
 <!--c:casket.baselines-->16<!--/c--> byte-stable render baselines —
-**<!--c:casket.suite-->650<!--/c--> checks**, last changed
-<!--c:casket.measured-->2026-08-19<!--/c-->.
+**<!--c:casket.suite-->665<!--/c--> checks**, last changed
+<!--c:casket.measured-->2026-08-23<!--/c-->.
 <!-- The marker above is casket.measured, NOT the bare `measured` — fixed
      2026-08-18. The bare key is the OLDEST last-change date across the
      whole estate (counts.js takes dates[0], deliberately, as an estate-wide
