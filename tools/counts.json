@@ -46,12 +46,12 @@
     "casket": {
       "harnesses": {
         "casket_test": {
-          "value": 207,
+          "value": 217,
           "measured": "2026-08-24"
         },
         "casket_ui_test": {
-          "value": 111,
-          "measured": "2026-08-19"
+          "value": 113,
+          "measured": "2026-08-24"
         },
         "casket_edge": {
           "value": 20,
@@ -74,7 +74,7 @@
           "measured": "2026-08-16"
         },
         "casket_plugin_test": {
-          "value": 110,
+          "value": 125,
           "measured": "2026-08-24"
         },
         "casket_host": {
@@ -96,7 +96,7 @@
       },
       "parity": 23013,
       "baselines": 16,
-      "assertions": 671,
+      "assertions": 698,
       "harnessCount": 12,
       "measured": "2026-08-24"
     },
@@ -124,7 +124,7 @@
   },
   "estate": {
     "parity": 108282,
-    "assertions": 1521,
+    "assertions": 1548,
     "baselines": 67
   }
 }

@@ -432,6 +432,22 @@ The other two warnings held: NM is still mandatory for every transcendental, and
 
 ## 15. What is waiting on you
 
-- **The listen test.** Slab Noise, then walk through Pine → Velvet → Oak → Iron → Lead with `unity` armed so the comparison is honest. Iron at 70 % saturation against Pine at the same drive is the demo that shows what an arrangement actually *is*.
-- **A real master through the offline render.** Drop a track you know, press Render to WAV, and read the before/after table. Everything above was proven against synthetic material; the tables say musical content lands exactly on the lid, and a track you know well is the test that actually matters.
-- **Push to GitHub.** Still the single biggest unlock in the whole estate. CI is written and will now run the JS harnesses, the parity gate at three optimisation levels, an AUTOPSY-is-undisturbed tripwire, and a macOS AU/VST3 build.
+*Rewritten 2026-08-24. The three items that stood here were the listen test, a real master through the offline render, and "push to GitHub — still the single biggest unlock in the whole estate". All three had happened: the push on 2026-08-16, the listening on 2026-08-23. A section titled "what is waiting on you" is the one place in a document where staleness is not a cosmetic problem — it hands a reader a to-do list of things already done, which is worse than saying nothing.*
+
+- **~~The listen test.~~ DONE, 2026-08-23** — and it found a bug in the first ten minutes. The arrangements were indistinguishable in the plugin because the dropdown never applied its recipe; see [`CASKET/docs/LISTENING_LOG.md`](CASKET/docs/LISTENING_LOG.md) for the session and §16 below for what the fix means architecturally.
+- **~~Push to GitHub.~~ DONE, 2026-08-16.** CI runs the JS harnesses on six matrix cells, the parity gate at three optimisation levels, an AUTOPSY-is-undisturbed tripwire, a CPU gate, a derived-numbers gate, and a macOS AU/VST3/Standalone build. `bash CASKET/tools/ci_verdict.sh` reads the verdict from the authenticated API.
+- **A real master through the offline render.** Still open, and now the more interesting half of the original item. Everything measured here was proven against synthetic material; a track you know well is the test that actually matters, and the before/after table is the part to read rather than the sound alone.
+- **Lead's seal cost, by ear.** The one claim in this document that no harness can settle: §6.3 measures the idle error at −76.8 dBFS and calls it inaudible. Headphones, a quiet passage, actively hunting it. Failing to find it while looking is a far stronger result than not noticing it in passing.
+- **The two open product questions in §14** that the first session gave you standing to answer: whether `unity` should default on (you have now met its two lives in person), and whether the seal deserves a sixth arrangement rather than a checkbox on Lead.
+
+## 16. An arrangement is a gesture, not a parameter
+
+Added 2026-08-24, because the first listening session proved the distinction is load-bearing rather than pedantic.
+
+`style` is a host parameter like any other, but **picking an arrangement is not the same event as the parameter changing.** The two faces now agree on the difference:
+
+- **A user's pick applies the whole recipe.** Eight parameters move together — the vigil, the release, the knee, the lining, the margin, the program-release flag, the saturation and the seal — read from `styleDef()`, the same table the engine reads. They move as proper host gestures, so a DAW records eight automatable changes it can undo.
+- **The parameter moving on its own applies nothing.** Automation, a preset load and `setStateInformation` change only `style`. This is deliberate and it is the harder half to get right: if a restored session re-applied the recipe, every knob a user had tweaked away from their arrangement would be silently overwritten on load, and the symptom would be a session that opens subtly wrong.
+- **What an arrangement never touches:** drive, lid, hold, link, mid/side, the dust and the loudness target. An arrangement is a character; the rest is the session it lives in. The exclusion is gated as strictly as the inclusion.
+
+Before this, the plugin's dropdown moved `style` alone, which changed only the two traits the engine derives from it (`relShape` and `smoothFrac`) and left the audible recipe wherever it was. The engine was never wrong — it rendered exactly the state it was handed — but the state it was handed was Velvet under four other names, and the cost of that is now measured in `casket_test.js` under *the arrangements are not the same limiter*.

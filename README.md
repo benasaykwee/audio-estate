@@ -51,8 +51,8 @@ requires it to be correctly rounded, so the two already agree.
 ## The gates
 
 Every project holds its C++ twin bit-exact against its JavaScript.
-<!--c:estate.parity-->108,282<!--/c--> parity checks across the three gates,
-plus <!--c:estate.assertions-->1,521<!--/c--> assertions and
+<!--c:estate.parity-->108,282<!--/c--> parity checks across the four gates,
+plus <!--c:estate.assertions-->1,548<!--/c--> assertions and
 <!--c:estate.baselines-->67<!--/c--> byte-stable render baselines.
 
 **Those numbers are generated, not typed.** `tools/counts.js` compiles and runs
@@ -61,11 +61,23 @@ fails on any diff. It exists because this table used to be maintained by hand
 and went wrong four different ways for one project inside a single hour. Each
 date below is when the figure last *changed*, not when someone last looked.
 
-| | parity checks | measured |
+| | parity checks | last changed |
 |---|---|---|
-| AUTOPSY | <!--c:autopsy.parity-->9,292<!--/c--> | <!--c:measured-->2026-08-16<!--/c--> |
-| RIGOR | <!--c:rigor.parity-->62,642<!--/c--> | <!--c:measured-->2026-08-16<!--/c--> |
-| CASKET | <!--c:casket.parity-->23,013<!--/c--> | <!--c:measured-->2026-08-16<!--/c--> |
+| AUTOPSY | <!--c:autopsy.parity-->9,292<!--/c--> | <!--c:autopsy.measured-->2026-08-16<!--/c--> |
+| RIGOR | <!--c:rigor.parity-->62,642<!--/c--> | <!--c:rigor.measured-->2026-08-23<!--/c--> |
+| CASKET | <!--c:casket.parity-->23,013<!--/c--> | <!--c:casket.measured-->2026-08-24<!--/c--> |
+| PALLBEARER | <!--c:pallbearer.parity-->13,335<!--/c--> | <!--c:pallbearer.measured-->2026-08-23<!--/c--> |
+
+<!-- THE DATE COLUMN USED TO LIE, quietly and in one direction. Every row
+     carried the bare `measured` key, which counts.js defines as the OLDEST
+     last-change date across the WHOLE estate — deliberately, as an
+     estate-wide "true since" figure. Used per row it made every project
+     look as stale as the stalest one: RIGOR and CASKET both read
+     2026-08-16 here while their own gates had moved on the 23rd and the
+     24th. Flagged 2026-08-19, fixed 2026-08-24. Per-project rows want
+     per-project keys. PALLBEARER was simply missing, which is the same
+     failure with the volume turned all the way down. -->
+
 
 **All of them compile with `-ffp-contract=off`, and that flag is the whole
 gate.** Without it, GCC fuses `a*b+c` into a single FMA with one rounding where

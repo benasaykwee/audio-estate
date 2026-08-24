@@ -13,6 +13,7 @@ Design: [`../CASKET_ARCHITECTURE.md`](../CASKET_ARCHITECTURE.md).
 |---|---|
 | [`MASTERING_WITH_CASKET.md`](MASTERING_WITH_CASKET.md) | when to reach for a thing and what it costs. Every figure cited to the harness that measured it. |
 | [`docs/LISTENING_PROTOCOL.md`](docs/LISTENING_PROTOCOL.md) | how to check any of those claims by ear — level-matching, the null test at home, per-arrangement listening. |
+| [`docs/LISTENING_LOG.md`](docs/LISTENING_LOG.md) | what it actually sounded like, session by session. The only evidence here no harness can generate. |
 | [`docs/CASE_FORMAT.md`](docs/CASE_FORMAT.md) | the `.casket.json` arrangement file and the share-link hash, field by field. |
 
 ## Run it
@@ -29,14 +30,14 @@ Keys: `1`–`5` pick an arrangement · `B` bypass · `U` unity · `R` reset the 
 
 Drop an audio file anywhere, then press **Render to WAV**. CASKET renders it offline at full quality — no real-time deadline, no dropouts — and hands back a **24-bit WAV plus a before/after measurement**: true peak, sample peak, and integrated LUFS, with the lid marked `under` or `OVER`.
 
-The render is **latency-compensated**, so it drops straight back into a session lined up with the source and A/Bs honestly. This exists because neither CASKET nor AUTOPSY is compiled to an AU yet, and bouncing is the bridge until the first CI build.
+The render is **latency-compensated**, so it drops straight back into a session lined up with the source and A/Bs honestly. It was built as the bridge before either of these was an AU; both are now, and it has outlived that job — offline rendering has no real-time deadline, so it stays the honest way to measure a master rather than merely hear one.
 
 ## Run the suite
 
 <!--c:casket.harnesses-->12<!--/c--> asserting harnesses,
-**<!--c:casket.assertions-->671<!--/c--> assertions**, plus
+**<!--c:casket.assertions-->698<!--/c--> assertions**, plus
 <!--c:casket.baselines-->16<!--/c--> byte-stable render baselines —
-**<!--c:casket.suite-->687<!--/c--> checks**, last changed
+**<!--c:casket.suite-->714<!--/c--> checks**, last changed
 <!--c:casket.measured-->2026-08-24<!--/c-->.
 <!-- The marker above is casket.measured, NOT the bare `measured` — fixed
      2026-08-18. The bare key is the OLDEST last-change date across the
@@ -127,7 +128,23 @@ cmake --build build --config Release
 bash tools/compile_check.sh            # fetches JUCE 7.0.12 to /tmp on first run
 ```
 
-**COMPILES, but has not been BUILT.** `tools/compile_check.sh` compiles both translation units against the JUCE version CI pins, which rules out the whole class of first-build failure — missing includes, wrong signatures, API drift. What it cannot do is produce a loadable plugin: Audio Unit is a macOS format needing Apple frameworks, and this is not a macOS machine. The `.component` comes from the `macos-14` job, and only a host proves it actually runs. (This paragraph said the plugin "has not been built here, because there is no JUCE in this sandbox" until 2026-08-19 — true when written, and false the moment anyone checked whether JUCE could simply be fetched.)
+**BUILT, VALIDATED, AND HEARD.** As of 2026-08-23 CASKET builds on CI and on a real Mac, passes `auval` and `pluginval` at strictness 10, loads in GarageBand and has been played by a person. The first listening session is written up in [`docs/LISTENING_LOG.md`](docs/LISTENING_LOG.md) — it found a bug in the first ten minutes, which is what listening is for.
+
+*(This paragraph has been wrong twice, in the same direction both times. It said "has not been built here, because there is no JUCE in this sandbox" until someone checked whether JUCE could simply be fetched; then "COMPILES, but has not been BUILT" until the day it was built, validated and auditioned. Prose about the present tense goes stale faster than anything else in this repository.)*
+
+`tools/compile_check.sh` remains the fast gate: it compiles both translation units against the JUCE version CI pins in about forty seconds, ruling out the whole class of first-build failure — missing includes, wrong signatures, API drift — without needing a build system or a macOS machine. It cannot produce a loadable plugin, and it is not meant to.
+
+### The Standalone is the audition rig
+
+The build produces `CASKET.app` alongside the plugins, and it is **the safest possible first look at a fresh build**: it touches no `Plug-Ins` folder, no AudioComponent registry and no host, so a bad build can waste a minute rather than hang a session with your work open in it.
+
+```bash
+open build/Casket_artefacts/Release/Standalone/CASKET.app
+```
+
+It is also in the CI artifact — `casket-plugins` uploads the whole `Release` directory, so the `.app` travels with the `.component` and the `.vst3` and needs no host installed to hear the box work. Use it to check that a build runs at all, then follow the order in [`../_HANDOFF/LOCAL_BUILD_FACTS.md`](../_HANDOFF/LOCAL_BUILD_FACTS.md): copy in, strip quarantine, `killall -9 AudioComponentRegistrar`, `auval`, and only then open a DAW.
+
+**Reading CI's verdict:** `bash tools/ci_verdict.sh` prints per-job status for the newest run from the authenticated API. Use it rather than the web page — a logged-out github.com served a *cached* listing on 2026-08-23 that showed a run sixteen behind the newest as current, which is indistinguishable from good news.
 
 Latency is reported to the host from the *same* pure function the browser and the parity gate use, so the three can never disagree about it.
 

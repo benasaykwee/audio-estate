@@ -254,27 +254,10 @@ three findings from the first session were documentation failures, not
 software failures, and they would have been invisible to any test ever
 written. **OPEN** is how a protocol item survives being skipped.
 
-### Session 1 — 2026-08-23 · a simple vocal recording · GarageBand, Scarlett 2i2 at 44.1 kHz
-
-Level-matched: partly. Build: rebuilt 15:49, then re-auditioned.
-
-- **WORKED.** Records and plays clean on the Master Track, no crashes or
-  dropouts. The lid is the control that needs no explanation — "SUPER
-  useful and easy". A volume ramp swept through the lid, engaging and
-  releasing continuously, produced no zipper noise, no clicks and no
-  audible pumping on the vocal. Arrangement files saved and reloaded
-  through the host. THE RANGE drew real material for the first time and
-  showed two humps, which correctly pointed the ears at the loud section.
-- **SUSPECT → CONFIRMED BUG.** The five arrangements were
-  indistinguishable. They were: the plugin's dropdown moved the label and
-  nothing else, so every arrangement was Velvet in costume. Fixed the same
-  afternoon and gated in `casket_plugin_test.js`; the cost of the bug is
-  now measured in `casket_test.js` under *the arrangements are not the
-  same limiter*, and the largest gap it hid was Iron's.
-- **LESSON.** Unity's two lives (§8) — twenty minutes lost to a correct
-  limiter looking broken. And the header's true peak is a max-hold, which
-  reads as a stuck meter; the plugin face had no way to clear it, which is
-  why THE REST now exists on both faces.
-- **OPEN.** Lead's seal cost, hunted on headphones in a quiet passage
-  (§3). The polarity-flip null test on all four unsealed arrangements
-  (§2). Both deliberately held for session two.
+**Entries live in [`LISTENING_LOG.md`](LISTENING_LOG.md), beside this
+document** — the template stays here with the reasoning, the sessions
+themselves go there, newest first. Session 1 (2026-08-23) is written up in
+full and is worth reading before session 2, because two of its three findings
+were documentation failures rather than software ones, and its two OPEN items
+are the first things to do next: **Lead's seal cost on headphones**, and the
+**null test on the four unsealed arrangements**.
