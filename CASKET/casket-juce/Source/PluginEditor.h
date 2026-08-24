@@ -31,6 +31,10 @@ struct CasketLook : juce::LookAndFeel_V4 {
                           juce::Slider&) override;
     void drawToggleButton(juce::Graphics&, juce::ToggleButton&,
                           bool over, bool down) override;
+    void drawButtonBackground(juce::Graphics&, juce::Button&,
+                              const juce::Colour&, bool over, bool down) override;
+    void drawButtonText(juce::Graphics&, juce::TextButton&,
+                        bool over, bool down) override;
     void drawComboBox(juce::Graphics&, int w, int h, bool down,
                       int bx, int by, int bw, int bh, juce::ComboBox&) override;
     juce::Font getLabelFont(juce::Label&) override;
@@ -48,6 +52,27 @@ private:
     juce::String cap;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> att;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Dial)
+};
+
+/* A MOMENTARY press, bound to no parameter at all.
+
+   Every other control on this face is a view onto a host parameter. THE
+   REST is not: clearing the plot is an ACTION, not a state a host should
+   automate or a preset should restore. It raises the processor's reset
+   epoch, which the audio thread services at the top of its next block.
+
+   It exists because of the first listening session (2026-08-23): the
+   header's true peak is a max-hold, the browser face has had a Reset Plot
+   button since the beginning, and the plugin face had no way to clear it
+   at all — so a remembering meter read as a stuck one for a whole
+   session. A meter that remembers needs a visible way to forget. */
+class Press : public juce::Component {
+public:
+    Press(const juce::String& caption, std::function<void()> onPress);
+    void resized() override;
+private:
+    juce::TextButton button;
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Press)
 };
 
 /* a latching switch, bound to one parameter */
@@ -111,6 +136,7 @@ private:
     juce::OwnedArray<Dial> dials;
     juce::OwnedArray<Latch> latches;
     juce::OwnedArray<Chooser> choosers;
+    juce::OwnedArray<Press> presses;
     juce::Label groupA, groupB, groupC, groupD;
 
     /* THE VIEWING. Three rings, three sources, all three drawn.

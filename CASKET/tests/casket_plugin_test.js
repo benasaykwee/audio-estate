@@ -334,6 +334,168 @@ ok(/\{\s*"Pine", "Velvet", "Oak", "Iron", "Lead"\s*\}/.test(proc),
      'BITES: a drifted lead.vigil in the twin table would be caught');
 })();
 
+/* ---------- 5b·2. the one count the markers cannot reach ----------
+   The README's own note explains why its per-harness figures are absent:
+   a fenced code block cannot carry a counts.js marker, and a hand-typed
+   count inside one is a number with no gate behind it. One survived the
+   purge anyway — the mutant total in the flags block — and it went stale
+   within an hour of two mutants being added, which is this project's
+   oldest failure mode arriving through the one door left open.
+   It cannot be generated, so it is gated instead. */
+(function () {
+  var mutSrc = slurp(path.join(__dirname, 'casket_mutate.js'));
+  var declaredMutants = (mutSrc.match(/^\s*\{ name: '/gm) || []).length;
+  var stated = readmeText.match(/casket_mutate\.js --list\s*#\s*(\d+) mutants/);
+  ok(!!stated, 'the README still documents the mutant lister');
+  ok(stated && +stated[1] === declaredMutants,
+     'and states the real mutant count (' + (stated ? stated[1] : '?') +
+     ' vs ' + declaredMutants + ' declared)');
+})();
+
+/* ---------- 5c. the vigil, as the host is told it ----------
+   THE SCREENSHOTS BECOME A PROMISE. During the first listening session
+   (2026-08-23) the plugin header reported a different latency for every
+   arrangement — 61 / 83 / 105 / 149 / 302 samples at 44.1 kHz — and that
+   was the most visible evidence that switching an arrangement really does
+   reshape the machine rather than just relabel it.
+   Evidence read off a screen once is not a guarantee. These cases derive
+   the same five numbers from styleDef + latencySamples, so a change to any
+   arrangement's vigil, or to the latency formula, or to the seal's
+   decimator, turns them red.
+   Both rates are checked on purpose: vigilSamples ROUNDS, so 44.1 kHz and
+   48 kHz do not differ by a clean ratio and a harness that only ever asks
+   for 48,000 cannot see a rounding fault at the rate Ben actually records. */
+console.log('\n— the vigil, as the host is told it —');
+(function () {
+  function latOf(name, fs) {
+    var st = C.defaultState(), d = C.styleDefaults(name);
+    st.style = name;
+    for (var k in d) if (Object.prototype.hasOwnProperty.call(d, k)) st[k] = d[k];
+    return C.latencySamples(st, fs);
+  }
+  /* measured in GarageBand at 44.1 kHz, 2026-08-23, read off the header */
+  var WITNESSED_441 = { oak: 61, iron: 83, velvet: 105, pine: 149, lead: 302 };
+  var wrong = [];
+  STYLE_NAMES.forEach(function (n) {
+    var got = latOf(n, 44100);
+    if (got !== WITNESSED_441[n]) wrong.push(n + ' ' + got + '≠' + WITNESSED_441[n]);
+  });
+  ok(wrong.length === 0,
+     'every arrangement reports the latency the session witnessed at 44.1 kHz' +
+     (wrong.length ? ' — ' + wrong.join(', ') : ' (' +
+      STYLE_NAMES.map(function (n) { return WITNESSED_441[n]; }).join('/') + ')'));
+
+  /* the formula itself, at the rate the estate's other harnesses use */
+  var OSQ = C.OS_Q, DECQ = C.DEC_Q;
+  var badFormula = [];
+  STYLE_NAMES.forEach(function (n) {
+    var d = C.styleDefaults(n);
+    var vs = Math.round(d.vigil * 0.001 * 48000);
+    var want = OSQ + vs + 1 + (d.seal ? DECQ : 0);
+    if (latOf(n, 48000) !== want) badFormula.push(n);
+  });
+  ok(badFormula.length === 0,
+     'and at 48 kHz each equals OS_Q + vigil + 1 + (seal ? DEC_Q : 0)' +
+     (badFormula.length ? ' — ' + badFormula.join(', ') : ''));
+
+  /* the seal is the only thing that may add to the reported latency, and
+     the lining must not — that independence is what lets a user change the
+     lining mid-session without the host's compensation moving. */
+  var linIndep = true;
+  [1, 2, 4, 8, 16].forEach(function (M) {
+    var st = C.defaultState(); st.lining = M; st.seal = false;
+    if (C.latencySamples(st, 48000) !== C.latencySamples(C.defaultState(), 48000)) linIndep = false;
+  });
+  ok(linIndep, 'the reported latency is independent of the lining at every factor');
+  var leadOnly = latOf('lead', 44100) - latOf('pine', 44100);
+  ok(leadOnly > DECQ, 'and only Lead pays the decimator (Lead − Pine = ' + leadOnly + ' > ' + DECQ + ')');
+
+  /* the twin must carry the same formula, not merely the same constants */
+  ok(/OS_Q \+ vigilSamples\(s, fs\) \+ 1 \+ \(s\.seal \? DEC_Q : 0\)/.test(core),
+     'the C++ twin computes latency by the same expression');
+
+  (function () {
+    var doctored = Object.assign({}, WITNESSED_441, { lead: 237 });   /* seal forgotten */
+    var caught = STYLE_NAMES.some(function (n) { return latOf(n, 44100) !== doctored[n]; });
+    ok(caught, 'BITES: a witnessed table that forgot the seal would be caught');
+  })();
+})();
+
+/* ---------- 5d. every parameter can say what it is ----------
+   AUDIO_INTERCHANGE §4 (added estate-wide 2026-08-23 by a sibling project's
+   session) records that JUCE falls back to SEVEN decimal places when a float
+   parameter has neither a display formatter nor a step interval, and names
+   CASKET the estate's exemplar for having formatters. That is a compliment
+   this suite had no way to verify, and a compliment nobody measures is just
+   a rumour with good manners.
+   So: every float parameter must have a formatter OR a non-zero interval.
+   Note the rule deliberately accepts either. The same interchange entry warns
+   that reaching for the interval to fix DISPLAY is a real defect — it
+   quantises the value and coarsens automation — so this gate must never be
+   "read" as advice to add intervals. It asks only that the parameter can
+   render itself; WHICH mechanism is the author's call, and five of CASKET's
+   twelve floats legitimately use an interval that exists for musical
+   reasons of its own. */
+console.log('\n— every parameter can say what it is —');
+(function () {
+  var floats = [];
+  var re = /std::make_unique<FP>\(id\("([a-z0-9_]+)"\)[\s\S]*?(?=std::make_unique<|return l;)/g;
+  var m;
+  while ((m = re.exec(proc)) !== null) {
+    var body = m[0];
+    var range = body.match(/NormalisableRange<float>\(([^)]*)\)/);
+    var parts = range ? range[1].split(',').map(function (s) { return s.trim(); }) : [];
+    floats.push({
+      id: m[1],
+      formatter: /withStringFromValueFunction/.test(body),
+      interval: parts.length >= 3 ? parseFloat(parts[2]) : 0
+    });
+  }
+  ok(floats.length >= 10, 'found ' + floats.length + ' float parameters to inspect');
+  var mute = floats.filter(function (f) { return !f.formatter && !(f.interval > 0); });
+  ok(mute.length === 0,
+     'every float parameter has a formatter or a step interval — none falls back to seven places' +
+     (mute.length ? ' — SILENT: ' + mute.map(function (f) { return f.id; }).join(', ') : ''));
+  var withFmt = floats.filter(function (f) { return f.formatter; });
+  ok(withFmt.length >= 7,
+     'and ' + withFmt.length + ' of them carry a real formatter (the figure §4 cites)');
+  (function () {
+    var spiked = floats.concat([{ id: '__mute', formatter: false, interval: 0 }]);
+    ok(spiked.filter(function (f) { return !f.formatter && !(f.interval > 0); }).length === 1,
+       'BITES: a parameter with neither would be caught');
+  })();
+})();
+
+/* ---------- 5e. the face can tell the meter to forget ----------
+   FOUND BY THE FIRST LISTENING SESSION, and by looking rather than by a
+   test: the header's true peak is a MAX-HOLD. Across minutes of listening
+   it sat at one figure, which reads as a stuck meter rather than a
+   remembering one. The processor has always had the machinery — an atomic
+   epoch the audio thread services — and the browser face has had a Reset
+   Plot button since the beginning. The JUCE face had no control at all, so
+   the epoch was unreachable from the only face Ben was using.
+   A capability that exists in the processor, is used by one face, and is
+   absent from the other is exactly the shape of the M/S parameters that
+   were real in the core for weeks while no DAW could reach them. Same
+   lesson, same gate: assert the FACE, not the machinery. */
+console.log('\n— the face can tell the meter to forget —');
+ok(/resetMeters/.test(procH), 'the processor still exposes the reset epoch');
+ok(/proc\.resetMeters\(\)/.test(edit),
+   'and the JUCE face has a control that raises it');
+ok(/class Press/.test(editH) && /presses/.test(edit),
+   'THE REST is a momentary press, not a parameter — clearing is an action, not state');
+var restDeclared = declared.filter(function (id) { return /rest/i.test(id); });
+ok(restDeclared.length === 0,
+   'and it is deliberately NOT a host parameter (a preset must not restore a button press)' +
+   (restDeclared.length ? ' — FOUND: ' + restDeclared.join(', ') : ''));
+ok(/resetMetersBtn/.test(slurp(path.join(SRC, '..', '..', 'casket.html'))),
+   'the browser face has its own, so both faces can forget');
+(function () {
+  var faceless = 'void CasketEditor::timerCallback() { proc.latestMeters(m); }';
+  ok(!/proc\.resetMeters\(\)/.test(faceless),
+     'BITES: a face with no reset control would fail the gate above');
+})();
+
 /* ---------- 6. real-time safety in processBlock ---------- */
 console.log('\n— the audio thread —');
 var pb = ((proc.match(/void CasketProcessor::processBlock[\s\S]*?\n\}/) || [''])[0]);

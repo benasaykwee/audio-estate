@@ -86,6 +86,25 @@ void CasketLook::drawToggleButton(juce::Graphics& g, juce::ToggleButton& b,
     g.drawText(b.getButtonText(), b.getLocalBounds(), juce::Justification::centred);
 }
 
+/* THE REST's ground. Deliberately NOT the latch look: a momentary press
+   has no on-state to show, so it reads as an outlined slab that brightens
+   under the pointer and fills while held. */
+void CasketLook::drawButtonBackground(juce::Graphics& g, juce::Button& b,
+                                      const juce::Colour&, bool over, bool down) {
+    auto r = b.getLocalBounds().toFloat().reduced(1.0f);
+    g.setColour(down ? C_GOLD.withAlpha(0.22f) : C_CRYPT);
+    g.fillRoundedRectangle(r, 4.0f);
+    g.setColour(down ? C_GOLD : (over ? C_DIM : C_LINE));
+    g.drawRoundedRectangle(r, 4.0f, 1.0f);
+}
+
+void CasketLook::drawButtonText(juce::Graphics& g, juce::TextButton& b,
+                                bool over, bool down) {
+    g.setColour(down || over ? C_BONE : C_DIM);
+    g.setFont(juce::Font(10.5f));
+    g.drawText(b.getButtonText(), b.getLocalBounds(), juce::Justification::centred);
+}
+
 void CasketLook::drawComboBox(juce::Graphics& g, int w, int h, bool,
                               int, int, int, int, juce::ComboBox&) {
     auto r = juce::Rectangle<float>(0, 0, (float)w, (float)h).reduced(1.0f);
@@ -121,6 +140,13 @@ void Dial::paint(juce::Graphics& g) {
     g.drawText(cap.toUpperCase(), getLocalBounds().removeFromTop(13),
                juce::Justification::centred);
 }
+
+Press::Press(const juce::String& caption, std::function<void()> onPress) {
+    button.setButtonText(caption.toUpperCase());
+    button.onClick = std::move(onPress);
+    addAndMakeVisible(button);
+}
+void Press::resized() { button.setBounds(getLocalBounds().reduced(2, 6)); }
 
 Latch::Latch(juce::AudioProcessorValueTreeState& apvts, const juce::String& pid,
              const juce::String& caption) {
@@ -236,6 +262,13 @@ CasketEditor::CasketEditor(CasketProcessor& p)
     latch("dc", "DC");             // 3
     latch("unity", "Unity");       // 4
     latch("bypass", "Bypass");     // 5
+
+    /* THE REST — the one control that is not a parameter. See PluginEditor.h.
+       It raises the processor's epoch; the audio thread does the clearing. */
+    {
+        auto* p = new Press("Rest", [this] { proc.resetMeters(); });   // 0
+        presses.add(p); addAndMakeVisible(p);
+    }
 
     auto grp = [this](juce::Label& l, const char* t) {
         l.setText(t, juce::dontSendNotification);
@@ -385,6 +418,8 @@ void CasketEditor::resized() {
     r4.removeFromLeft(14);
     place(r4, latches[3], 66);
     place(r4, latches[4], 74);
+    r4.removeFromLeft(14);
+    place(r4, presses[0], 74);      /* THE REST, at the end of the dust row */
 }
 
 void CasketEditor::paint(juce::Graphics& g) {
