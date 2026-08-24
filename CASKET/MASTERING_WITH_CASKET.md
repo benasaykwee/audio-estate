@@ -154,9 +154,31 @@ Three ways to set it, in increasing order of honesty:
    purpose — the number is advice, and matching a reference's loudness does not
    match its arrangement.
 
+### Unity has two lives, and mixing them up will convince you the box is broken
+
 **Unity** trims the output by the drive amount so you can A/B without the
 louder version winning automatically. Use it. Loudness bias is real and it is
 not subtle: two decibels is enough to make a worse master sound better.
+
+But read what that sentence actually says, because the first person to use
+CASKET in a session read it the other way and spent twenty minutes watching a
+correct limiter behave like a faulty one.
+
+**Unity ON is for judging.** The output is trimmed by exactly the drive you
+added, so the drive knob stops being a loudness control and becomes a *how hard
+is it working* control. Turning it up gets you **more limiting at the same
+loudness**, which means the sound gets quieter as the limiter takes more away.
+That is not a fault; that is the whole point. It is also why the lid appears
+not to do much in this mode — what you hear is the lid minus the drive, and
+moving one while the other compensates changes very little.
+
+**Unity OFF is for mastering.** Now drive is the loudness lever and the lid is
+the real ceiling: more drive is louder, and the output rides up against
+wherever you put the lid. This is the mode a record actually gets made in.
+
+The rule that keeps them straight: **Unity on to compare, Unity off to
+commit.** If you catch yourself thinking *the drive is making it quieter and
+the lid does nothing*, you are in judging mode and everything is working.
 
 ---
 

@@ -23,6 +23,8 @@ Press **Slab Noise** (deliberately clipped and loud — a limiter with nothing t
 
 Keys: `1`–`5` pick an arrangement · `B` bypass · `U` unity · `R` reset the plot · `?` shortcuts.
 
+**Unity has two lives.** On, it trims the output by the drive amount so an A/B compares character instead of loudness — which means turning the drive up makes things *quieter*, because you are buying more limiting at a fixed level. Off, drive is the loudness lever and the lid is the real ceiling. **Unity on to compare, Unity off to commit**; `MASTERING_WITH_CASKET.md` §4 explains why mixing them up makes a working limiter look broken.
+
 ## Render a real file
 
 Drop an audio file anywhere, then press **Render to WAV**. CASKET renders it offline at full quality — no real-time deadline, no dropouts — and hands back a **24-bit WAV plus a before/after measurement**: true peak, sample peak, and integrated LUFS, with the lid marked `under` or `OVER`.
@@ -32,10 +34,10 @@ The render is **latency-compensated**, so it drops straight back into a session 
 ## Run the suite
 
 <!--c:casket.harnesses-->12<!--/c--> asserting harnesses,
-**<!--c:casket.assertions-->649<!--/c--> assertions**, plus
+**<!--c:casket.assertions-->671<!--/c--> assertions**, plus
 <!--c:casket.baselines-->16<!--/c--> byte-stable render baselines —
-**<!--c:casket.suite-->665<!--/c--> checks**, last changed
-<!--c:casket.measured-->2026-08-23<!--/c-->.
+**<!--c:casket.suite-->687<!--/c--> checks**, last changed
+<!--c:casket.measured-->2026-08-24<!--/c-->.
 <!-- The marker above is casket.measured, NOT the bare `measured` — fixed
      2026-08-18. The bare key is the OLDEST last-change date across the
      whole estate (counts.js takes dates[0], deliberately, as an estate-wide
@@ -97,7 +99,7 @@ node tests/casket_tools_fuzz.js 60 300        # 60 states, or 300 seconds, which
 node tests/casket_soak.js 12 --only=pine,lead # the nightly duration, two arrangements
 
 # ASK WHAT IS COVERED, without reading the source.
-node tests/casket_mutate.js --list            # 17 mutants: target, judge, expectation
+node tests/casket_mutate.js --list            # 19 mutants: target, judge, expectation
 node tests/casket_regression.js --list        # 16 baselines: hash and what each pins
 node tools/check_mastering_citations.js --self-test   # the checker's own extractor
 
@@ -143,6 +145,7 @@ Latency is reported to the host from the *same* pure function the browser and th
 | Oversampling factor | the **lining** |
 | Lookahead | the **vigil** |
 | Dither | the **dust** |
+| Clearing the meters | **THE REST** (`R`, or the button) |
 | Saved preset | an **arrangement** (`.casket.json`) |
 
 ## The five arrangements
@@ -203,7 +206,9 @@ ITU-R BS.1770-4, implemented to the letter because it has an external right answ
 
 ## Latency
 
-`OS_Q + vigil + 1` samples, exactly, and **independent of the lining** — 4× and 16× report the same number, so changing the oversampling mid-session does not shift your timing. That falls out of building the oversampler as an `M`th-band filter; the harness asserts it at every lining × vigil combination.
+`OS_Q + vigil + 1` samples unsealed, plus `DEC_Q` when the seal is on — and **independent of the lining** either way, so 4× and 16× report the same number and changing the oversampling mid-session does not shift your timing. That falls out of building the oversampler as an `M`th-band filter; the harness asserts it at every lining × vigil combination.
+
+The seal's extra samples are the decimator's group delay, and Lead is the only arrangement that pays them. Because each arrangement names its own vigil, each reports its own latency — measured in a host at 44.1 kHz, that is Oak 61, Iron 83, Velvet 105, Pine 149 and Lead 302 samples, and `casket_plugin_test.js` re-derives all five from the recipes so the table cannot drift away from the code.
 
 ## Layout
 

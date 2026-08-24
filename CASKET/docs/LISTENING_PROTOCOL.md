@@ -202,3 +202,79 @@ find out — in a way that could have come back the other way — whether the
 thing that's supposed to be true, is.
 
 Nothing gets out. That includes past your own ears, if you actually check.
+
+---
+
+## 8. Before you start: two things the first session learned the hard way
+
+Both of these cost real time on 2026-08-23, and both take ten seconds to
+avoid.
+
+**Unity is a judging tool, not a loudness tool.** With it on, the output is
+trimmed by exactly the drive you added, so turning the drive up buys *more
+limiting at the same loudness* — the sound gets quieter, and the lid appears
+to do almost nothing because what you hear is the lid minus the drive. That
+is correct behaviour and it reads exactly like a broken plugin. **Unity on
+to compare, Unity off to commit.** Every A/B below assumes on; every
+judgment about how loud a master should be assumes off.
+
+**Confirm you are auditioning the build you think you are.** After any
+rebuild, open the plugin and change the arrangement. The knobs should
+visibly jump — the vigil, the release and the knee all move, and Lead lights
+its own seal. If they sit still, the host has loaded an older component and
+everything you are about to hear is about the wrong software. This check
+exists because a whole session's findings were once made against a build
+where the arrangements never changed anything.
+
+---
+
+## 9. Keep a session log
+
+A listening session produces the only evidence in this project that no
+harness can generate, and it evaporates the moment you close the laptop.
+Write it down while the sound is still in your ears, in the repository
+rather than in a chat window, using roughly this shape:
+
+```
+### Session N — date · material · monitoring path
+Level-matched?   yes/no        Rate:  44.1 / 48 kHz
+Build:           commit or "rebuilt <time>"
+
+WORKED     — what behaved, stated plainly enough to be wrong
+SUSPECT    — what sounded off, with the arrangement and the passage
+LESSON     — what you now understand that the documents did not say
+OPEN       — what you meant to check and did not
+```
+
+The four headings are not decoration. **WORKED** is what stops a session
+being only a bug hunt. **SUSPECT** must name the arrangement and the
+passage, because "something sounded odd" cannot be reproduced by anyone,
+including you, next week. **LESSON** is the one that pays: two of the
+three findings from the first session were documentation failures, not
+software failures, and they would have been invisible to any test ever
+written. **OPEN** is how a protocol item survives being skipped.
+
+### Session 1 — 2026-08-23 · a simple vocal recording · GarageBand, Scarlett 2i2 at 44.1 kHz
+
+Level-matched: partly. Build: rebuilt 15:49, then re-auditioned.
+
+- **WORKED.** Records and plays clean on the Master Track, no crashes or
+  dropouts. The lid is the control that needs no explanation — "SUPER
+  useful and easy". A volume ramp swept through the lid, engaging and
+  releasing continuously, produced no zipper noise, no clicks and no
+  audible pumping on the vocal. Arrangement files saved and reloaded
+  through the host. THE RANGE drew real material for the first time and
+  showed two humps, which correctly pointed the ears at the loud section.
+- **SUSPECT → CONFIRMED BUG.** The five arrangements were
+  indistinguishable. They were: the plugin's dropdown moved the label and
+  nothing else, so every arrangement was Velvet in costume. Fixed the same
+  afternoon and gated in `casket_plugin_test.js`; the cost of the bug is
+  now measured in `casket_test.js` under *the arrangements are not the
+  same limiter*, and the largest gap it hid was Iron's.
+- **LESSON.** Unity's two lives (§8) — twenty minutes lost to a correct
+  limiter looking broken. And the header's true peak is a max-hold, which
+  reads as a stuck meter; the plugin face had no way to clear it, which is
+  why THE REST now exists on both faces.
+- **OPEN.** Lead's seal cost, hunted on headphones in a quiet passage
+  (§3). The polarity-flip null test on all four unsealed arrangements
+  (§2). Both deliberately held for session two.

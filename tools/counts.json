@@ -1,5 +1,5 @@
 {
-  "changed": "2026-08-23",
+  "changed": "2026-08-24",
   "projects": {
     "autopsy": {
       "harnesses": {
@@ -46,8 +46,8 @@
     "casket": {
       "harnesses": {
         "casket_test": {
-          "value": 203,
-          "measured": "2026-08-18"
+          "value": 207,
+          "measured": "2026-08-24"
         },
         "casket_ui_test": {
           "value": 111,
@@ -74,8 +74,8 @@
           "measured": "2026-08-16"
         },
         "casket_plugin_test": {
-          "value": 92,
-          "measured": "2026-08-23"
+          "value": 110,
+          "measured": "2026-08-24"
         },
         "casket_host": {
           "value": 24,
@@ -96,9 +96,9 @@
       },
       "parity": 23013,
       "baselines": 16,
-      "assertions": 649,
+      "assertions": 671,
       "harnessCount": 12,
-      "measured": "2026-08-23"
+      "measured": "2026-08-24"
     },
     "pallbearer": {
       "harnesses": {
@@ -124,7 +124,7 @@
   },
   "estate": {
     "parity": 108282,
-    "assertions": 1499,
+    "assertions": 1521,
     "baselines": 67
   }
 }
