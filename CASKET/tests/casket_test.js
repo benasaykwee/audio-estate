@@ -804,6 +804,126 @@ console.log('\n— the seal —');
 /* ============================================================
    5e. MID/SIDE (a pre-stage) and LOUDNESS RANGE
    ============================================================ */
+/* ============================================================
+   the arrangements are not the same limiter
+   ------------------------------------------------------------
+   WHAT THE FROZEN-RECIPE BUG HID, measured.
+
+   On 2026-08-23 CASKET was played by a person for the first time, and the
+   report was that the five arrangements all sounded the same. They did:
+   the plugin's dropdown moved the style label and the two traits the
+   engine derives from it, while the audible recipe — vigil, release, knee,
+   lining, margin, program release, saturation and the seal — stayed
+   wherever it was, which was Velvet's. The engine was never at fault; it
+   faithfully rendered the state it was handed, and the state it was handed
+   was Velvet wearing four other names.
+
+   This estate records what its bugs COST, not merely that they died. So
+   each arrangement is rendered twice on identical material — once with its
+   own recipe, once with Velvet's under its own name — and the gap between
+   them is the thing Ben could not hear.
+
+   Two of these assertions are the interesting ones:
+
+     · VELVET IS THE CONTROL. Velvet-frozen IS Velvet, so its gap must be
+       EXACTLY zero. If it ever isn't, the comparison itself is broken and
+       every other number in the table is worthless. A measurement with no
+       control is an anecdote with decimals.
+
+     · The arrangements must differ from EACH OTHER. That is the premise
+       the word "arrangement" rests on, and until today nothing asserted
+       it. Note this could not have caught the bug — it lived in the editor,
+       and the core has always applied whatever recipe it was given — which
+       is exactly why the editor gate in casket_plugin_test.js §5b exists
+       beside it. One gate for the promise, one for the delivery.
+   ============================================================ */
+console.log('\n— the arrangements are not the same limiter —');
+(function () {
+  var n = 24000, i;
+  /* material with real dynamics: noise under a slow swell, so the quiet
+     stretches leave the limiter idle and the loud ones drive it hard —
+     the same two-hump shape THE RANGE drew during the session. */
+  var src = C.makeNoise(20260823, n), xL = new Float64Array(n), xR = new Float64Array(n);
+  for (i = 0; i < n; i++) {
+    var env = 0.18 + 0.82 * Math.pow(0.5 - 0.5 * Math.cos(2 * Math.PI * i / n * 3), 2);
+    xL[i] = src[i] * env;
+    xR[i] = src[n - 1 - i] * env;
+  }
+
+  function recipeState(style, frozen) {
+    var st = C.defaultState(), d = C.styleDefaults(frozen ? 'velvet' : style), k;
+    for (k in d) if (Object.prototype.hasOwnProperty.call(d, k)) st[k] = d[k];
+    st.style = style;               /* the label is always honest */
+    st.drive = 12; st.lid = -1; st.dc = false; st.dust = 'off';
+    return st;
+  }
+  function rmsDiffDb(a, b) {
+    var s = 0, m = Math.min(a.length, b.length);
+    for (var j = 0; j < m; j++) { var d = a[j] - b[j]; s += d * d; }
+    return db(Math.sqrt(s / m));
+  }
+
+  var STYLES = ['pine', 'velvet', 'oak', 'iron', 'lead'];
+  var trueR = {}, cost = {};
+  STYLES.forEach(function (style) {
+    var t = C.renderOffline(recipeState(style, false), xL, xR, FS);
+    var f = C.renderOffline(recipeState(style, true), xL, xR, FS);
+    trueR[style] = t;
+    /* both renders report their own latency; compare the common tail so a
+       latency difference is never mistaken for a timbral one */
+    var lat = Math.max(t.latency, f.latency);
+    cost[style] = {
+      diff: rmsDiffDb(t.L.subarray(lat), f.L.subarray(lat)),
+      dLufs: t.meters.integrated - f.meters.integrated,
+      dGr: t.meters.gr - f.meters.gr,
+      lat: t.latency - f.latency
+    };
+  });
+
+  note('what the frozen recipe hid, per arrangement (12 dB drive, −1 dBTP lid):');
+  note('  arrangement   Δrms dB    ΔLUFS    Δweight dB   Δlatency');
+  STYLES.forEach(function (s) {
+    var c = cost[s];
+    note('  ' + s.padEnd(13) +
+         (c.diff < -300 ? 'exact' : c.diff.toFixed(2)).padStart(7) +
+         c.dLufs.toFixed(2).padStart(9) +
+         c.dGr.toFixed(2).padStart(12) +
+         (c.lat + ' smp').padStart(11));
+  });
+
+  ok(cost.velvet.diff < -300 && cost.velvet.lat === 0,
+     'THE CONTROL: velvet-frozen is velvet — the gap is exactly nothing');
+  var silent = STYLES.filter(function (s) {
+    return s !== 'velvet' && !(cost[s].diff > -120);
+  });
+  ok(silent.length === 0,
+     'every other arrangement was audibly changed by the bug' +
+     (silent.length ? ' — INDISTINGUISHABLE: ' + silent.join(', ') : ''));
+  /* PREDICTION CORRECTED IN PLACE, 2026-08-23: this first read "three of
+     the five", which was a guess and was wrong. It is FOUR — every
+     arrangement except the control, because every one of them names a
+     vigil other than Velvet's 2 ms, and the vigil is what the reported
+     latency is made of. Writing the wrong number first and letting the
+     harness correct it is the cheap version of this mistake; the expensive
+     version is a document that states it and is never run. */
+  var moved = STYLES.filter(function (s) { return cost[s].lat !== 0; });
+  ok(moved.length === 4 && moved.indexOf('velvet') < 0,
+     'and every arrangement but the control had its reported latency frozen too (' +
+     moved.join(', ') + ')');
+
+  /* the premise: an arrangement is a different limiter, not a label */
+  var same = [];
+  for (i = 0; i < STYLES.length; i++) {
+    for (var j = i + 1; j < STYLES.length; j++) {
+      var d2 = rmsDiffDb(trueR[STYLES[i]].L, trueR[STYLES[j]].L);
+      if (!(d2 > -120)) same.push(STYLES[i] + '≡' + STYLES[j]);
+    }
+  }
+  ok(same.length === 0,
+     'and all ten arrangement pairs render differently from one another' +
+     (same.length ? ' — IDENTICAL: ' + same.join(', ') : ''));
+})();
+
 console.log('\n— mid/side and loudness range —');
 (function () {
   var n = 16384;

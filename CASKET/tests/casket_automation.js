@@ -11,14 +11,23 @@
 var C = require('../casket_core.js');
 var ND = require('../../shared/necrodyn.js');
 
-var FS = 48000;
+/* TWO RATES, and the reason is arithmetic rather than caution. vigilSamples
+   ROUNDS the lookahead into whole samples, so 44.1 kHz and 48 kHz do not sit
+   at a clean ratio: 2 ms is 96 samples at 48 k and 88 at 44.1 k, the
+   smoother's boxcar length is derived from THAT number, and the reported
+   latency moves with it. A harness that only ever asks for 48,000 cannot
+   see a rounding fault at the rate the studio actually records at — which is
+   44.1 kHz on Ben's interface, and therefore the rate every figure witnessed
+   during the first listening session was measured at. */
+var FS48 = 48000, FS441 = 44100;
 var PASSES = parseInt(process.argv[2], 10) || 200;
 var BLOCK = 64;                 // small blocks: worst case for reallocation
 var BLOCKS = 120;
 var pass = 0, fail = 0;
 function ok(c, n) { if (c) { pass++; console.log('  ✓ ' + n); } else { fail++; console.log('  ✗ FAIL: ' + n); } }
 
-function run(label, mutate) {
+function run(label, mutate, fsOpt) {
+  var FS = fsOpt || FS48;
   var nonFinite = 0, over = 0, worstOver = 0, r = ND.lcg(31337), p;
   for (p = 0; p < PASSES; p++) {
     var st = C.defaultState();
@@ -101,6 +110,41 @@ run('vigil swept every block', function (st, r, b) {
   st.vigil = 0.1 + (b % 40) * 0.5;
   st.seal = (b % 7) === 0;
 });
+
+/* ARRANGEMENT SWITCHING — the path a user actually takes, and one this
+   harness could not previously reach.
+
+   Every arm above that touches `style` sets the LABEL alone, leaving the
+   recipe wherever it was. That was a faithful model of the plugin until
+   2026-08-23, when it stopped being one: the editor's dropdown now applies
+   the whole recipe on a pick, so a single click can move the vigil, the
+   lining, the seal, the release, the knee, the margin, the saturation and
+   the program-release flag together, between one block and the next, while
+   audio is running.
+
+   That is the largest structural change CASKET can be asked to make, it is
+   now one gesture away at any moment, and nothing was rendering it. The
+   arm below does exactly what applyArrangement() does, mid-stream. */
+function applyRecipe(st, style) {
+  var d = C.styleDefaults(style);
+  for (var k in d) if (Object.prototype.hasOwnProperty.call(d, k)) st[k] = d[k];
+  st.style = style;
+}
+function arrangementSwitch(st, r, b) {
+  /* a fresh pick every few blocks, plus the drive a user would be pushing */
+  if (b % 3 === 0) applyRecipe(st, C.STYLES[Math.floor(r() * C.STYLES.length) % C.STYLES.length]);
+  st.drive = 8 + r() * 14;
+}
+run('arrangement switching', arrangementSwitch);
+
+/* and the same two structural arms at the rate the studio records at */
+run('structural @ 44.1k', function (st, r) {
+  st.vigil = 0.1 + r() * 19.9;
+  st.lining = C.LININGS[Math.floor(r() * C.LININGS.length) % C.LININGS.length];
+  st.seal = r() < 0.4;
+  st.style = C.STYLES[Math.floor(r() * C.STYLES.length) % C.STYLES.length];
+}, FS441);
+run('arrangement switching @ 44.1k', arrangementSwitch, FS441);
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

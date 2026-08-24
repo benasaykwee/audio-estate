@@ -258,7 +258,50 @@ var MUTANTS = [
     means: 'the 10th/95th percentiles are what stop one loud stab or one silent ' +
            'bar from defining a whole record\'s range — the README says so in as ' +
            'many words. Min-to-max is the naive reading of "range" and would ' +
-           'inflate the figure on exactly the material people care about.' }
+           'inflate the figure on exactly the material people care about.' },
+
+  /* THE ARRANGEMENT RECIPES, given mutants 2026-08-24 — the morning after a
+     person played CASKET and could not tell the five arrangements apart.
+
+     These two are unlike every mutant above them, and the reason is worth
+     stating. Every other mutation here breaks something the ENGINE reads,
+     so the parity gate stands behind the suite as a second witness: change
+     the arithmetic and 23,013 bit-exact comparisons go red whether any
+     assertion notices or not.
+
+     The recipe fields are not like that. The engine reads exactly two
+     things out of a style — the release shape and the smoothing fraction.
+     Everything in the `d` block (the vigil, the release, the knee, the
+     lining, the margin, the program flag, the saturation, the seal) is
+     never read by the engine at all: it is what the FACES pour into the
+     other parameters when a user picks an arrangement. So a recipe that
+     drifts between the two twins produces no mismatch in any render, and
+     the parity gate is structurally blind to it. Until 2026-08-23 so was
+     everything else.
+
+     Both are judged by casket_plugin_test.js, which is where the twin's
+     StyleDef table is now diffed against the JS one field by field and
+     where the latencies witnessed in GarageBand are re-derived. */
+  { name: 'lead\'s vigil drifts in the JS recipe (5 ms → 3 ms)',
+    suite: 'casket_plugin_test.js',
+    find: 'vigil: 5.0',
+    repl: 'vigil: 3.0',
+    means: 'the two faces could disagree about what an arrangement IS, in a ' +
+           'field no render ever touches and no parity check can see. Picking ' +
+           'Lead in the plugin would hand the host a different lookahead — and ' +
+           'a different reported latency — from the same pick in the browser, ' +
+           'with every one of 23,013 parity checks still green.' },
+
+  { name: 'lead stops being the sealed arrangement in the recipe',
+    suite: 'casket_plugin_test.js',
+    find: 'sat: 0,  seal: true',
+    repl: 'sat: 0,  seal: false',
+    means: 'the exact defect that shipped once already — the factory preset ' +
+           'named "Sealed for Delivery" that never set seal, so picking it gave ' +
+           'Lead\'s cosmetic numbers without the one structural trait it exists ' +
+           'for. A survivor means that regression could return through the ' +
+           'recipe table instead of the preset literal, and the only witness ' +
+           'would be a listener who knew what the seal is supposed to cost.' }
 ];
 
 /* The suite run against a mutant. casket_test.js is the guarantee, the null
@@ -294,7 +337,17 @@ function runSuiteAgainst(mutantSrc, suite) {
     died: r.status !== 0 || (m && +m[2] > 0),
     crashed: !m,
     failed: m ? parseInt(m[2], 10) : -1,
-    firstFail: (out.match(/[✗x] [^\n]*/) || [''])[0].slice(0, 76)
+    /* ANCHORED ON THE FAILURE FORMAT, not on a bare glyph — fixed
+       2026-08-24. This was `[✗x] [^\n]*`, and the lowercase-x alternative
+       (there as an ASCII fallback) matches any x followed by a space
+       ANYWHERE in the output. The first recipe mutants reported their
+       first failure as "x table is the inverse of buildState's" — which is
+       the tail of the word "index" inside a PASSING line. Every harness
+       here prints its failures as "✗ FAIL:", so match that and nothing
+       else. A mutant report that names the wrong assertion sends the next
+       reader to the wrong part of the suite, which is worse than printing
+       nothing at all. */
+    firstFail: (out.match(/[✗x] FAIL:[^\n]*/) || [''])[0].slice(0, 76)
   };
 }
 
