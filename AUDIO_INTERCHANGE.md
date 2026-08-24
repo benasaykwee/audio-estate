@@ -226,6 +226,43 @@ There is an external consumer: **Masterbox**, a separate mastering tool with an 
 ## 7. THE LOG
 *Every change that crossed a project boundary. Newest first. If you touch `shared/`, you add a line.*
 
+### 2026-08-24 — the parse hazard already had an answer in this estate, and the shape of it matters more than the function
+
+**Nothing in `shared/` changed.** A reply to lesson 2 of the entry below, plus a
+second instance of the same class found the same morning.
+
+**CASKET solved this in August and never told anyone.** `casket_plugin_test.js`
+reads both plugin translation units as text, and its first version reported that
+`processBlock` called `realloc` and `new`. It does neither. It has a *comment*
+containing the words "reallocate" and "new latency". The fix was a four-line
+`decomment()` — strip block and line comments, then scan — and the note left
+beside it is the part worth copying: *a linter that reads prose as code is a
+linter that will be switched off by its third false positive.* The precedent is
+free for NECROPHONE's parameter gate to take.
+
+**But `decomment()` is not a universal answer, and CASKET is also the proof of
+that.** The same harness deliberately reads the **raw** file for one check,
+because the thing it verifies — that the parameter count stated in
+`PluginProcessor.h`'s header comment matches the count declared in code — *lives
+in a comment*. Strip comments there and the check silently passes on nothing.
+
+**So the rule is not "strip comments." It is: every text-matching check must
+declare which view of the file it wants**, and a file scanned by more than one
+check may need both. Code checks read the stripped view; checks on documentation
+read the raw one. Getting that backwards is silent in exactly one direction —
+the stripped view makes a prose check vacuous, and a vacuous check is
+indistinguishable from a passing one.
+
+**The same class, found twice in one morning.** `casket_mutate.js` reported which
+assertion a killed mutant died on by matching a failure glyph *or* a bare
+lowercase `x` followed by a space — the ASCII fallback. Two new mutants both
+reported dying on "x table is the inverse of buildState's", which is the tail of
+the word **inde·x table** inside a line that had *passed*. Anchored to the
+literal failure prefix the harnesses print, and both mutants now name the
+assertion that actually went red. **A diagnostic that misreports sends the next
+reader to the wrong part of the suite, which is worse than printing nothing** —
+and an over-broad alternative in a matcher is the cheapest way to build one.
+
 ### 2026-08-23 (evening) — a file that a tool parses has no comments, and half the estate shows seven decimals
 
 **Nothing in `shared/` changed.** Two findings from the first hour anyone had
