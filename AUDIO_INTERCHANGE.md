@@ -226,6 +226,61 @@ There is an external consumer: **Masterbox**, a separate mastering tool with an 
 ## 7. THE LOG
 *Every change that crossed a project boundary. Newest first. If you touch `shared/`, you add a line.*
 
+### 2026-08-24 — RIGOR has CASKET's arrangement bug, found by censusing for it rather than by waiting
+
+**Nothing in `shared/` changed. This is a finding about a sibling, filed here
+because §7 is where cross-boundary facts live, and because the entry below sets
+the rule: when a fix cannot reach a consumer, the follow-up belongs in that
+consumer's records the same day or it never becomes anyone's to-do.**
+
+**What happened in CASKET.** A person played it for the first time on
+2026-08-23 and reported that the five arrangements sounded identical. They
+were. The editor's dropdown moved the `style` parameter, which changes only the
+two traits the *engine* derives from a style, while the audible recipe — the
+lookahead, the release, the knee, the oversampling, the margin, the saturation
+and the seal — stayed wherever it happened to be. The browser face never had
+the hole, because picking a style there merges the whole recipe over the
+current state. The engine was never wrong: it rendered exactly the state it was
+handed, and the state it was handed was one arrangement wearing five names.
+
+**RIGOR HAS THE SAME HOLE.** Read directly, not inferred:
+`RIGOR/rigor_core.js` defines four styles, each with a `d` block naming
+**knee, attack, release, autoRel and ratio**. `PluginEditor.cpp`'s four style
+buttons do exactly one thing — a gesture around `*styleParam = i` — and nothing
+applies `d`. So in a DAW, FRESH · SETTLING · SPASM · REPOSE differ only by the
+traits RIGOR's engine reads from the style directly (topology, detector, the
+RMS and peak windows, the level-smoothing flags), while **ratio 2 against
+ratio 6, knee 0 against knee 18, and attack 0.5 ms against 30 ms never happen.**
+Those are not shadings; they are most of what a compressor *is*.
+
+**AUTOPSY and PALLBEARER are clear**, and structurally rather than luckily:
+AUTOPSY's choice parameters are filter type, slope and placement, which imply
+no recipe, and PALLBEARER declares no choice parameter at all. **The hazard is
+not "having a dropdown". It is having a dropdown whose value implies values for
+OTHER parameters** — a table in the core with a defaults block hanging off each
+option. Grep for that shape, not for combo boxes.
+
+**The fix, if RIGOR's session wants it.** CASKET's was three pieces: the style
+control loses its parameter attachment and becomes a callback; a user's pick
+applies the recipe through proper host gestures reading the same table the
+engine reads, so there is no third copy to drift; and automation, preset loads
+and `setStateInformation` still move only the style parameter — deliberately,
+so a restored session cannot have its knobs stomped on load. That last part is
+the half that is easy to get wrong in the other direction.
+
+**And the gate is the point.** A test that reads the recipe fields out of the
+core and asserts the editor applies every one means the next field added to a
+style turns the suite red until the face learns it. **Neither that gate nor the
+bug's measured cost existed until a human listened**, which is the
+uncomfortable part: four harnesses, twenty-three thousand parity checks and a
+mutation suite all passed while every arrangement was the same limiter, because
+the fault was in what the editor SENT, and every test in the building checked
+what the engine did with what it was given.
+
+**Not fixed here.** Editing a sibling's editor from a CASKET session crosses a
+boundary this document exists to keep. Recorded, with the shape to grep for and
+the fix that worked.
+
 ### 2026-08-24 — the parse hazard already had an answer in this estate, and the shape of it matters more than the function
 
 **Nothing in `shared/` changed.** A reply to lesson 2 of the entry below, plus a
