@@ -352,6 +352,84 @@ ok(/\{\s*"Pine", "Velvet", "Oak", "Iron", "Lead"\s*\}/.test(proc),
      ' vs ' + declaredMutants + ' declared)');
 })();
 
+/* ---------- 5b·3. what an arrangement must NOT touch ----------
+   THE EXCLUSION IS AS LOAD-BEARING AS THE INCLUSION, and only the
+   inclusion was asserted. An arrangement is a CHARACTER, not a session
+   reset: picking Lead must not move the drive you spent ten minutes
+   setting, the lid the delivery spec demands, the dither you chose for the
+   format, or the loudness target you are aiming at. The browser has always
+   behaved this way — UIH.applyStyle merges only the recipe's own keys over
+   the current state — and applyArrangement was written to match.
+   Nothing enforced it. A single well-meant `set("lid", ...)` added here
+   later would silently start overwriting a delivery ceiling on every pick,
+   and the only symptom would be a master that came out quieter than the
+   plant asked for. */
+console.log('\n— what an arrangement must not touch —');
+(function () {
+  var body = (edit.match(/void CasketEditor::applyArrangement[\s\S]*?\n\}/) || [''])[0];
+  /* every declared parameter that is NOT part of a recipe */
+  var recipeParams = recipeFields.map(function (f) { return FIELD_TO_PARAM[f]; }).concat(['style']);
+  var mustNotMove = declared.filter(function (id) { return recipeParams.indexOf(id) < 0; });
+  ok(mustNotMove.length >= 10,
+     'there are ' + mustNotMove.length + ' parameters an arrangement has no business moving');
+  var trespass = mustNotMove.filter(function (id) {
+    return new RegExp('set\\("' + id + '"').test(body);
+  });
+  ok(trespass.length === 0,
+     'applyArrangement touches none of them' +
+     (trespass.length ? ' — TRESPASS: ' + trespass.join(', ') : ' (drive, lid, dust and the rest survive a pick)'));
+  (function () {
+    var spiked = body.replace('set("style"', 'set("lid", -0.3f); set("style"');
+    var caught = mustNotMove.filter(function (id) {
+      return new RegExp('set\\("' + id + '"').test(spiked);
+    });
+    ok(caught.length === 1 && caught[0] === 'lid',
+       'BITES: an arrangement that started overwriting the lid would be caught');
+  })();
+})();
+
+/* ---------- 5b·4. the state a host saves is the state it gets back ----------
+   Ben's `.aupreset` survived a save, a plugin swap and a reload during the
+   first session — by OBSERVATION, which is not a gate. The execution half
+   of that round trip needs a real host and belongs in the listening
+   protocol; what can be held here is the plumbing, and the plumbing is
+   where the silent failures live.
+
+   Three properties, and the third is the one with teeth:
+     · the two halves are symmetric APVTS calls, not hand-rolled writers
+     · every declared parameter lives in the tree copyState walks
+     · buildState() READS every declared parameter — because a parameter
+       can round-trip through the XML perfectly and still mean nothing, if
+       nothing on the audio side ever asks for it. That is exactly how the
+       M/S fields sat real-in-the-core and unreachable-from-a-DAW for
+       weeks, one layer up. */
+console.log('\n— the state a host saves is the state it gets back —');
+(function () {
+  ok(/getStateInformation[\s\S]{0,220}apvts\.copyState\(\)[\s\S]{0,80}createXml/.test(proc),
+     'getStateInformation copies the whole APVTS tree as XML');
+  ok(/setStateInformation[\s\S]{0,220}apvts\.replaceState\([\s\S]{0,80}fromXml/.test(proc),
+     'setStateInformation replaces it from XML — the symmetric call');
+  ok(!/getStateInformation[\s\S]{0,400}getRawParameterValue/.test(proc),
+     'and neither half hand-rolls a per-parameter writer that could miss one');
+
+  var build = (proc.match(/casket::State CasketProcessor::buildState[\s\S]*?\n\}/) || [''])[0];
+  ok(build.length > 200, 'buildState located for inspection');
+  var unread = declared.filter(function (id) {
+    return !(new RegExp('f\\("' + id + '"\\)').test(build));
+  });
+  ok(unread.length === 0,
+     'every declared parameter is read back by buildState' +
+     (unread.length ? ' — SAVED BUT NEVER READ: ' + unread.join(', ') : ' (all ' + declared.length + ')'));
+  (function () {
+    var spiked = build.replace(/f\("unity"\)/, 'false');
+    var caught = declared.filter(function (id) {
+      return !(new RegExp('f\\("' + id + '"\\)').test(spiked));
+    });
+    ok(caught.length === 1 && caught[0] === 'unity',
+       'BITES: a parameter that stopped being read would be caught');
+  })();
+})();
+
 /* ---------- 5c. the vigil, as the host is told it ----------
    THE SCREENSHOTS BECOME A PROMISE. During the first listening session
    (2026-08-23) the plugin header reported a different latency for every
@@ -413,6 +491,21 @@ console.log('\n— the vigil, as the host is told it —');
   /* the twin must carry the same formula, not merely the same constants */
   ok(/OS_Q \+ vigilSamples\(s, fs\) \+ 1 \+ \(s\.seal \? DEC_Q : 0\)/.test(core),
      'the C++ twin computes latency by the same expression');
+
+  /* AND BOTH FACES MUST SAY IT IN BOTH UNITS. Samples is what the host
+     compensates by; milliseconds is what a person can feel. The browser
+     has printed both since the beginning and the plugin printed only
+     samples, which is how "302" sat in a header all session meaning
+     nothing to the man reading it. */
+  ok(/" smp"/.test(edit) && /" ms"/.test(edit),
+     'the JUCE header reports latency in samples AND milliseconds');
+  ok(/m\.latency \* 1000\.0 \/ fs/.test(edit),
+     'and derives the milliseconds from the rate the host prepared, not a constant');
+  ok(/proc\.rate\(\)/.test(edit) && /std::atomic<double> sr/.test(procH),
+     'the rate crosses to the editor through an atomic, like every other cross-thread read here');
+  var browserLat = slurp(path.join(SRC, '..', '..', 'casket.html'));
+  ok(/latencySamples\(state, FS\) \/ FS \* 1000/.test(browserLat),
+     'and the browser face still prints both, so the two agree on what to show');
 
   (function () {
     var doctored = Object.assign({}, WITNESSED_441, { lead: 237 });   /* seal forgotten */
@@ -706,7 +799,15 @@ ok(absent.length === 0, 'the twin State carries every JS state field' +
    What did NOT change: histogramS is still not parity-gated. It is a
    picture, not a sample. The NUMBER it is drawn around, Meters::lra, is
    gated, and both faces now compute it through the same shortTermStats(). */
-var DIAGNOSTIC_ONLY = {};
+var DIAGNOSTIC_ONLY = {
+  wake: 'THE WAKE is a loudness-matched A/B MEASUREMENT, prototyped 2026-08-24 and ' +
+        'not yet a shipped mode. It renders twice and measures; it is never on an ' +
+        'audio thread and nothing in the render path calls it, which puts it on ' +
+        'exactly the footing matchReference has had since it was written. If Ben ' +
+        'rules that it ships as a monitoring feature, the question of a twin gets ' +
+        'asked then — and the answer is probably still no, because the plugin would ' +
+        'attenuate a bypass path rather than render one offline.'
+};
 Object.keys(DIAGNOSTIC_ONLY).forEach(function (fn) {
   ok(typeof C[fn] !== 'undefined',
      'the JS core still has ' + fn + ' (if not, delete it from DIAGNOSTIC_ONLY)');

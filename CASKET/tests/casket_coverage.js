@@ -170,6 +170,9 @@ var API_EXEMPT = {
   defaultState:{ twin: 'the host\'s parameter defaults ARE the defaults; a second defaultState would be a copy that could drift' },
   /* browser-only workflows — no plugin surface by design */
   matchReference: { twin: 'offline advice against a reference file; browser-only, and unlike autoDrive/autoMargin it was never given a twin' },
+  wake:        { twin: 'THE WAKE renders both sides offline to measure what the limiter took; a plugin ' +
+                       'would attenuate a live bypass path instead, so a twin would be a different ' +
+                       'algorithm wearing the same name. Prototype, 2026-08-24 — see DIAGNOSTIC_ONLY in casket_plugin_test.js' },
   batchRender: { twin: 'the album pipeline lives in the browser' },
   albumMaster: { twin: 'ditto' },
   albumLoudness: { twin: 'ditto' },

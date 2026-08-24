@@ -924,6 +924,125 @@ console.log('\n— the arrangements are not the same limiter —');
      (same.length ? ' — IDENTICAL: ' + same.join(', ') : ''));
 })();
 
+/* ============================================================
+   THE WAKE — the loudness-matched A/B, as a measurement
+   ------------------------------------------------------------
+   A PROTOTYPE under test, not a shipped mode. Nothing in the render path
+   calls it; these assertions are what would have to stay true if it ever
+   became a monitoring feature, and one of them is the reason it must
+   never become anything more than that.
+   ============================================================ */
+console.log('\n— the wake —');
+(function () {
+  /* TWO SECONDS, and the length is load-bearing. The first version of this
+     section used 16,000 samples — a third of a second — and every reading
+     came back −inf, because BS.1770 integrates over 400 ms blocks and a
+     buffer that short contains no complete one to gate. That is the exact
+     trap casket_mutate.js's own header records: this project once ran a
+     gate that passed 22,848 checks VACUOUSLY for the same reason. It is
+     written down, and it still caught the next person to write a
+     loudness test. Two seconds is five whole blocks. */
+  var n = FS * 2, src = C.makeNoise(8675309, n), i;
+  var xL = new Float64Array(n), xR = new Float64Array(n);
+  for (i = 0; i < n; i++) { xL[i] = src[i] * 0.5; xR[i] = src[n - 1 - i] * 0.5; }
+
+  /* IDLE: the lid far above the signal, and the PREMISE ASSERTED rather
+     than assumed. The first version of this case used the full-scale
+     material with the lid at 0 and Velvet's 3 dB knee, which starts
+     bending 1.5 dB below the lid — so the "idle" case was quietly doing
+     0.07 dB of work and the gap was never going to be zero. Quiet
+     material, no knee, and a check that the engine really did nothing. */
+  var qL = new Float64Array(n), qR = new Float64Array(n);
+  for (i = 0; i < n; i++) { qL[i] = xL[i] * 0.2; qR[i] = xR[i] * 0.2; }
+  var idle = C.defaultState();
+  idle.lid = 0; idle.margin = 0; idle.drive = 0; idle.knee = 0;
+  idle.dc = false; idle.dust = 'off';
+  ok(C.renderOffline(C.sanitizeState(idle), qL, qR, FS).meters.grPeak === 0,
+     'the idle case really is idle — the engine reports no reduction at all');
+  var w0 = C.wake(idle, qL, qR, FS);
+  ok(Math.abs(w0.gapDb) < 0.01,
+     'so nothing was taken, and there is nothing to match (' + w0.gapDb.toFixed(4) + ' dB)');
+
+  /* WORKING HARD, with Unity already on — the exact case that misled a
+     listener. Unity has given the drive back and the side is STILL
+     quieter, because the limiter took something Unity cannot return. */
+  var hard = C.defaultState();
+  hard.lid = -1; hard.margin = 0; hard.drive = 14; hard.unity = true;
+  hard.dc = false; hard.dust = 'off';
+  var w1 = C.wake(hard, xL, xR, FS);
+  ok(w1.unityWasOn, 'the hard case really does have Unity armed');
+  ok(w1.gapDb > 0.5,
+     'and the processed side is still quieter than bypass by ' + w1.gapDb.toFixed(2) +
+     ' dB — which is what Unity cannot give back');
+  note('THE WAKE at drive +14, Unity on: live ' + w1.liveLufs.toFixed(2) +
+       ' LUFS vs bypass ' + w1.bypassLufs.toFixed(2) +
+       ' LUFS — gap ' + w1.gapDb.toFixed(2) + ' dB');
+
+  /* THE MEASUREMENT MUST BE TRUE, not merely plausible: apply the reported
+     trim and the two must actually measure the same. A matching number
+     nobody re-measures is a plausible number. */
+  var lifted = new Float64Array(n), liftedR = new Float64Array(n);
+  var live = C.renderOffline(C.sanitizeState(hard), xL, xR, FS);
+  var g = C._nd.dbToLin(w1.gapDb);
+  for (i = 0; i < n; i++) { lifted[i] = live.L[i] * g; liftedR[i] = live.R[i] * g; }
+  var after = C.meterBuffer(lifted, liftedR, FS).integrated;
+  ok(Math.abs(after - w1.bypassLufs) < 0.1,
+     'applying the reported trim really does match the loudness (' +
+     after.toFixed(2) + ' vs ' + w1.bypassLufs.toFixed(2) + ' LUFS)');
+
+  /* THE TRUE-PEAK FIGURE MUST BE REAL, checked against an independent
+     measurement of the same buffer rather than trusted. */
+  var tpIndep = C._nd.linToDb(Math.max(C.truePeakOf(lifted), C.truePeakOf(liftedR)));
+  ok(Math.abs(tpIndep - w1.truePeakIfLifted) < 1e-9,
+     'the reported true peak of the lifted side is the one it actually has');
+
+  /* A PREDICTION CORRECTED, and the correction is the useful part.
+     This section first asserted that lifting the processed side would
+     ALWAYS break the lid. It does not, and the measurement says why: with
+     Unity armed the output has already been trimmed by the whole drive,
+     so there is 13 dB of headroom under the lid and the lift lands at
+     −1.48 dBTP, comfortably inside it. The danger is real but NARROWER
+     than claimed — it needs a processed side that is both quieter than
+     bypass AND already sitting on its ceiling, which is what heavy
+     limiting without Unity looks like. Asserting the wide version would
+     have been a gate that passed for the wrong reason on this material
+     and failed on someone else's. */
+  var squash = C.defaultState();
+  squash.lid = -20; squash.margin = 0; squash.drive = 0; squash.unity = false;
+  squash.dc = false; squash.dust = 'off';
+  var w2 = C.wake(squash, xL, xR, FS);
+  ok(w2.gapDb > 6,
+     'squashed to a −20 lid: the processed side is ' + w2.gapDb.toFixed(2) + ' dB quieter');
+  ok(!w2.liftClearsLid,
+     'and lifting THAT to match would land at ' + w2.truePeakIfLifted.toFixed(2) +
+     ' dBTP, straight through a lid of ' + w2.lidDb.toFixed(2));
+
+  /* WHICH IS WHY THE TOOL OFFERS THE OTHER DIRECTION. Attenuating the
+     BYPASSED side cannot break anything: it adds no gain after the
+     limiter, so the lid stays a theorem rather than a hope. This is the
+     only number a monitoring path should ever use. */
+  ok(Math.abs(w1.matchOnBypass + w1.gapDb) < 1e-12 &&
+     Math.abs(w2.matchOnBypass + w2.gapDb) < 1e-12,
+     'so what it offers a monitoring path is the attenuation of the bypassed side');
+
+  /* AN INDEPENDENT CONFIRMATION OF §6.3, arriving sideways. Measured at
+     16× — a longer reconstruction than the engine's own 4× detector —
+     full-band noise through the UNSEALED path lands above the lid by the
+     documented residual, which is the whole reason the seal and the
+     margin exist. Reported, not asserted to a tolerance: the exact figure
+     is a property of this material. */
+  var liveOff = C.renderOffline(C.sanitizeState((function () {
+    var s = C.defaultState();
+    s.lid = -1; s.margin = 0; s.drive = 14; s.unity = false; s.dc = false; s.dust = 'off';
+    return s;
+  })()), xL, xR, FS);
+  var resid = C._nd.linToDb(Math.max(C.truePeakOf(liveOff.L), C.truePeakOf(liveOff.R))) - (-1);
+  note('unsealed 4× residual on full-band noise, measured at 16×: +' +
+       resid.toFixed(2) + ' dB over the lid (§6.3 documents up to +1.194)');
+  ok(resid > 0 && resid < 1.3,
+     'and it sits inside the range §6.3 measured for this path');
+})();
+
 console.log('\n— mid/side and loudness range —');
 (function () {
   var n = 16384;

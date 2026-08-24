@@ -278,6 +278,65 @@ if (UIH) {
      'arrangement survives the URL round trip');
   ok(UIH.decodeArrangement('%%%not json') === null, 'a mangled hash decodes to null, not a throw');
 
+  /* THE SAVE/LOAD FIXPOINT, swept rather than spot-checked.
+     The single case above proves four fields survive one trip. What a user
+     actually relies on is stronger and was never stated: saving a state
+     and loading it back must be a FIXPOINT — not merely lossless once, but
+     stable under repetition, because a `.casket.json` gets opened, edited
+     and re-saved for years.
+     The distinction matters. A sanitiser that quietly nudges a value
+     (clamping a shade, re-deriving a default) is lossless on the first
+     trip and DRIFTS on every one after it, and the symptom is an
+     arrangement that is not quite what you saved it as — arriving slowly
+     enough that nobody blames the loader.
+     This also covers the plugin's `.aupreset` path in the only way
+     available here: the JUCE half is XML over the same field set, and
+     casket_plugin_test.js holds the plumbing. Executing THAT round trip
+     needs a real host and lives in the listening protocol. */
+  (function () {
+    var r = C._nd ? null : null, seedState, i, drift = [], unstable = [];
+    var STYLES = C.STYLES, LININGS = C.LININGS, DUSTS = C.DUSTS, BITS = C.DUST_BITS;
+    var rnd = (function (s) { return function () { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; }; })(20260824);
+    for (i = 0; i < 200; i++) {
+      seedState = C.sanitizeState({
+        style: STYLES[Math.floor(rnd() * STYLES.length) % STYLES.length],
+        drive: (rnd() * 36) - 12, lid: -rnd() * 20, margin: -rnd(),
+        knee: rnd() * 12, vigil: 0.1 + rnd() * 19.9, release: 1 + rnd() * 999,
+        autoRel: rnd() < 0.5, hold: rnd() * 500, link: rnd() * 100,
+        lining: LININGS[Math.floor(rnd() * LININGS.length) % LININGS.length],
+        seal: rnd() < 0.5, sat: rnd() * 100,
+        ms: rnd() < 0.5, msMid: (rnd() * 24) - 12, msSide: (rnd() * 24) - 12,
+        dc: rnd() < 0.5, unity: rnd() < 0.5,
+        dust: DUSTS[Math.floor(rnd() * DUSTS.length) % DUSTS.length],
+        dustBits: BITS[Math.floor(rnd() * BITS.length) % BITS.length],
+        targetLufs: -30 + rnd() * 25
+      });
+      /* one trip through the file format */
+      var once = C.sanitizeState(JSON.parse(JSON.stringify(seedState)));
+      /* and a second, to catch a sanitiser that nudges rather than settles */
+      var twice = C.sanitizeState(JSON.parse(JSON.stringify(once)));
+      /* BY VALUE, not by identity — `meta` is a nested {name, note} object
+         and sanitizeState builds a fresh one every call, so a `!==` here
+         reported the state's own name as "lost" on the first run of this
+         sweep. The scalar fields are the point, but a state file that
+         dropped its note would be a real loss, so compare both properly
+         rather than exempting the field. */
+      Object.keys(seedState).forEach(function (k) {
+        var a = JSON.stringify(seedState[k]), b = JSON.stringify(once[k]),
+            c = JSON.stringify(twice[k]);
+        if (b !== a) drift.push(k);
+        if (c !== b) unstable.push(k);
+      });
+    }
+    function uniq(a) { return a.filter(function (v, j) { return a.indexOf(v) === j; }); }
+    ok(drift.length === 0,
+       'a sanitised state survives the arrangement file unchanged, over 200 random states' +
+       (drift.length ? ' — LOST: ' + uniq(drift).join(', ') : ''));
+    ok(unstable.length === 0,
+       'and save/load is a FIXPOINT — a second trip moves nothing' +
+       (unstable.length ? ' — DRIFTING: ' + uniq(unstable).join(', ') : ''));
+  })();
+
   /* Every factory arrangement must survive the sanitiser unchanged — and
      this checks EVERY field the preset literal actually names, not a
      hand-picked subset. A fixed field list here once missed `seal`

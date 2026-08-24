@@ -466,9 +466,19 @@ void CasketEditor::drawHeader(juce::Graphics& g, juce::Rectangle<int> h) {
         ? juce::String(m.integrated, 1) + " LUFS" : juce::String("-inf LUFS");
     g.setColour(bone);
     g.setFont(juce::Font(12.0f));
+    /* LATENCY IN BOTH UNITS. Samples is the number the host compensates
+       by and the number the formula produces; milliseconds is the number a
+       person can feel. Lead's 302 samples means nothing at a glance —
+       6.8 ms means "you will notice this on a live overdub". The browser
+       face has shown both since the beginning; this one showed neither
+       until a listening session made the difference matter. */
+    const double fs = proc.rate();
+    juce::String lat = juce::String(m.latency) + " smp";
+    if (fs > 0.0)
+        lat += " / " + juce::String(m.latency * 1000.0 / fs, 1) + " ms";
     g.drawText("true peak " + tp + "     integrated " + il +
                "     weight " + juce::String(m.gr, 2) + " dB" +
-               "     latency " + juce::String(m.latency) + " smp",
+               "     latency " + lat,
                header, juce::Justification::centredRight);
 }
 

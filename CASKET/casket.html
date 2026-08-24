@@ -1977,6 +1977,85 @@ var CASKET = (function (NM, ND) {
              latencyA: a.latency, latencyB: b.latency };
   }
 
+  /* THE WAKE — viewing the body beside the living, at matched light.
+     ===================================================================
+     A PROTOTYPE, and deliberately a measurement rather than a mode. It
+     reports; nothing here changes what CASKET renders.
+
+     WHY IT EXISTS. Unity already compensates for drive: it trims the
+     output by exactly the gain you put in, so an A/B is not decided by
+     whichever side is louder. That is arithmetic, and arithmetic is not
+     the whole story. Unity gives back the drive, but the LIMITER has also
+     taken something — every decibel of gain reduction it applied is
+     loudness that never comes back — so at the moment the limiter is
+     working hardest, which is exactly the moment you most want to judge
+     it, the processed side still plays quieter than the bypassed one. A
+     listener hears the quieter side as the worse one and reaches the
+     wrong verdict about the software. That happened, to the person who
+     wrote it, on 2026-08-23.
+
+     WHAT IT MEASURES. Render both sides, measure both, and report the
+     trim that would make them equally loud — plus, and this is the part
+     worth having, what that trim would COST if anyone were ever tempted
+     to apply it to the processed side: the true peak it lands on, and
+     whether that clears the lid.
+
+     WHY IT CANNOT SIMPLY BE APPLIED. The answer is almost always no, and
+     the reason is a law rather than a preference: the lid is a theorem,
+     and nothing with gain may follow CASKET (AUDIO_INTERCHANGE §5). The
+     honest form of loudness-matching is therefore to attenuate the
+     BYPASSED side down to the processed one, never to lift the processed
+     side into its own ceiling. `matchOnBypass` is that number, and it is
+     the one a monitoring path should use.
+
+     Browser-only, like matchReference and for the same reason: it renders
+     twice and is never on an audio thread. Registered as DIAGNOSTIC_ONLY
+     in casket_plugin_test.js. */
+  function wake(state, inL, inR, fs) {
+    var st = sanitizeState(state);
+    var live = renderOffline(st, inL, inR, fs);
+    /* the body untouched — bypass is the delayed input, bit-exact */
+    var b = sanitizeState(state);
+    b.bypass = true;
+    var dead = renderOffline(b, inL, inR, fs);
+
+    var lufsLive = live.meters.integrated, lufsDead = dead.meters.integrated;
+    var gap = lufsDead - lufsLive;           /* > 0 means the processed side is quieter */
+    var lid = st.lid + st.margin;
+
+    /* what lifting the processed side would land on, measured rather than
+       predicted: scale the render and re-measure its true peak through the
+       same reconstruction the lid is defined against. */
+    var over = NaN, peakAfter = NaN;
+    if (isFinite(gap)) {
+      var g = ND.dbToLin(gap), n = live.L.length, i;
+      var sL = new Float64Array(n), sR = new Float64Array(n);
+      for (i = 0; i < n; i++) { sL[i] = live.L[i] * g; sR[i] = live.R[i] * g; }
+      /* truePeakOf takes ONE buffer and an oversampling factor, not a
+         stereo pair — measure each side and take the worse. 16x by
+         default, deliberately a longer reconstruction than the engine's
+         own detector, exactly as autoMargin does. */
+      peakAfter = ND.linToDb(Math.max(truePeakOf(sL), truePeakOf(sR)));
+      over = peakAfter - lid;
+    }
+
+    return {
+      liveLufs: lufsLive,
+      bypassLufs: lufsDead,
+      /* the trim that matches them. Positive = the processed side is
+         quieter by this much. */
+      gapDb: gap,
+      /* the number a monitoring path should actually use: attenuate the
+         BYPASSED side by this, and no gain follows the lid. */
+      matchOnBypass: isFinite(gap) ? -gap : NaN,
+      unityWasOn: !!st.unity,
+      /* and the reason not to do it the other way round */
+      truePeakIfLifted: peakAfter,
+      liftClearsLid: isFinite(over) ? over <= 0 : true,
+      lidDb: lid
+    };
+  }
+
   /* AUTO-MARGIN. Lead ships a fixed -0.3 dB margin, chosen because it
      covers the true-peak residual on most material. But the residual is a
      property of the MATERIAL, not of the limiter — §6.3 measures it from
@@ -2545,7 +2624,7 @@ var CASKET = (function (NM, ND) {
     latencySamples: latencySamples, vigilSamples: vigilSamples, boxLen: boxLen,
     transferAt: transferAt, quantize: quantize, meterBuffer: meterBuffer, createEngine: createEngine, truePeakOf: truePeakOf,
     RS_Q: RS_Q, resample: resample, conformToRate: conformToRate,
-    renderOffline: renderOffline, autoDrive: autoDrive, difference: difference,
+    renderOffline: renderOffline, autoDrive: autoDrive, difference: difference, wake: wake,
     matchReference: matchReference, autoMargin: autoMargin,
     batchRender: batchRender, albumMaster: albumMaster, albumLoudness: albumLoudness,
     albumReport: albumReport,

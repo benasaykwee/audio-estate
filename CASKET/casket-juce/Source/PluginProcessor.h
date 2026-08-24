@@ -84,6 +84,20 @@ public:
         return lastHist.any;
     }
 
+    /* The rate the host prepared us at, for the editor's benefit only —
+       a latency in samples means nothing at a glance and everything once
+       it is also in milliseconds, and converting needs the rate.
+
+       ATOMIC for the same reason `lat` in CasketCore.h is: it is written
+       in prepareToPlay and read from the editor's 30 Hz timer, which are
+       different threads. The window is tiny (the rate moves only when a
+       host re-prepares) and the consequence of a torn read would be one
+       wrong frame of a text label — but "the race is small and the
+       symptom is cosmetic" is the argument that left five doubles
+       unsynchronised in this very file until 2026-08-18, and it was wrong
+       then. Relaxed ordering: nothing else is published through it. */
+    double rate() const { return sr.load(std::memory_order_relaxed); }
+
     juce::AudioProcessorValueTreeState apvts;
 
 private:
@@ -96,7 +110,7 @@ private:
     static const int MAX_CHUNK = 8192;
 
     casket::Engine engine;
-    double sr = 48000;
+    std::atomic<double> sr { 48000.0 };
     int lastLatency = 0;
     /* scratch doubles — the core is double throughout and JUCE hands us
        floats; converting per block keeps the DSP identical to the JS */
