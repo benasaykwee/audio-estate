@@ -226,6 +226,52 @@ There is an external consumer: **Masterbox**, a separate mastering tool with an 
 ## 7. THE LOG
 *Every change that crossed a project boundary. Newest first. If you touch `shared/`, you add a line.*
 
+### 2026-08-27 — CASKET grew an intake for CORONER, and the seam is specified in §9
+
+**Nothing in `shared/` changed and no C++ twin was touched, so no parity check
+and no blessed hash can have moved.** CASKET gained `intake()` and
+`chooseArrangement()` in `casket_core.js`, JS-only on the same footing as
+`matchReference` and THE WAKE, registered in both censuses with reasons
+(`API_EXEMPT` in `casket_coverage.js`, `DIAGNOSTIC_ONLY` in
+`casket_plugin_test.js`). New harness `tests/casket_intake.js`, wired into CI.
+
+**The receiving end was built before the sending end, deliberately.** CORONER
+does not route to CASKET — `route()` forks two ways and CASKET appears nowhere
+in its three files. Specifying and gating the consumer first means the producer
+has something to aim at that is already proved, rather than two halves being
+guessed at once.
+
+**Three things worth carrying out of it:**
+
+1. **CORONER has no BS.1770 and must not grow one.** Checked directly: `crest`
+   is plain peak over RMS, no K-weighting, no LUFS, no true peak. CASKET's is
+   gated against EBU 3341/3342 plus two cases added because the published
+   reference programmes are blind to the gate and the percentiles they test.
+   A second copy would be the estate's oldest defect in its hardest-to-see
+   location. §9.2.
+2. **A confidence that costs nothing is worth nothing.** The first draft of
+   `chooseArrangement` gave velvet a free point so an empty report would land
+   on the default. Correct instinct, wrong mechanism: velvet then scored 1
+   against a field of zeros, and a confidence computed as the margin over the
+   runner-up read **1.00 on an empty report**. Maximum certainty, no evidence,
+   which is worse than being wrong because it is wrong and convincing. The
+   default moved into the tie-break. Same family as the EBU cases above and as
+   `casket_mutate.js` printing "every deliberate break was caught" after
+   running zero mutants.
+3. **A census that sees a feature under one condition will report the
+   conditional ones as dead.** The harness's "is any declared feature dead
+   code?" check swept a single fixture, and `dur` — which acts by *scaling*
+   confidence — multiplied five durations by a zero and came back dead. It is
+   not dead, it is conditional. The check now requires a feature to matter
+   *somewhere*, and proves it can still see real deadness by running
+   `centroid`, which CASKET genuinely does not read, through the same
+   machinery.
+
+**Verified:** `casket_intake` 79/0, `casket_test` 217/0, `casket_ui_test`
+113/0, `casket_plugin_test` 129/0, `casket_coverage --strict` 0 unexplained
+gaps, `casket_sync` byte-identical on all three embeds. The plugin test caught
+the new harness's absence from `casket.yml` before a human did.
+
 ### 2026-08-24 — RIGOR has CASKET's arrangement bug, found by censusing for it rather than by waiting
 
 **Nothing in `shared/` changed. This is a finding about a sibling, filed here
@@ -1265,3 +1311,133 @@ NM extracted verbatim out of `autopsy_core.js`. Shared, not forked, because NM's
 4. If any regression hash moved, **stop.** Either it was not additive, or you found a real bug. Both need §7 entries.
 5. If a hash moved and the change was correct, re-bless deliberately and write down what moved and why.
 6. Add a §7 entry with blast radius and what you verified.
+
+---
+
+## 9. THE CORONER SEAM — how a report becomes a state
+
+*Added 2026-08-27 by a CASKET session, written from CASKET's side and
+deliberately readable without opening CASKET's source. CORONER is the sixth
+member of the estate and the first that listens instead of speaking. This
+section is the contract for what happens when it hands its findings to a
+limiter. The NECROPHONE and PALLBEARER halves of CORONER's routing are that
+project's business and are not described here.*
+
+### 9.1 The division of labour, and it is not negotiable
+
+> **CORONER says what the MATERIAL IS. It has the ears.**
+> **CASKET says what the SETTINGS ARE. It has the meters.**
+
+For NECROPHONE and PALLBEARER a CORONER report becomes a **patch**, because
+those two recreate the sound. CASKET recreates nothing — it is the lid coming
+down — so the handoff is a different shape, and getting that shape wrong is the
+whole risk. A report that arrived carrying a knee and a release would be
+CORONER guessing at numbers CASKET can measure exactly.
+
+Concretely, inside `intake()`:
+
+| Number | Where it comes from | Why |
+|---|---|---|
+| `drive` | `autoDrive`, bisecting against a loudness target | measured, and the search verifies its own render |
+| `margin` | `autoMargin`, rendering and re-measuring | the true-peak residual is a property of the **material**, from +0.000 dB on harmonic content to +1.19 dB on full-band clipped noise |
+| the arrangement | CORONER's features | the one thing no meter can report: what **kind** of thing this is |
+
+### 9.2 Do not grow a second BS.1770
+
+As of 2026-08-27 CORONER has **no** loudness metering: `crest` is plain peak
+over RMS, and there is no K-weighting, no LUFS and no true-peak anywhere in
+`coroner_core.js`. **That is correct and it should stay that way.** CASKET
+implements ITU-R BS.1770-4 to the letter, matches the published 48 kHz table to
+1e-12, and is gated against EBU Tech 3341 and 3342 — plus two extra
+discriminating cases, added because the published reference programmes turned
+out to be blind to the relative gate and the percentiles they are supposed to
+test. A second implementation would be **a rule with two copies**, this
+estate's most-repeated defect, in the one place where the two copies would be
+hardest to tell apart. If CORONER needs a LUFS figure, ask CASKET's
+`meterBuffer()` for it.
+
+### 9.3 What CORONER sends
+
+A plain object. **CASKET does not import CORONER and CORONER need not import
+CASKET** — a hard dependency would put each project's suite at the mercy of a
+file the other is still writing, and the seam is meant to be a contract rather
+than a shared build. Three shapes are accepted: a whole report (`{version,
+features}`), a bare feature bag, or nothing at all.
+
+CASKET reads **seven** features and declares them in `INTAKE_READS`:
+
+| feature | what CASKET asks it |
+|---|---|
+| `crest` | how far the transients stand above the body |
+| `onsetRate` | how often the limiter will be asked to act |
+| `attack` | how fast the fastest thing here arrives |
+| `sustain` | how much of a note is body rather than edge |
+| `flatness` | noise-like, or tonal |
+| `highRatio` | energy up where the inter-sample peaks are made |
+| `dur` | how much material there is to judge from |
+
+Everything else CORONER measures is welcome and ignored. A missing field falls
+back to a **neutral** value — one that casts no vote — so a partial report
+degrades rather than swinging the answer. Written against
+`FEATURE_VERSION 2`; a different version is **reported in `warnings`, never
+refused**, because a limiter that stops working when an analysis tool grows a
+feature is worse than one that says which vector it was handed.
+
+### 9.4 What CASKET sends back
+
+A `.casket.json` state, already through `sanitizeState()`, documented field by
+field in `CASKET/docs/CASE_FORMAT.md`. Use that format rather than inventing
+one: it inherits the sanitiser's clamping and the save/load **fixpoint** the
+suite already proves over 200 random states. Alongside it: the arrangement
+name, a confidence, ordered **evidence** in the same `{feature, reads, weight}`
+shape CORONER's own verdicts use, the measured block, and warnings.
+
+### 9.5 What a report may never set, and why
+
+`lid` · `dust` · `dustBits` · `dustSeed` · `ms` · `msMid` · `msSide` · `hold` ·
+`link` · `dc` · `unity` · `bypass` · `version` · `meta`
+
+A delivery ceiling is a contract with a platform or a plant and no amount of
+listening reveals it. Dither belongs to the **output format**, not the input
+material. Stereo shaping is an artistic decision; CORONER can report a width,
+and reporting is where it stops. The rest are session settings, not properties
+of the audio. **A report is advice, not a session reset.** All fourteen are
+asserted field by field in `CASKET/tests/casket_intake.js`, against a probe
+state that differs from default on every one of them so the check cannot pass
+by accident.
+
+### 9.6 An arrangement is a gesture, not a parameter
+
+If anything in this seam ever names an arrangement, it must apply the **whole
+recipe** — all eight fields, read from the engine's own `styleDefaults()` table
+— and never the style label alone. Setting the label alone is exactly the bug
+Ben's ears found on 2026-08-23, when all five arrangements turned out to be
+Velvet in costume and Lead was Lead with its seal switched off, after 23,013
+parity checks had missed it. See `CASKET_ARCHITECTURE.md` §16. **The shape to
+grep for anywhere in this estate: a value whose setting implies values for
+OTHER settings.** RIGOR still carries it (§7, 2026-08-24).
+
+### 9.7 One rule that is CASKET's alone: the margin only ever tightens
+
+`autoMargin` verifies against the material in front of it, so on a master that
+overshoots by nothing its honest answer is `0`. Lead nonetheless ships `−0.3`,
+chosen to cover material in general. `intake()` may only take **the more
+conservative of the two**. Letting a measurement relax a shipped safety
+allowance would mean quietly removing it on the one path where nobody is
+watching the knob.
+
+### 9.8 Deliberately not built
+
+- **CASKET is not in CORONER's `route()`.** As of this writing `route()` forks
+  two ways, NECROPHONE or PALLBEARER, and CASKET appears nowhere in CORONER's
+  three files. `intake()` is CASKET's half of a seam whose other half does not
+  exist yet, which is the right order: the receiving end can be specified,
+  gated and proved before anything is sent.
+- **No chain-level handoff.** One report, one limiter. The
+  AUTOPSY→RIGOR→CASKET chain is §5's business and the Underworld's, not this.
+- **No learned chooser.** `chooseArrangement()` is thin, transparent and
+  replaceable whole — it reads a features object and returns
+  `{style, confidence, evidence}`, mirroring CORONER's own layer-2/layer-3
+  split so that a model can replace exactly that function and nothing else.
+  The thresholds in it are honest guesses, not measurements against a library
+  of real masters, and that limitation belongs in any report that quotes them.

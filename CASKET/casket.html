@@ -2594,6 +2594,336 @@ var CASKET = (function (NM, ND) {
     };
   }
 
+  /* ==================================================================
+     THE INTAKE — CASKET's side of the CORONER seam
+     Added 2026-08-27. JS-only by design; see DIAGNOSTIC_ONLY in
+     casket_plugin_test.js and API_EXEMPT in casket_coverage.js.
+     ==================================================================
+
+     CORONER listens to a recording and writes down what it found. For
+     NECROPHONE and PALLBEARER that report becomes a PATCH, because those
+     two recreate the sound. CASKET recreates nothing, it is the lid
+     coming down, so the handoff here is a different shape, and getting
+     that shape wrong is the whole risk.
+
+     THE DIVISION OF LABOUR, and it is the load-bearing decision:
+       CORONER says what the MATERIAL IS.   It has the ears.
+       CASKET says what the SETTINGS ARE.   It has the meters.
+
+     Concretely: the drive is not inferred from a crest factor, it is
+     MEASURED by autoDrive against a loudness target. The margin is not a
+     style default, it is MEASURED by autoMargin on this exact audio, and
+     autoMargin re-renders to verify rather than estimating, because the
+     offline fuzzer once caught its predecessor calling a render "covered"
+     while it was still 0.554 dB over. Both of those tools were already
+     here and both already refuse to guess. What CORONER genuinely
+     contributes is the one thing no meter can report, namely what KIND of
+     thing this is, and that chooses the ARRANGEMENT.
+
+     A NOTE ON THE COUPLING. This takes a plain object and never imports
+     CORONER. That is deliberate. A hard dependency would put CASKET's
+     suite at the mercy of a file another session is still writing, and
+     the seam is meant to be a contract rather than a shared build.
+     Anything shaped like a feature vector works, absent fields fall back
+     to neutral defaults, and those fallbacks are why a partial report
+     degrades instead of throwing.
+
+     WHAT THE INTAKE MUST NOT SET, each with its reason:
+       lid              a delivery ceiling is a contract with a platform
+                        or a plant, and no amount of listening reveals it
+       dust, dustBits,  dither belongs to the OUTPUT FORMAT, never to the
+       dustSeed         input material
+       ms, msMid,       stereo shaping is an artistic decision; CORONER
+       msSide           can report a width, and reporting is where it stops
+       hold, link, dc,  session settings, not properties of the audio
+       unity, bypass
+     `opts.base` carries every one of them through untouched and
+     casket_intake.js asserts it field by field. This is §16's rule, that
+     an arrangement is a gesture rather than a parameter, extended one
+     layer outward: a report is ADVICE, not a session reset.
+
+     THE ARRANGEMENT IS APPLIED WHOLE. Naming a style without applying its
+     recipe is precisely the bug Ben's ears found on 2026-08-23, when all
+     five arrangements turned out to be Velvet in costume and Lead was
+     Lead with its seal switched off. chooseArrangement names a style; the
+     eight recipe fields then come out of styleDefaults, which is the
+     engine's own table and never a second copy of it.
+
+     LAYER 2 IS DELIBERATELY REPLACEABLE, mirroring CORONER's own
+     architecture. chooseArrangement reads a features object and returns
+     {style, confidence, evidence}. A better chooser, whether a model or a
+     table learned from real masters, replaces that one function and
+     nothing else notices. Anything in here that reached back into the raw
+     samples to pick a style would destroy that property, which is why the
+     chooser is handed features and never buffers.
+
+     DETERMINISM. No Math.random, no clock, no transcendental outside NM.
+     The same report and the same audio produce the same state, which is
+     what lets a regression baseline exist for this at all. */
+
+  /* Written against CORONER's FEATURE_VERSION 2. A different version is
+     REPORTED rather than refused: a limiter that stops working because an
+     analysis tool grew a feature is worse than one that says which vector
+     it was handed and carries on with neutral defaults. */
+  var INTAKE_FEATURE_VERSION = 2;
+
+  /* The features THE INTAKE reads, each with the question it is asked and
+     the value assumed when it is absent. A registry rather than inline
+     lookups, for the reason CORONER gives for having one of its own: a
+     consumer of a versioned vector should be able to ENUMERATE what it
+     depends on, so a vector change can be checked against it
+     mechanically instead of by somebody reading code. casket_intake.js
+     asserts both directions — the chooser reads nothing outside this
+     list, and every entry in it is actually read.
+
+     Each default is NEUTRAL rather than typical: it is the value that
+     casts no vote, so a missing field cannot quietly swing the choice. */
+  var INTAKE_READS = {
+    crest:     { def: 12,   asks: 'how far the transients stand above the body' },
+    onsetRate: { def: 3,    asks: 'how often the limiter will be asked to act' },
+    attack:    { def: 0.02, asks: 'how fast the fastest thing here arrives' },
+    sustain:   { def: 0.5,  asks: 'how much of a note is body rather than edge' },
+    flatness:  { def: 0.2,  asks: 'noise-like, or tonal' },
+    highRatio: { def: 0.06, asks: 'energy up where the inter-sample peaks are made' },
+    dur:       { def: 0,    asks: 'how much material there is to judge from' }
+  };
+
+  function readFeature(f, id) {
+    var n = f ? +f[id] : NaN;
+    /* LAW 5: isFinite, never `|| def`. Zero is a legal value for
+       onsetRate, highRatio, flatness and sustain alike, and `0 || 3`
+       is 3 — a silent, plausible, wrong answer. */
+    return isFinite(n) ? n : INTAKE_READS[id].def;
+  }
+
+  /* LAYER 2. Reads features, returns an opinion. Replaceable whole. */
+  function chooseArrangement(features) {
+    var f = features || {};
+    var crest = readFeature(f, 'crest');
+    var onset = readFeature(f, 'onsetRate');
+    var atk   = readFeature(f, 'attack');
+    var sus   = readFeature(f, 'sustain');
+    var flat  = readFeature(f, 'flatness');
+    var high  = readFeature(f, 'highRatio');
+    var dur   = readFeature(f, 'dur');
+
+    var score = { pine: 0, velvet: 0, oak: 0, iron: 0, lead: 0 };
+    var ev = [];
+    /* Additive only, deliberately. A rule that could subtract can drive a
+       total negative, and a confidence computed from a negative total
+       reads as certainty when it is the opposite. */
+    function say(styles, weight, id, value, reads) {
+      for (var i = 0; i < styles.length; i++) score[styles[i]] += weight;
+      ev.push({ styles: styles.slice(), feature: id, value: value,
+                weight: weight, reads: reads });
+    }
+
+    /* NO FLOOR, AND THE FIRST DRAFT HAD ONE. Velvet started with a free
+       point so that an empty report would land on the same arrangement a
+       fresh session does — correct instinct, wrong mechanism. It made
+       velvet score 1 against a field of 0, and a confidence computed as
+       the margin over the runner-up then read 1.00: MAXIMUM CERTAINTY ON
+       ZERO EVIDENCE, which is worse than being wrong because it is wrong
+       and convincing. The default now lives in the tie-break below, where
+       it decides the answer without pretending to be a reason for it. */
+
+    if (onset > 6) {
+      say(['oak', 'iron'], 2, 'onsetRate', onset,
+          'onsets arrive faster than a long release can recover from');
+    } else if (onset < 1.5) {
+      say(['pine', 'velvet'], 2, 'onsetRate', onset,
+          'sparse events, so a long release stays out of the way between them');
+    }
+
+    if (crest > 14) {
+      say(['oak'], 2, 'crest', crest,
+          'sharp transients over a quiet body — the short vigil catches them without leaning on the rest');
+    } else if (crest < 6) {
+      say(['velvet', 'lead'], 1, 'crest', crest,
+          'already dense, so there is little left to pump and a slow release costs nothing');
+    }
+
+    if (atk < 0.005) {
+      say(['iron'], 2, 'attack', atk,
+          'percussive onsets — the saturation and the heavier lining are built for exactly this');
+    } else if (atk > 0.05) {
+      say(['pine'], 2, 'attack', atk,
+          'nothing here arrives fast enough to need a short vigil');
+    }
+
+    if (sus > 0.7) {
+      say(['pine', 'velvet'], 1, 'sustain', sus,
+          'held tones rather than events');
+    } else if (sus < 0.2) {
+      say(['iron', 'oak'], 1, 'sustain', sus,
+          'short, damped events');
+    }
+
+    /* The two rules that reach for the seal, and both are about the peaks
+       BETWEEN the samples rather than on them. §6.3 measures the
+       true-peak residual from +0.000 dB on harmonic content to +1.19 dB
+       on full-band clipped noise; Lead is the one arrangement that
+       controls it, and it pays latency for the privilege. */
+    if (high > 0.12) {
+      say(['lead'], 3, 'highRatio', high,
+          'a lot of air, which is where inter-sample peaks are made — the seal is the only arrangement that controls them');
+    }
+    if (flat > 0.5) {
+      say(['lead'], 2, 'flatness', flat,
+          'noise-like and full-band, which is where the true-peak residual is worst');
+    }
+
+    var best = 'velvet', top = 0, second = 0;
+    /* STYLES, not Object.keys(score), so the iteration order is the
+       engine's own declared order rather than an insertion accident. */
+    for (var i = 0; i < STYLES.length; i++) {
+      var s = STYLES[i], v = score[s];
+      if (v > top) { second = top; top = v; best = s; }
+      else if (v > second) { second = v; }
+    }
+    /* THE TIE-BREAK IS THE DEFAULT. On an equal score velvet wins, for
+       the same reason sanitizeState defaults to it: a tie is not a reason
+       to move somebody off the arrangement a fresh session would give
+       them. When nothing scored at all, `top` is 0 and velvet stands. */
+    if (score.velvet === top) best = 'velvet';
+
+    /* Margin over the runner-up, not share of the total: a report that
+       lit every rule would score high everywhere and mean nothing. And an
+       unvoted choice is confidence ZERO, never the 1.00 that a lone
+       default point used to buy it. */
+    var conf = top > 0 ? clamp((top - second) / top, 0, 1) : 0;
+    /* Too little material is a reason to be less sure, and only when the
+       duration was actually reported — an absent `dur` is unknown, not
+       short, and must not be punished as though it were. */
+    if (dur > 0 && dur < 3) conf = conf * (dur / 3);
+
+    /* Evidence ordered heaviest first, so a face can print the top line
+       and be printing the reason. Ties keep their discovery order, which
+       is what a stable sort gives and what makes this reproducible. */
+    ev.sort(function (a, b) { return b.weight - a.weight; });
+
+    return { style: best, confidence: conf, scores: score, evidence: ev };
+  }
+
+  /* LAYER 3. Turns the opinion into a state, and measures the two numbers
+     that must never be opinions. */
+  function intake(report, inL, inR, fs, opts) {
+    opts = opts || {};
+    var warnings = [];
+
+    /* A whole CORONER report, a bare features object, or nothing at all.
+       Three accepted shapes cost one expression and save every caller a
+       conditional. */
+    var features = (report && typeof report === 'object' && report.features)
+                     ? report.features
+                     : (report && typeof report === 'object') ? report : {};
+    var ver = null;
+    if (report && typeof report === 'object') {
+      if (isFinite(+report.version)) ver = +report.version;
+      else if (isFinite(+report.featureVersion)) ver = +report.featureVersion;
+    }
+    if (ver !== null && ver !== INTAKE_FEATURE_VERSION) {
+      warnings.push('feature vector version ' + ver + ', and THE INTAKE was written against ' +
+                    INTAKE_FEATURE_VERSION + '. Unknown fields are ignored and missing ones ' +
+                    'fall back to neutral defaults.');
+    }
+    var missing = [], keys = Object.keys(INTAKE_READS);
+    for (var mi = 0; mi < keys.length; mi++) {
+      if (!isFinite(+features[keys[mi]])) missing.push(keys[mi]);
+    }
+    if (missing.length === keys.length) {
+      warnings.push('no usable feature vector — every field defaulted, so this is a fresh ' +
+                    'arrangement rather than a diagnosis.');
+    } else if (missing.length) {
+      warnings.push('no value for ' + missing.join(', ') + '; neutral defaults used.');
+    }
+
+    /* The base carries everything THE INTAKE has no business deciding. */
+    var st = sanitizeState(opts.base || defaultState());
+
+    var chooser = (typeof opts.chooser === 'function') ? opts.chooser : chooseArrangement;
+    var chosen = chooser(features) || {};
+    var style = (STYLES.indexOf(chosen.style) >= 0) ? chosen.style : 'velvet';
+    if (chosen.style !== style) {
+      warnings.push('the chooser named an arrangement CASKET does not have (' +
+                    String(chosen.style) + '); fell back to velvet.');
+    }
+
+    /* THE RECIPE, WHOLE. styleDefaults is the engine's own table. */
+    st.style = style;
+    var d = styleDefaults(style);
+    for (var k in d) {
+      if (Object.prototype.hasOwnProperty.call(d, k)) st[k] = d[k];
+    }
+
+    /* Only on the caller's explicit instruction: a loudness target is a
+       delivery decision like the lid, not something the audio reveals. */
+    if (isFinite(+opts.targetLufs)) st.targetLufs = +opts.targetLufs;
+    st = sanitizeState(st);
+
+    var measured = null;
+    var haveAudio = !!(inL && inL.length);
+    if (haveAudio && opts.measure !== false) {
+      var R = inR && inR.length === inL.length ? inR : inL;
+
+      /* Drive first, margin second, and the order is not cosmetic: the
+         true-peak residual is a property of what the limiter actually
+         did, so measuring the margin before the drive is set measures a
+         render nobody is going to hear. */
+      var dr = autoDrive(st, inL, R, fs, st.targetLufs, opts.iters);
+      if (dr && isFinite(dr.drive)) st.drive = dr.drive;
+      if (dr && dr.reached === false) {
+        warnings.push('the loudness target was not reached; the drive is at the rail it stopped on.');
+      }
+      st = sanitizeState(st);
+
+      var am = autoMargin(st, inL, R, fs, opts.passes);
+      /* THE MARGIN ONLY EVER TIGHTENS. autoMargin verifies against THIS
+         material, so its answer is true for this master — but an
+         arrangement's shipped margin (Lead's -0.3) was chosen to cover
+         material in general, and letting a measurement RELAX it would
+         mean the intake quietly removing a safety allowance on the one
+         path where nobody is watching the knob. It may only take the
+         more conservative of the two. */
+      if (am && isFinite(am.margin)) {
+        st.margin = am.margin < st.margin ? am.margin : st.margin;
+      }
+      if (am && am.covered === false) {
+        warnings.push('even at the widest margin the render still exceeds the lid; ' +
+                      'lower the lid or accept the overshoot knowingly.');
+      }
+      st = sanitizeState(st);
+
+      measured = {
+        drive: st.drive,
+        margin: st.margin,
+        targetLufs: st.targetLufs,
+        lufs: dr ? dr.lufs : NaN,
+        truePeak: dr ? dr.truePeak : NaN,
+        reachedTarget: dr ? !!dr.reached : false,
+        residual: am ? am.residual : NaN,
+        verifiedPeak: am ? am.verifiedPeak : NaN,
+        marginCovers: am ? !!am.covered : false
+      };
+    } else if (!haveAudio) {
+      warnings.push('no audio was handed over, so the drive and the margin are the ' +
+                    'arrangement\'s own and nothing has been measured.');
+    }
+
+    return {
+      /* a .casket.json state, already through the sanitiser */
+      state: st,
+      arrangement: style,
+      confidence: isFinite(+chosen.confidence) ? +chosen.confidence : 0,
+      evidence: chosen.evidence || [],
+      scores: chosen.scores || null,
+      measured: measured,
+      featureVersion: ver,
+      reads: keys,
+      warnings: warnings
+    };
+  }
+
   /* ---------- deterministic test signals ---------- */
   function makeNoise(seed, n) { return ND.makeNoise(seed, n); }
   function makeSine(freq, fs, n, amp) {
@@ -2626,6 +2956,8 @@ var CASKET = (function (NM, ND) {
     RS_Q: RS_Q, resample: resample, conformToRate: conformToRate,
     renderOffline: renderOffline, autoDrive: autoDrive, difference: difference, wake: wake,
     matchReference: matchReference, autoMargin: autoMargin,
+    intake: intake, chooseArrangement: chooseArrangement,
+    INTAKE_READS: INTAKE_READS, INTAKE_FEATURE_VERSION: INTAKE_FEATURE_VERSION,
     batchRender: batchRender, albumMaster: albumMaster, albumLoudness: albumLoudness,
     albumReport: albumReport,
     makeNoise: makeNoise, makeSine: makeSine, makeSquare: makeSquare,

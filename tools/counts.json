@@ -1,5 +1,5 @@
 {
-  "changed": "2026-08-24",
+  "changed": "2026-08-27",
   "projects": {
     "autopsy": {
       "harnesses": {
@@ -74,8 +74,8 @@
           "measured": "2026-08-16"
         },
         "casket_plugin_test": {
-          "value": 125,
-          "measured": "2026-08-24"
+          "value": 129,
+          "measured": "2026-08-27"
         },
         "casket_host": {
           "value": 24,
@@ -84,6 +84,10 @@
         "casket_audit": {
           "value": 6,
           "measured": "2026-08-18"
+        },
+        "casket_intake": {
+          "value": 79,
+          "measured": "2026-08-27"
         },
         "casket_album": {
           "value": 51,
@@ -96,9 +100,9 @@
       },
       "parity": 23013,
       "baselines": 16,
-      "assertions": 698,
-      "harnessCount": 12,
-      "measured": "2026-08-24"
+      "assertions": 781,
+      "harnessCount": 13,
+      "measured": "2026-08-27"
     },
     "pallbearer": {
       "harnesses": {
@@ -124,7 +128,7 @@
   },
   "estate": {
     "parity": 108282,
-    "assertions": 1548,
+    "assertions": 1631,
     "baselines": 67
   }
 }

@@ -806,7 +806,17 @@ var DIAGNOSTIC_ONLY = {
         'exactly the footing matchReference has had since it was written. If Ben ' +
         'rules that it ships as a monitoring feature, the question of a twin gets ' +
         'asked then — and the answer is probably still no, because the plugin would ' +
-        'attenuate a bypass path rather than render one offline.'
+        'attenuate a bypass path rather than render one offline.',
+  intake: 'THE INTAKE is CASKET\'s side of the CORONER seam, added 2026-08-27. It reads a ' +
+        'feature vector, chooses an arrangement, and then MEASURES the drive and the margin ' +
+        'by rendering offline — two renders, never on an audio thread. The reason it stays ' +
+        'out of the twin is stronger than "it is offline": what a plugin would consume is ' +
+        'the .casket.json state this produces, and the twin already knows how to eat a ' +
+        'state. Mirroring the CHOOSING would compile a set of thresholds into the audio ' +
+        'engine that are explicitly meant to be replaced by a better chooser later.',
+  chooseArrangement: 'layer 2 of the same seam, and deliberately the replaceable layer. A ' +
+        'twin of a rule that is expected to change is a second copy of a rule, which is the ' +
+        'defect this estate has found more often than any other.'
 };
 Object.keys(DIAGNOSTIC_ONLY).forEach(function (fn) {
   ok(typeof C[fn] !== 'undefined',

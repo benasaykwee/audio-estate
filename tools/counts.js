@@ -112,6 +112,7 @@ var SPEC = {
       { file: 'tests/casket_plugin_test.js' },
       { file: 'tests/casket_host.js' },
       { file: 'tests/casket_audit.js' },
+      { file: 'tests/casket_intake.js' },
       { file: 'tests/casket_album.js', slow: true },
       { file: 'tests/casket_rate.js', slow: true }
     ]

@@ -173,6 +173,25 @@ var API_EXEMPT = {
   wake:        { twin: 'THE WAKE renders both sides offline to measure what the limiter took; a plugin ' +
                        'would attenuate a live bypass path instead, so a twin would be a different ' +
                        'algorithm wearing the same name. Prototype, 2026-08-24 — see DIAGNOSTIC_ONLY in casket_plugin_test.js' },
+  /* THE CORONER SEAM — 2026-08-27. Offline advice on the same footing as
+     matchReference and THE WAKE, and for a sharper reason than either: an
+     ingest function's whole job is to be REPLACEABLE. A plugin driven by
+     an analysis tool would receive a state over the wire and hand it to
+     setStateInformation, which is a path the twin already has; mirroring
+     the CHOOSING into C++ would freeze into the audio engine a set of
+     thresholds that are explicitly meant to be swapped for a better
+     chooser later. See DIAGNOSTIC_ONLY in casket_plugin_test.js. */
+  intake:      { twin: 'THE INTAKE turns a CORONER report into a .casket.json state by rendering ' +
+                       'offline twice (autoDrive, then autoMargin). It is never on an audio thread, ' +
+                       'and what a plugin would consume is the STATE it produces, not the producing' },
+  chooseArrangement: { twin: 'layer 2 of the seam, deliberately replaceable whole — a twin would be a ' +
+                       'second copy of a rule that is expected to change, which is the estate\'s ' +
+                       'most-repeated defect wearing a new hat' },
+  INTAKE_READS: { twin: 'the declared feature vector CASKET depends on; a contract with CORONER, ' +
+                       'not a thing that can change a sample' },
+  INTAKE_FEATURE_VERSION: { twin: 'the CORONER vector version THE INTAKE was written against — travels ' +
+                       'with INTAKE_READS and has no audio-side meaning',
+                       tested: 'asserted by casket_intake.js\'s version-drift section' },
   batchRender: { twin: 'the album pipeline lives in the browser' },
   albumMaster: { twin: 'ditto' },
   albumLoudness: { twin: 'ditto' },

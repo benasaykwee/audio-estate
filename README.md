@@ -52,7 +52,7 @@ requires it to be correctly rounded, so the two already agree.
 
 Every project holds its C++ twin bit-exact against its JavaScript.
 <!--c:estate.parity-->108,282<!--/c--> parity checks across the four gates,
-plus <!--c:estate.assertions-->1,548<!--/c--> assertions and
+plus <!--c:estate.assertions-->1,631<!--/c--> assertions and
 <!--c:estate.baselines-->67<!--/c--> byte-stable render baselines.
 
 **Those numbers are generated, not typed.** `tools/counts.js` compiles and runs
@@ -65,7 +65,7 @@ date below is when the figure last *changed*, not when someone last looked.
 |---|---|---|
 | AUTOPSY | <!--c:autopsy.parity-->9,292<!--/c--> | <!--c:autopsy.measured-->2026-08-16<!--/c--> |
 | RIGOR | <!--c:rigor.parity-->62,642<!--/c--> | <!--c:rigor.measured-->2026-08-23<!--/c--> |
-| CASKET | <!--c:casket.parity-->23,013<!--/c--> | <!--c:casket.measured-->2026-08-24<!--/c--> |
+| CASKET | <!--c:casket.parity-->23,013<!--/c--> | <!--c:casket.measured-->2026-08-27<!--/c--> |
 | PALLBEARER | <!--c:pallbearer.parity-->13,335<!--/c--> | <!--c:pallbearer.measured-->2026-08-23<!--/c--> |
 
 <!-- THE DATE COLUMN USED TO LIE, quietly and in one direction. Every row

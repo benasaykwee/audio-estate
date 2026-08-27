@@ -98,6 +98,14 @@ jobs:
       - name: Audits (autoDrive, autoMargin, matchReference — checked from outside)
         run: node tests/casket_audit.js
 
+      # ADDED 2026-08-27. THE INTAKE is the first thing in this project that
+      # accepts input written by another PROGRAM (CORONER), and the failure
+      # modes of that are not the ones the rest of the suite was built for:
+      # a partial vector, a stale version, a field that means something new.
+      # Deliberately does not import CORONER — see the file's own header.
+      - name: The CORONER seam (what a report is allowed to do)
+        run: node tests/casket_intake.js
+
       # ADDED 2026-08-18. Same idea as RIGOR's rigor_coverage.js: a green
       # suite only answers for what it was told to watch. This asks which
       # state fields nothing watches at all.
