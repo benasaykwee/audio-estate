@@ -2117,11 +2117,27 @@ var CASKET = (function (NM, ND) {
      The same report and the same audio produce the same state, which is
      what lets a regression baseline exist for this at all. */
 
-  /* Written against CORONER's FEATURE_VERSION 2. A different version is
+  /* Written against CORONER's FEATURE_VERSION 3. A different version is
      REPORTED rather than refused: a limiter that stops working because an
      analysis tool grew a feature is worse than one that says which vector
-     it was handed and carries on with neutral defaults. */
-  var INTAKE_FEATURE_VERSION = 2;
+     it was handed and carries on with neutral defaults.
+
+     MOVED 2 → 3 on 2026-08-27, the same day it was written, and the
+     reason is worth keeping. CORONER bumped to 3 within hours; the
+     Interchange said 2 and so did this constant, so EVERY real report
+     tripped the mismatch warning. A warning that always fires is a
+     warning nobody reads, which turns a genuine signal into furniture.
+
+     Checked before moving it, rather than assumed: v1→v2 added
+     `noteCount` and re-based nine features onto the representative note
+     segment (f0, f0jitter, vibRate, vibDepth, harmonicity, inharm,
+     oddEven, irregular, bandSlope); v2→v3 gave `inharm` a plausibility
+     ceiling and dropped its declared maximum from 0.01 to 0.002.
+     **None of the seven fields THE INTAKE reads appears in either list,
+     and all seven still declare the same ranges.** So the seam is
+     genuinely unaffected, and this is a version stamp catching up with a
+     verified fact rather than being waved through. */
+  var INTAKE_FEATURE_VERSION = 3;
 
   /* The features THE INTAKE reads, each with the question it is asked and
      the value assumed when it is absent. A registry rather than inline

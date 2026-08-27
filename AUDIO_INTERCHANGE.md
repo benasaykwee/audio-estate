@@ -5,7 +5,11 @@
 
 Read this before touching anything in `shared/`. Add to §7 whenever you do.
 
-**Last updated:** 2026-08-23
+**Last updated:** 2026-08-27
+
+*This line was itself four §7 entries stale when it was checked on 2026-08-27,
+which is the least surprising defect in the document and the reason §6 now gets
+audited rather than appended to. If you add an entry, move this date.*
 
 ---
 
@@ -22,7 +26,17 @@ CLAUDE/
   CASKET/                   true-peak brickwall limiter (Pro-L lineage)
   NECROPHONE-repo/          four-engine synthesizer
   PALLBEARER/               physically modelled bass    (MODO Bass lineage)
+  CORONER/                  listens, and says what made the sound
 ```
+
+*CORONER is the odd one out and stays that way: every other project here MAKES
+sound, and it is the only one that takes sound apart. It consumes shared NM,
+deliberately does not consume ND (it measures dynamics, it does not impose
+them), and has no C++ twin yet — it earns one when its feature set stops
+moving, not before. **Its feature set has not stopped moving: `FEATURE_VERSION`
+went 1 → 2 → 3 inside a single day**, which is both the reason there is no twin
+yet and the reason the stamp exists. Check it before trusting any figure it
+emits, and never compare vectors across versions; see §9.3.*
 
 | | depends on NM | depends on ND | C++ twin | parity checks |
 |---|---|---|---|---|
@@ -31,6 +45,16 @@ CLAUDE/
 | RIGOR | **shared** | **shared** | yes | **<!--c:rigor.parity-->62,642<!--/c-->** |
 | CASKET | **shared** | **shared** | yes | **<!--c:casket.parity-->23,013<!--/c-->** |
 | PALLBEARER | **shared** | — *(no dynamics stage, deliberately)* | yes | **<!--c:pallbearer.parity-->13,335<!--/c-->** |
+| CORONER | **shared** | — *(measures dynamics, does not impose them)* | **no** | — *(harness only: 168 checks, 19 sabotages)* |
+
+*CORONER's row is the only one with no twin and no parity figure, and that is a
+statement of fact rather than a gap to be tidied away. A parity gate proves two
+implementations agree; there is only one implementation. It earns a twin when
+the feature set stops moving — and `FEATURE_VERSION` moved twice on the day the
+project was created, so that moment is not close. **This row is NOT derived**:
+`tools/counts.js` does not know about CORONER, so the 168 is hand-typed and will
+go stale exactly the way §1 says hand-typed numbers do. Measure the harness,
+do not quote this.*
 
 *PALLBEARER joined 2026-08-16, got its twin the same day, and is **now DERIVED like the
 other three** — `tools/counts.js` compiles its gate at `-O2 -ffp-contract=off`, runs it,
@@ -189,7 +213,11 @@ The signal-level contract is deliberately boring, which is what makes it safe:
 
 ### 5.1 Something outside this suite now connects here
 
-There is an external consumer: **Masterbox**, a separate mastering tool with an auto-master brain, built in its own session and living at `DRAWING PROGRAM/masterbox-plugin/`. The proposed integration is **THE UNDERWORLD** — its brain analyses material, emits a chain preset, and drives AUTOPSY → RIGOR → CASKET. Governing documents: `UNDERWORLD_CHARTER.md` (the boundary) and `UNDERWORLD_INTERCHANGE.md` (the mechanics). Neither is built yet.
+There is an external consumer: **Masterbox**, a separate mastering tool with an auto-master brain, built in its own session and living at `DRAWING PROGRAM/masterbox-plugin/`. The proposed integration is **THE UNDERWORLD** — its brain analyses material, emits a chain preset, and drives AUTOPSY → RIGOR → CASKET. Governing documents: `UNDERWORLD_CHARTER.md` (the boundary) and `UNDERWORLD_INTERCHANGE.md` (the mechanics). ~~Neither is built yet.~~
+
+> **FLAGGED, NOT REWRITTEN — 2026-08-27, from a CASKET session.** "Neither is built yet" is not true and has not been for some time. `CLAUDE/underworld/` holds **63 files**, of which **21 are `.test.js`**, plus a CLI, a server, a `translate.js` and a `chain.js` that renders AUTOPSY → RIGOR → CASKET end to end with real latency-compensation arithmetic. That was noticed in passing on 2026-08-18 and flagged then; it is still here nine days later.
+>
+> **It is flagged rather than fixed on purpose.** LAW 0 puts the Underworld's status and scope on Ben's side of the boundary, not a trilogy session's, and rewriting a sentence about what the Underworld *is* would be exactly the inversion this section exists to prevent. What is recorded above is only what is countable from outside: file names on disk. Nothing here was opened. **`UNDERWORLD_CHARTER.md` carries its own copy of this claim and it is stale too** — two copies of one sentence, both wrong, which is the defect this whole document is otherwise built to prevent. **Ben's word, one line, closes both.**
 
 **LAW 0, quoted because it is the whole of your obligation:**
 
@@ -216,15 +244,362 @@ There is an external consumer: **Masterbox**, a separate mastering tool with an 
 ## 6. Known open questions that touch more than one project
 
 1. ~~**CASKET §14.5 — bit-exact null test vs true peak.**~~ **RESOLVED 2026-08-15: both, switchable.** CASKET's `seal` is now a per-arrangement structural flag — Lead sealed, the other four bit-exact. Evidence for why the *residual* form failed and the *full* form was chosen: `CASKET/tests/seal_experiment.js` and doc §6.3–6.4. Relevant to the suite because it sets the precedent: **when a guarantee and a measurement conflict, expose the choice rather than picking silently.**
-2. **Where should M/S live?** CASKET cut it (independent M and S gains do not bound L = M+S). If it lands anywhere it should probably be one shared implementation, not three.
+2. ~~**Where should M/S live?** CASKET cut it (independent M and S gains do not bound L = M+S).~~ **CORRECTED 2026-08-27: CASKET did not cut it, and has not for some time.** `ms`, `msMid` and `msSide` are real state fields; `casket_test.js` §5e proves the unity short-circuit, the exact ±dB trim, *and* that the ceiling still holds with M/S pushed to +12/+6 on a sealed Lead; there is a `midside` case in `parity_emit.js`. The "cut it" line was corrected in CASKET's own records on 2026-08-18 and **never propagated here** — nine days of a cross-project contract describing a feature as absent while it shipped, parity-gated, in one of its three signatories. *The remaining question is the real one and stays open:* if RIGOR and AUTOPSY want M/S too, should it become a fourth `shared/` module rather than three implementations? The bounding concern that motivated the original hesitation was answered by construction — CASKET's M/S is a **pre-stage**, never a limiter mode, so the ceiling is still enforced downstream of it.
 3. **Does the suite get a shared spectrum analyzer?** AUTOPSY has one; RIGOR and CASKET have both asked the question. It would be a fourth `shared/` module. *Still open — CASKET's fifth round did not reach it.*
-4. **Does every program delay its BYPASSED signal?** CASKET's did not, and reported a latency anyway (§7, 2026-08-16 evening). ~~AUTOPSY and RIGOR both report latency and both have a bypass; neither has been checked.~~ **AUTOPSY checked 2026-08-16: reports zero latency and the impulse exits at sample 0 in every state (flat, working, all-12-bands-all-placements) — asserted in its core harness. Its bypass is a browser-side copy at zero latency, so alignment is structural.** RIGOR remains unchecked; the test is one impulse long.
+4. **Does every program delay its BYPASSED signal?** CASKET's did not, and reported a latency anyway (§7, 2026-08-16 evening). ~~AUTOPSY and RIGOR both report latency and both have a bypass; neither has been checked.~~ **AUTOPSY checked 2026-08-16: reports zero latency and the impulse exits at sample 0 in every state (flat, working, all-12-bands-all-placements) — asserted in its core harness. Its bypass is a browser-side copy at zero latency, so alignment is structural.** ~~RIGOR remains unchecked; the test is one impulse long.~~ **RIGOR CHECKED — and this question is now CLOSED, corrected 2026-08-27.** `rigor_test.js` asserts, at look = 0, 1, 5, 10 and 20 ms, that a bypassed render is the dry signal delayed by **exactly** `latencySamples()` samples, compared bitwise rather than approximately, and it derives the expectation from the function instead of naming a number. It also asserts the delay line stays **primed** while bypassed. Both halves had been broken and both were measured before they were fixed: `latencySamples()` reported the lookahead while the bypassed impulse came out at sample 0, so a host compensating by the reported figure moved the audio up to 10 ms *earlier* the moment you pressed bypass — which invalidated every A/B with lookahead on — and leaving bypass dropped `look` milliseconds of silence into the track. **So all three programs have now answered this question, and it found real bugs in two of them.** The line above went stale because the question was answered inside RIGOR and never carried back to the document that asked it.
 5. **Is "advice must be verified" being applied evenly?** CASKET's four advice functions all render to check. RIGOR's `suggestThreshold` does not, and is measurably off by a systematic 0.1–0.2 dB. ~~AUTOPSY has not been surveyed for advice functions at all.~~ **AUTOPSY surveyed 2026-08-16: it has exactly one advice function (Compensate, via `avgCurveDb`), and its audit now applies the advice and re-measures — post-advice average curve asserted at 0 to 1e-9 over 30 random states.**
 
 ---
 
 ## 7. THE LOG
 *Every change that crossed a project boundary. Newest first. If you touch `shared/`, you add a line.*
+
+### 2026-08-27 — §6 AUDITED against the code, and three of its five answers were wrong
+
+**Nothing in `shared/` changed and no C++ twin was touched, so no parity check
+and no blessed hash can have moved.** Changed: `INTAKE_FEATURE_VERSION` 2 → 3 in
+`casket_core.js`, one new assertion and derived version stamps in
+`casket_intake.js` (79 → **80**), and prose in §5.1, §6.2, §6.4 and §9.3 here.
+
+**Why an audit rather than another entry.** §7 grows; §1 is generated and
+therefore cannot drift; §6 is a list of *questions*, and a question that has
+quietly been answered somewhere else is the most expensive kind of stale text in
+this document, because it reads as work still to do. Every claim in §1–§6 that
+states a number, a build state or an open question was checked against what is
+on disk. **Three were wrong, two were confirmed still true, and the generated
+numbers were all current.** The pattern in all three failures is identical and
+worth naming: *the question was answered inside a project and never carried back
+to the document that asked it.*
+
+| § | said | actually |
+|---|---|---|
+| 6.2 | "CASKET cut M/S" | `ms`/`msMid`/`msSide` are real state fields with a `midside` parity case and a ceiling-holds-under-M/S test on sealed Lead. Corrected in CASKET's own records **2026-08-18** and never propagated — nine days of a contract calling a shipped, parity-gated feature absent |
+| 6.4 | "RIGOR remains unchecked; the test is one impulse long" | `rigor_test.js` asserts bitwise that a bypassed render is the dry signal delayed by exactly `latencySamples()`, at five lookahead values, *and* that the line stays primed. Both halves had been broken and were measured before being fixed. The question is **closed** and it found real bugs in two of the three programs |
+| 5.1 | "Neither is built yet" (the Underworld) | `underworld/` has **63 files, 21 of them `.test.js`**, plus a CLI, a server and a `chain.js` that renders the trilogy end to end. **Flagged, not rewritten** — LAW 0 puts that sentence on Ben's side. `UNDERWORLD_CHARTER.md` carries the same stale claim; one word from Ben closes both |
+| 6.3 | shared spectrum analyzer still open | **confirmed** — `shared/` holds only `necromath` and `necrodyn` |
+| 6.5 | RIGOR's `suggestThreshold` does not verify | **confirmed** — it returns `clamp(p90 + g/(1−iR), −60, 0)` with no re-render |
+
+**And the seam ran end to end for the first time.** Three real signals through
+`CR.autopsy()` → `CK.intake()` → `renderOffline()`: full-band noise → **lead**,
+a decaying harmonic tone → **velvet**, percussive hits → **lead** at confidence
+0.67. **The lid held on all three** (−7.09 / −6.94 / −2.09 dBTP against their
+lids), measured with a 16× reconstruction rather than the engine's own detector.
+That is the closed loop §9.8 asks for on the PALLBEARER side, run on the CASKET
+side, and it is the first evidence that the two halves of §9 fit.
+
+**One correction to my own reading, since it is the kind that matters here.** I
+first saw only the middle of the three CORONER entries below and concluded the
+version bump had gone unlogged. It had not — the entry directly beneath this one
+records it fully and leaves an explicit instruction to bump
+`INTAKE_FEATURE_VERSION` deliberately. **Reading one entry of three and
+generalising is the same failure as measuring one fixture and calling a feature
+dead**, which the same session had found in its own harness that morning.
+
+### 2026-08-27 — the inverted stiffness tell, MENDED: a plausibility ceiling, and `FEATURE_VERSION` 2 → 3
+
+**Nothing in `shared/` changed and CORONER still has no C++ twin, so no parity
+check and no blessed hash can have moved.** Changed in `CORONER/coroner_core.js`
+only: a ceiling on `inharm`, its declared range, and the version stamp. Harness
+163 → **168 checks**, all green. This entry answers the measurement in the entry
+directly below it, which was taken read-only from a NECROPHONE session.
+
+**The fault, in one line: I guarded the SHAPE of the stiffness fit and never
+guarded its MAGNITUDE.** The measuring session found NECROPHONE's grain cloud
+reporting `B = 9.22e-3` at **R² = 0.999 — the best stiff-string fit in its whole
+set** — and being routed to the *physical* engine, while `Bone & Sinew`, the
+actual string model, measured `2.23e-6` and was sent to *granular*.
+
+**Why CORONER's existing guard could never have caught it.** The guard reads
+`bFit > 5e-5 && bR2 < 0.75 → refuse`. It refuses *poor* fits. This fit was
+superb. A dense cloud of grains has partial-like structure at spacings that
+happen to lie on a stretched series, and it lies on it beautifully. **The guard
+was powerless by construction against the exact case it looked like it covered**
+— which is a more dangerous shape than an absent guard, because the code reads
+as though the question had been asked.
+
+**The real mistake was the declared range.** `inharm` was declared `0 .. 0.01`.
+Real strings run about `1e-5` (long, thin) to `1e-3` (short, thick, wound), so
+the declared maximum admitted values **five times stiffer than any string that
+exists** — and `9.22e-3` sat at 92% of that maximum without ever looking
+unusual. A range that admits the impossible is a range in which an impossible
+answer looks ordinary.
+
+**The mend.** `B_MAX_PLAUSIBLE = 2e-3` — generous to any real string, closed to
+a grain cloud — applied *before* the R² guard; declared max `0.01 → 0.002`; two
+new checks proving the ceiling refuses an impossible body **on its value while
+its fit is still excellent** and still passes a plausible string at an equally
+good fit. Both directions, because a ceiling that rejected everything would pass
+a one-sided test. Proved to bite: removing the ceiling fails 2 checks, setting it
+absurdly low fails 15.
+
+> **THE RULE THIS LEAVES BEHIND, and it is not CORONER's alone:
+> A GOODNESS OF FIT ONLY TELLS YOU THE SHAPE IS RIGHT. It says nothing about
+> whether the MAGNITUDE is possible. Guard both, and declare ranges that admit
+> only what physics admits.**
+>
+> The shape to grep for anywhere in this estate: *a validity check that
+> constrains how well a model fits, but not what it fits to.*
+
+#### The version bump crossed a boundary, so it is logged here
+
+Both the raw value and its normalisation changed, so **`FEATURE_VERSION` went
+2 → 3**. A model trained on a v2 vector must not read a v3 one; that stamp is
+the entire reason the feature registry exists, and it has now moved twice in one
+day, exactly as §1 warns about numbers in this document.
+
+**§9.3's contract was exercised live rather than reasoned about.** A real v3
+CORONER report was built and passed to `CK.intake()`:
+
+- version mismatch **detected and reported in `warnings`**, not refused —
+  *"feature vector version 3, and THE INTAKE was written against 2"*
+- **all seven** of `INTAKE_READS` present, finite and in range (none of them is
+  `inharm`, and none was touched by the v1→v2 or v2→v3 changes)
+- a valid state came back, arrangement `velvet`
+
+So the seam degrades exactly the way §9.4's design intended, and **CASKET needs
+no change**. Whoever next touches `INTAKE_FEATURE_VERSION` should bump it to 3
+deliberately, after re-reading §9.3 — not to silence the warning, which is doing
+its job.
+
+**Still open on the NECROPHONE side, and NOT mended here:** `Bone & Sinew` has
+no dispersion at all (three parameters, and the only allpasses in
+`necrophone_core.js` are in the reverb), so it is an *ideal flexible string* with
+zero stiffness by construction. CORONER measured it correctly; it measured a
+model that is physically incomplete in the one way that defines a struck string,
+and **no internal harness could ever say so** because the regression only proves
+it sounds like itself. Adding dispersion is an R14 item and R14 re-records
+baselines that have held for a hundred items — **it does not start without Ben's
+explicit yes.** Also unmended: that wrong verdict came back at **confidence
+0.94**, which is the failure mode CORONER's own notes warn about for jitter.
+
+Report: `CLAUDE/CORONER/THE_INQUEST.html` (§IV·b covers the closed loop).
+
+### 2026-08-27 — the CORONER→NECROPHONE half, measured: the contract is clean, the loop does not close, and the stiffness test is INVERTED
+
+**NOTHING WAS CHANGED BY THIS ENTRY.** No `shared/` file, no core, no harness, no
+test, no CI workflow, in any project. Read-only measurement only, so no parity
+check and no blessed hash can have moved. **This entry is a report and a set of
+PROPOSALS awaiting Ben's word** — see "what I would like to do" at the end, which
+names which session owns which half. Written from a NECROPHONE session; CORONER's
+files grew 62→82 KB the same morning and had been still for two hours when the
+measurements were taken (see the concurrent-sessions rule in §8).
+
+**Why this exists.** §9 specifies the CORONER↔CASKET seam and gates it from the
+consumer side. The CORONER→NECROPHONE seam is older, was built from the producer
+side, and **has never been gated in either direction**. The entry above records
+that the handoff reuses NECROPHONE's task-17 share format so "nothing in
+NECROPHONE had to change". That is true, and it is also the problem: nothing in
+NECROPHONE *knows*.
+
+#### The parameter contract holds today, and it holds well
+
+Every one of the **19** ids `routeToNecrophone` can emit was checked against
+NECROPHONE's real 124-parameter registry, and a live slip was round-tripped
+through NECROPHONE's **real** hash decoder lifted out of `necrophone.html`:
+
+- all 19 ids exist; **0** out of range, **0** illegal enum values, **0** dropped
+- every clamp CORONER applies matches NECROPHONE's declared min/max **exactly**
+- CORONER is current with **R14-101** — it computes `corpseRoot` as a semitone
+  offset from G3 = MIDI 55, the parameter added 2026-08-23
+- `CR._corpseRootOffset` vs NECROPHONE's `rootOffsetFromHz` agree on **16 of 17**
+  probes, including 195.9977 Hz — the value that would have cost byte-stability
+  had `corpseRoot` been defined as an absolute root instead of an offset
+
+The seventeenth probe is `hz = 0`, where NECROPHONE returns `null` ("refuse to
+guess") and CORONER returns `0` ("no change"). It cannot fire — CORONER guards
+`if (f.f0 > 0)` before calling — but the two are spelling *silence* differently,
+which is the shape of a bug rather than a bug.
+
+**Three faults in the seam regardless of the clean contract.**
+
+1. **Two copies of a rule with no gate**, which is this estate's oldest defect in
+   its favourite hiding place. CORONER hardcodes NECROPHONE's ranges; NECROPHONE
+   has no idea CORONER exists. `loadPatchFromHash` merges with
+   `if (j in patch)`, so a renamed id is **silently dropped** — no throw, no
+   warning, just a patch that is not what the slip said. CORONER's own comment
+   anticipates exactly this and says the release check could compare them.
+2. **`corpseRoot` travels without the corpse.** The share format cannot carry
+   audio and says so honestly. But NECROPHONE opens on its default built-in
+   source `"relic"`, so an offset measured from a user's recording is applied to
+   the relic — a confident wrong number pointed at the wrong body, which is the
+   precise risk CORONER refused to take on pluck position, arriving another way.
+3. **The route that most needs the audio gets it least.** Routing textural
+   material to `granular` is correct; Dust & Ashes then arrives with an engine
+   selection and nothing to grind.
+
+#### THE CLOSED LOOP, run for the first time: 2 of 8 came home
+
+The gate §9's PALLBEARER notes ask for — render a patch the instrument knows,
+examine the audio, score the slip against the original — had never been run for
+NECROPHONE. All four engines rendered headlessly at 44.1 kHz with a deterministic
+PRNG swapped in, fed straight to `CR.autopsy()`, as a held G3 **and** as a
+four-note phrase. **2/8 came home.**
+
+**That number must not travel without its caveat.** `chooseEngine` maps *what the
+material is* to *which engine suits it* — it is not trying to identify what
+produced a sound. A wavetable render that holds still and stays harmonic
+genuinely does suit The Revenant. **2/8 is one measurement nobody had taken, not
+six bugs.** Two results inside it are wrong under any reading, and they are the
+same result twice:
+
+| rendered by | inharm `B` | fit R² | routed to |
+|---|---|---|---|
+| Dust & Ashes (grain cloud) | **9.22e-3** | **0.999** | physical |
+| Bone & Sinew (the string model) | 2.23e-6 | 0.131 | granular |
+| Revenant, unison off | 1.52e-6 | 0.092 | analog |
+| Revenant, unison 14 cents | 8.79e-6 | 0.215 | analog |
+
+**The grain cloud fits the stiff-string law better than anything else here.**
+R² = 0.999 — the best fit in the set. The existing guard
+(`f.inharm = (bFit > 5e-5 && (bR2 < 0.75 || bUsed < 4)) ? 0 : bFit`) is
+**powerless by construction**: it was built to reject a *poor* fit, and this is a
+superb one. The tell is not the fit, it is the value. `B = 9.22e-3` is roughly
+**nine times the stiffest bass string on a piano** and sits at 92% of CORONER's
+own declared maximum for the feature. Something in the grain spacing spreads with
+partial index in a way that satisfies the same curve. This is the same family as
+"unison detune imitates string stiffness" already recorded above, but it defeats
+the fix that one produced.
+
+**Bone & Sinew is invisible, and that half is NECROPHONE's fault, not CORONER's.**
+Verified in `necrophone_core.js`: the physical engine has exactly three
+parameters — `phHard`, `phDecay`, `phBody` — and **there is no dispersion
+anywhere in it**. The only allpass filters in the file are in the reverb. Bone &
+Sinew is a delay line with damping, which is physically an *ideal flexible
+string*: zero stiffness, perfectly harmonic partials. It shows less stiffness
+evidence than a detuned sawtooth. Its wrong verdict also carried **confidence
+0.94**, which is the failure mode CORONER's own notes warn about for jitter — a
+confident wrong answer is worse than an unconfident one.
+
+**The finding under the finding, and it is the reason this entry is long.**
+NECROPHONE could not have learned this from inside itself. Its regression harness
+proves each engine sounds like *itself*, faithfully, and that is exactly what it
+is for. It took an outside ear carrying a physics model to say what Bone & Sinew
+sounds like *compared to a string*. **This is the first time anything in the
+estate has been able to make that class of statement about another member**, and
+it is worth more than the specific defect. Every project here now has a possible
+external auditor that is not another copy of its own assumptions.
+
+#### What I would like to do, and who owns which half
+
+Named separately because these do not all belong to one session, and one of them
+is not any session's to take.
+
+**Mine (NECROPHONE-side, no DSP, byte-stability untouched):**
+
+- **Make the closed loop a permanent harness.** ~40 lines; it found something on
+  its first run, which is this estate's usual result for a new gate. It should
+  **not** assert "came home" — that metric is contestable, per the caveat above.
+  It should assert what cannot be argued: *a rendered engine never routes to a
+  target that cannot make that sound*, and *confidence never exceeds 0.9 on a
+  verdict that is wrong* (Bone & Sinew currently fails the second at 0.94).
+- **Gate the parameter contract** from NECROPHONE's release check: compare the
+  ids and ranges CORONER emits against the live registry so a rename fails loudly
+  instead of vanishing. This is what CORONER's comment already asks for, and it
+  costs CORONER nothing — no import in either direction, per §9's rule.
+- **Close NECROPHONE's own asymmetry**, which is unrelated to CORONER and mine
+  regardless: `loadPatchFromHash` does `patch[j] = o.p[j]` with **no clamp and no
+  enum check**, while the pack path sieves hostile values. Not currently exposed
+  because CORONER clamps correctly on its side. That is luck, not design.
+
+**CORONER's session, offered rather than done — I did not touch its files:**
+
+- **A plausibility ceiling on `B`.** The R² guard cannot catch the grain cloud
+  and never could. The feature's declared range currently admits values no string
+  has. A ceiling would; where it sits is a physics question and CORONER's call.
+- **The 0.94 case** is worth a look on its own terms, separately from routing.
+
+**Ben's, because it is engine code:**
+
+- **Dispersion in Bone & Sinew**, an R14 item — it would give the string model
+  real stiffness, make it sound like a string, and let CORONER see it. **The
+  R14-101 trick may apply again**: if the zero value is a *structural identity*
+  rather than a zero-coefficient filter, the baselines never move. Flagged as
+  **plausible, NOT proven** — an allpass at coefficient 0 is still a delay, not
+  an identity, so this needs checking before anyone promises it is free.
+
+**Bigger, and nobody's yet:** CORONER emitting a `.necropack.json` instead of a
+`#p=` URL. R15-113 already built the receiving half (`parsePackText` /
+`applyPackPatch`), and the pack carries riders the URL cannot — materialA/B as
+16 kHz i16, Scala cents, spectral mask, wavetable, IR. It fixes faults 2 and 3 at
+once and **the slip would open in a DAW**. Cost, stated plainly: CORONER has no
+dependency on NECROPHONE in either direction by design, and the pack encoder
+lives inside `necrophone.html`, so reproducing it is a real lift rather than the
+three lines the share format was. If it is ever taken, the contract belongs in a
+**§10** beside §9, gated from the consumer side the way §9 was.
+
+**Caveats on everything above.** The bodies are synthesised or NECROPHONE's own
+output; no real instrument was involved, which is the limit CORONER names about
+itself first. Four engines and two note-shapes is a probe, not a calibration —
+the direction is sound, the exact numbers should not become thresholds. That
+`9.22e-3` is unphysical for a string comes from published piano inharmonicity
+ranges, not from anything measured here. Full read:
+`CLAUDE/CORONER_NECROPHONE_SEAM.html`.
+
+### 2026-08-27 — CORONER joined the estate: the sixth project, and the first that LISTENS
+
+**Nothing in `shared/` changed and no C++ twin exists yet, so no parity check
+and no blessed hash can have moved.** New project at `CLAUDE/CORONER/`:
+`coroner_core.js` (single source of truth) · `coroner.html` (self-contained test
+bed) · `coroner_sync.js` (embed writer, `--check` for CI) · `coroner_test.js`
+(**163 checks**) · `README.md`. Consumes shared NM. **Deliberately does not
+consume ND** — it measures dynamics, it does not impose them.
+
+**What it is.** It takes a recording apart, says what kind of thing made the
+sound, and routes it: NECROPHONE (with a specific engine chosen) or PALLBEARER,
+with a starting patch already built from the measurements. The handoff to
+NECROPHONE reuses its own task-17 share format (`#p=` + base64url of a
+delta-from-defaults patch), so **nothing in NECROPHONE had to change**; the
+harness round-trips a link through the same decode `loadPatchFromHash` performs.
+
+**Three layers, and the separation is the point.** THE EXAMINATION (31 features,
+no opinions) · THE VERDICT (thin, transparent, replaceable whole via
+`setVerdictEngine()`) · THE ROUTING SLIP. A neural classifier replaces layer 2
+and only layer 2. §9's `chooseArrangement()` mirrors this split on purpose.
+
+**Compatibility with §9.3 verified from this side, 2026-08-27.** CASKET's
+`intake()` was written against `FEATURE_VERSION 2` and reads seven features;
+all seven are present, finite and in range, the report shape is
+`{version, features}` as specified, and **none of the seven were touched by the
+v1→v2 segmentation rework** — that rework changed the meaning of `f0`,
+`f0jitter`, `vibRate`, `vibDepth`, `harmonicity`, `inharm`, `oddEven`,
+`irregular` and `bandSlope`, which do not intersect CASKET's reads. The two
+sessions agree.
+
+> ⚠️ **CORRECTED THE SAME DAY, and the correction is the point.** Two errors
+> above, both fixed in place: the feature count read **30** and is **31**, and
+> the vector is no longer v2 — the entry at the top of this log took it to
+> **v3**. "The two sessions agree" was true when written and was falsified a few
+> hours later by my own change. The seven `INTAKE_READS` are still untouched and
+> the seam still holds, now *measured* rather than reasoned about, so the
+> conclusion survives even though the version in it does not.
+>
+> Left standing rather than rewritten, because [[verify-roadmap-against-code]]
+> is about exactly this: **prose is the least-tested surface in any project
+> here.** A count nobody re-derives goes stale silently, and a compatibility
+> claim pinned to a version number goes stale the moment that number moves. Both
+> did, within one day, in a document whose §1 already warns that its own numbers
+> go stale within a day.
+
+**The lesson worth carrying to every other project here: a harness of
+single held notes cannot see what real audio does.** Every synthesized body
+was one steady note, 128 checks were green, and then eight real NECROPHONE
+renders reported pitch jitter of **250 to 435 cents**. Nothing was unstable —
+it was measuring the melody. Since near-zero jitter is the strongest synthetic
+tell in the machine, and no piece of music can show near-zero jitter under that
+definition, **the tell could never fire on real material at all**: an
+oscillator pad came back "Blown or Reed". Four more of the same class followed
+(a whole-phrase spectrum finding no partials, unison detune imitating string
+stiffness convincingly enough to misroute a pad, a vibrato smearing away a
+genuine stiffness measurement, YIN reporting a stiff string 31 cents sharp).
+**Mutation testing then found three more that even the real files had not
+exposed** — including a jitter figure that ran BACKWARDS, falling as real
+instability rose, which is worse than no measurement because it would have been
+believed. Seventeen deliberate sabotages of the core are now each caught by a
+named check.
+
+**Deliberately not built:** no C++ twin yet (it earns one when the feature set
+stops moving) · no source separation, so a full mix is barely tested · no
+loudness metering, per §9.2 · CASKET is not in `route()`, per §9.8.
 
 ### 2026-08-27 — CASKET grew an intake for CORONER, and the seam is specified in §9
 
@@ -1378,10 +1753,53 @@ CASKET reads **seven** features and declares them in `INTAKE_READS`:
 
 Everything else CORONER measures is welcome and ignored. A missing field falls
 back to a **neutral** value — one that casts no vote — so a partial report
-degrades rather than swinging the answer. Written against
-`FEATURE_VERSION 2`; a different version is **reported in `warnings`, never
-refused**, because a limiter that stops working when an analysis tool grows a
-feature is worse than one that says which vector it was handed.
+degrades rather than swinging the answer. A version other than the one CASKET
+declares is **reported in `warnings`, never refused**, because a limiter that
+stops working when an analysis tool grows a feature is worse than one that says
+which vector it was handed.
+
+**On the version stamp, and the handoff that moved it. NOW 3.** This section was
+written against `FEATURE_VERSION 2` at 08:56 on 2026-08-27; CORONER reached **3**
+by 10:45 the same morning. The CORONER session did not let that drift: it built
+a real v3 report, passed it to `intake()`, confirmed the mismatch was *reported
+and not refused*, confirmed all seven fields present, finite and in range, and
+then wrote the instruction into §7 — *"whoever next touches
+`INTAKE_FEATURE_VERSION` should bump it to 3 deliberately, after re-reading
+§9.3 — not to silence the warning, which is doing its job."* **That is this
+document working as designed**, and it is worth pointing at, because the usual
+entry in §7 is a record of something that had already gone wrong.
+
+Bumped 11:10, and **checked rather than waved through**: v1→v2 added `noteCount`
+and re-based nine features onto the representative note segment (`f0`,
+`f0jitter`, `vibRate`, `vibDepth`, `harmonicity`, `inharm`, `oddEven`,
+`irregular`, `bandSlope`); v2→v3 gave `inharm` a plausibility ceiling and
+dropped its declared maximum from 0.01 to 0.002. **None of the seven fields
+above appears in either list, and all seven still declare the same ranges.**
+
+The reason not to just leave the warning firing: *a warning that always fires is
+a warning nobody reads*, which turns a genuine signal into furniture.
+`casket_intake.js` now asserts **both** directions — a mismatch warns, *and* a
+report at the declared version does not, which is the half that had no gate and
+the half that actually broke. Its fixtures read the constant rather than
+carrying a typed number, because a file written to catch version drift was
+itself carrying a drifted version within hours of being written.
+
+> **CORONER IS NOW v3, AND THIS CLAUSE HAS BEEN EXERCISED FOR REAL** (2026-08-27,
+> logged at the top of §7). A live v3 report was passed to `CK.intake()`:
+> the mismatch was **detected and warned, not refused**; all seven
+> `INTAKE_READS` were present, finite and in range; a valid state came back.
+> None of the seven is `inharm`, which is the field v3 changed, so **CASKET
+> needs no change and the seam holds**.
+>
+> This clause is the reason nothing broke. It was designed before it was needed
+> and it worked the first time it was needed, which is the argument for
+> specifying a consumer before a producer exists — §9.8's point, demonstrated
+> rather than restated.
+>
+> Whoever next moves `INTAKE_FEATURE_VERSION` to 3 should do it **deliberately,
+> after re-reading this section** — not to silence the warning. The warning is
+> doing its job, and a version stamp that is bumped reflexively to quiet a
+> message stops being a stamp at all.
 
 ### 9.4 What CASKET sends back
 

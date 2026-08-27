@@ -86,7 +86,7 @@
           "measured": "2026-08-18"
         },
         "casket_intake": {
-          "value": 79,
+          "value": 80,
           "measured": "2026-08-27"
         },
         "casket_album": {
@@ -100,7 +100,7 @@
       },
       "parity": 23013,
       "baselines": 16,
-      "assertions": 781,
+      "assertions": 782,
       "harnessCount": 13,
       "measured": "2026-08-27"
     },
@@ -128,7 +128,7 @@
   },
   "estate": {
     "parity": 108282,
-    "assertions": 1631,
+    "assertions": 1632,
     "baselines": 67
   }
 }

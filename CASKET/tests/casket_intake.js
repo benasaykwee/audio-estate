@@ -36,12 +36,21 @@ var FS = 44100;
 
 /* Fixtures in CORONER's documented feature shape, one per character the
    chooser is supposed to be able to tell apart. Values are inside the
-   ranges CORONER's own FEATURES registry declares. */
+   ranges CORONER's own FEATURES registry declares.
+
+   THE VERSION STAMP IS DERIVED, NOT TYPED. These fixtures originally
+   carried a literal `version: 2`, and CORONER moved to 3 the same day —
+   so a file written to catch version drift was itself carrying a drifted
+   version number within hours. Reading the constant means the fixtures
+   describe "a current report" for as long as that stays true, and the
+   one deliberately-stale case below states its staleness as an OFFSET
+   from the constant rather than as a number of its own. */
+var V = C.INTAKE_FEATURE_VERSION;
 var FIX = {
-  sustained: { version: 2, crest: 16, onsetRate: 0.8, attack: 0.09,  sustain: 0.85, flatness: 0.05, highRatio: 0.02, dur: 30 },
-  percussive:{ version: 2, crest: 9,  onsetRate: 11,  attack: 0.002, sustain: 0.10, flatness: 0.30, highRatio: 0.09, dur: 30 },
-  bright:    { version: 2, crest: 5,  onsetRate: 8,   attack: 0.004, sustain: 0.30, flatness: 0.62, highRatio: 0.19, dur: 30 },
-  plain:     { version: 2, crest: 11, onsetRate: 3,   attack: 0.02,  sustain: 0.50, flatness: 0.20, highRatio: 0.06, dur: 30 }
+  sustained: { version: V, crest: 16, onsetRate: 0.8, attack: 0.09,  sustain: 0.85, flatness: 0.05, highRatio: 0.02, dur: 30 },
+  percussive:{ version: V, crest: 9,  onsetRate: 11,  attack: 0.002, sustain: 0.10, flatness: 0.30, highRatio: 0.09, dur: 30 },
+  bright:    { version: V, crest: 5,  onsetRate: 8,   attack: 0.004, sustain: 0.30, flatness: 0.62, highRatio: 0.19, dur: 30 },
+  plain:     { version: V, crest: 11, onsetRate: 3,   attack: 0.02,  sustain: 0.50, flatness: 0.20, highRatio: 0.06, dur: 30 }
 };
 
 console.log('CASKET intake — what a report from CORONER is allowed to do\n');
@@ -52,7 +61,7 @@ console.log('CASKET intake — what a report from CORONER is allowed to do\n');
 console.log('— the shape that comes back —');
 (function () {
   var shapes = [
-    ['a whole report',      { version: 2, features: FIX.percussive }],
+    ['a whole report',      { version: V, features: FIX.percussive }],
     ['a bare feature bag',  FIX.percussive],
     ['nothing at all',      null],
     ['an empty object',     {}],
@@ -429,12 +438,26 @@ console.log('\n— when the other side changes under us —');
      'a feature vector from a future CORONER is reported, not refused');
   ok(r.featureVersion === stale.version, '  and the version it was handed is echoed back');
 
-  var partial = C.intake({ version: 2, crest: 12 }, null, null, FS);
+  /* THE OTHER HALF, and it is the half that actually went wrong. A report
+     stamped with the version CASKET declares must produce NO version
+     warning at all. On 2026-08-27 CORONER moved to 3 within hours of this
+     being written against 2, so every real report tripped the mismatch —
+     and a warning that always fires is a warning nobody reads, which
+     turns a genuine signal into furniture. Asserting only that a
+     MISMATCH warns would have gone green through the whole of that. */
+  var current = {}; for (var ck in FIX.plain) current[ck] = FIX.plain[ck];
+  current.version = C.INTAKE_FEATURE_VERSION;
+  var matched = C.intake(current, null, null, FS);
+  ok(!matched.warnings.some(function (w) { return /version/.test(w); }),
+     'a report at the version CASKET declares raises NO version warning' +
+     ' (INTAKE_FEATURE_VERSION = ' + C.INTAKE_FEATURE_VERSION + ')');
+
+  var partial = C.intake({ version: C.INTAKE_FEATURE_VERSION, crest: 12 }, null, null, FS);
   ok(partial.warnings.some(function (w) { return /neutral defaults/.test(w); }),
      'a partial vector names the fields it had to default');
 
   /* Hostile values inside the declared fields */
-  var nasty = { version: 2, crest: NaN, onsetRate: Infinity, attack: -5,
+  var nasty = { version: V, crest: NaN, onsetRate: Infinity, attack: -5,
                 sustain: 'loud', flatness: null, highRatio: 1e300, dur: -1 };
   var n2 = null, threw = null;
   try { n2 = C.intake(nasty, null, null, FS); } catch (e) { threw = e; }
