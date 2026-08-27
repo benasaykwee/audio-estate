@@ -45,16 +45,17 @@ emits, and never compare vectors across versions; see §9.3.*
 | RIGOR | **shared** | **shared** | yes | **<!--c:rigor.parity-->62,642<!--/c-->** |
 | CASKET | **shared** | **shared** | yes | **<!--c:casket.parity-->23,013<!--/c-->** |
 | PALLBEARER | **shared** | — *(no dynamics stage, deliberately)* | yes | **<!--c:pallbearer.parity-->13,335<!--/c-->** |
-| CORONER | **shared** | — *(measures dynamics, does not impose them)* | **no** | — *(harness only: 168 checks, 19 sabotages)* |
+| CORONER | **shared** | — *(measures dynamics, does not impose them)* | **no** | — *(harness only: 300 checks across six files)* |
 
 *CORONER's row is the only one with no twin and no parity figure, and that is a
 statement of fact rather than a gap to be tidied away. A parity gate proves two
 implementations agree; there is only one implementation. It earns a twin when
-the feature set stops moving — and `FEATURE_VERSION` moved twice on the day the
-project was created, so that moment is not close. **This row is NOT derived**:
-`tools/counts.js` does not know about CORONER, so the 168 is hand-typed and will
-go stale exactly the way §1 says hand-typed numbers do. Measure the harness,
-do not quote this.*
+the feature set stops moving — and `FEATURE_VERSION` went **1 → 2 → 3 → 4 on the
+day the project was created**, so that moment is not close. **This row is NOT
+derived**: `tools/counts.js` does not know about CORONER, so the figure is
+hand-typed and will go stale exactly the way §1 says hand-typed numbers do — it
+already has, twice, within hours (168 → 173 → 300). Measure the harnesses, do not
+quote this.*
 
 *PALLBEARER joined 2026-08-16, got its twin the same day, and is **now DERIVED like the
 other three** — `tools/counts.js` compiles its gate at `-O2 -ffp-contract=off`, runs it,
@@ -254,6 +255,148 @@ There is an external consumer: **Masterbox**, a separate mastering tool with an 
 ## 7. THE LOG
 *Every change that crossed a project boundary. Newest first. If you touch `shared/`, you add a line.*
 
+### 2026-08-27 — CORONER's first work round: the pack carries the corpse, the loop is a harness, the contract is gated, and two more confidently-wrong answers are closed
+
+**Nothing in `shared/` changed and CORONER still has no C++ twin, so no parity
+check and no blessed hash can have moved. Nothing in NECROPHONE, PALLBEARER or
+CASKET was edited** — the two gates that read them read them as TEXT, and the
+root-detector comparison lifts NECROPHONE's own function rather than touching it.
+CORONER's harness went **173 → 300 checks across six files**, all green.
+
+#### 1 · The handoff now carries the body
+
+`necrophonePack()` emits a `pack-1.0` document with the sample inside it,
+alongside the existing `#p=` link. This closes **both** faults recorded in the
+CORONER→NECROPHONE entry below: `corpseRoot` no longer travels without the corpse,
+and Dust & Ashes no longer arrives with an engine selected and nothing to grind.
+It also opens in the DAW, because R15-113 already built the receiving half.
+
+**The codec is REPRODUCED, not imported, and therefore GATED.** CORONER stays
+portable, so `compressCorpse` is a byte-exact port of `compressCorpseArr` —
+including the asymmetric i16 scale (`*32768` below zero, `*32767` at or above),
+the naive `floor(i*ratio)` decimation, and the `|| 0` that catches NaN while
+mapping −0 to 0. `tests/necrophone_pack.js` (38 checks) lifts NECROPHONE's REAL
+encoder and decoder out of `necrophone.html` by brace-matching and proves the two
+agree byte for byte across sixteen cases, then feeds the pack to the real
+`decodePack`. One check asserts a *symmetric* scale would disagree, so a future
+"tidy-up" cannot pass silently.
+
+#### 2 · ⚠ THE CLOSED LOOP IS A HARNESS NOW, AND IT FOUND TWO MORE THINGS
+
+`tests/closed_loop.js` renders each NECROPHONE engine and hands the audio back.
+It found a fault on its first run in this session too.
+
+**`snap()` IS NOT OPTIONAL, AND OMITTING IT FAILS SILENTLY.** `setParams` writes
+TARGETS to `this.params`; a voice is built from `this.cur`, which only advances
+inside `render()`. A `noteOn` issued before the first render therefore builds its
+voice from `defaults()` — whatever you set. Measured: **without `snap()`, all four
+engines rendered BYTE-IDENTICALLY.** Not approximately. The harness was measuring
+the default patch four times and labelling the results with four engine names, and
+every assertion passed. With `snap()` they separate immediately (summed |x|:
+26932 / 25960 / 24766 / 4732).
+
+> **Anything that renders NECROPHONE offline must call `snap()`.** It does not
+> crash, does not warn, and produces a completely plausible wrong answer. **The
+> training-corpus renderer is the one that matters** — the mistake would poison a
+> million samples and every one of them would look fine.
+
+**And a correct measurement was being discarded by a denominator.** `f0conf` was
+voiced frames over ALL frames, silence included — which structurally punishes
+exactly the sounds that DECAY, because a fast-decaying note is mostly tail. On a
+real Bone & Sinew render the pitch was found and it was RIGHT (195.7 Hz against a
+G3 at 195.998), fell under the 0.25 bar at 0.20, dropped through to the unpitched
+branch, and a ringing string came back as **"Percussive" at 94% confidence** —
+which is the exact confidently-wrong verdict this log's earlier entry flagged.
+Now measured over AUDIBLE frames only. **Silence is not a failure to find a pitch.**
+
+#### 3 · The two copies of NECROPHONE's ranges are gated at last
+
+`tests/param_contract.js` (17 checks) parses the real registry as TEXT and
+compares it to what `routeToNecrophone` actually emits: every id exists, every
+value is in range, every enum names a real option, and **every clamp literal
+matches NECROPHONE's declared bounds digit for digit**. Three deliberate
+corruptions prove it bites. CORONER's own comment asked for this months of
+sessions ago in project-time; it exists now.
+
+Two faults were in the GATE, both caught by its own cross-check: the mod matrix is
+`PARAMS.push`ed in a loop, so a literal-only parse finds **92 of 124** and looks
+like it worked; and `routeToNecrophone` and `routeToPallbearer` both build a patch
+called `p`, so an unscoped scan attributed PALLBEARER's `damping`, `decay`,
+`hardness`, `inharm`, `noise` and `tone` to NECROPHONE.
+
+#### 4 · A root detector, measured against the incumbent rather than asserted
+
+`CR.detectRoot()` segments into notes, solves pitch and stiffness together, and
+refuses out loud. `tests/root_detect.js` (29 checks) lifts NECROPHONE's real
+`detectPitchHz` and runs both on bodies whose pitch is known by construction:
+
+| | answered | worst error | clear wins |
+|---|---|---|---|
+| CORONER | 8/8 | **3 cents** | 5 |
+| `detectPitchHz` | 7/8 | **2391 cents** | 0 |
+
+The stiff-string claim recorded in the entry below is **confirmed to the cent**:
+109.88 Hz vs 111.95 Hz on a 110 Hz body, i.e. 1.9 cents against 30.4.
+
+⚠ **A CHORD DOES NOT MAKE A PITCH DETECTOR FAIL. IT MAKES ONE SUCCEED AT A
+FREQUENCY THAT IS NOT THERE.** Handed 220+277+330 Hz, CORONER returned **53.9 Hz**
+with full confidence and harmonicity 0.842; `detectPitchHz` returned 55.1 Hz. A
+period four times too long fits all three notes at once. Counting extra spectral
+peaks does not catch it — `polyphony` read **1**, because once you accept the
+subharmonic every one of those notes IS a harmonic of it. The tell is physical and
+simple: **is there any energy at the pitch it claims?** Measured, with the bar in
+the middle of the gap: real notes 0.2562–1.0000 (including one with a deliberately
+weak fundamental), phantom subharmonics 0.0003 and 0.0000.
+
+*Nothing in NECROPHONE was changed. Whether to swap detectors is a separate
+decision with its own risk, and it is Ben's.*
+
+#### 5 · Pluck position: measured, reported, and deliberately NOT routed on
+
+`pluckPos` and `pluckFit` are new features (`FEATURE_VERSION` **3 → 4**, appended
+at the END so no existing slot shifts — the bump is still required because a
+fixed-order vector's LENGTH is part of its contract). Recovered from the comb of
+missing harmonics at n = k/p by a matched filter, with the source's own spectral
+envelope removed from both the measurement and each candidate.
+
+**It is not written into the PALLBEARER patch, and that is the finding.** Swept
+across positions and partial counts, the error is not a clean function of how much
+comb is visible: **a comb at p shares half its nulls with one at p/2**, so when
+only some nulls fall in range, two positions explain the same evidence and the
+correlation picks whichever noise favours. p=0.11 fails at 12 partials; p=0.30
+fails at 32. That is an identifiability problem, not a tuning problem, and a bar
+strict enough to fix one still lets the other through.
+
+So the estimator was made STRICT rather than correct: it answers 6 of 9 and **all
+6 answers are within 0.03**. Reporting a measurement and ACTING on it are
+different bars, and this clears only the first — PALLBEARER's `sanitize()` cannot
+report, so a value right two times in three would arrive, be accepted, and move
+the whole character of the sound in silence. The earlier decision to decline was
+right; the only change is that the decline is now backed by a measurement instead
+of an instinct.
+
+⚠ **`couple` IS STILL NEVER EMITTED, and it is now a GATE rather than an
+accident.** `_HANDOFF/CORONER_SEAM.md` §7.5 warns that String Coupling can
+self-oscillate and that the slip is safe "by omission rather than by design" —
+predicting that a stiffness measurement is what would tempt someone to add it.
+CORONER now measures stiffness AND pluck position, which is exactly the pair that
+makes `couple` look like the obvious third. A test fails the moment anyone adds
+it. **Fix the oscillation in PALLBEARER first, then emit it — in that order.**
+
+#### The version bump, verified live again
+
+`FEATURE_VERSION` is now **4**, and CASKET's `INTAKE_FEATURE_VERSION` reached **3**
+an hour ago from the other side. The gap has reopened by one, and that is fine:
+run for real, `intake()` warned (*"feature vector version 4, and THE INTAKE was
+written against 3"*), all seven `INTAKE_READS` were present and finite, a valid
+`velvet` state came back, and **CASKET's own 80-check harness stays green**.
+Neither of the two new features is among the seven. §9.3's clause has now caught
+two consecutive bumps on the first attempt each time.
+
+*Whoever moves `INTAKE_FEATURE_VERSION` to 4 should do it the way it was moved to
+3 — after checking that none of the seven appears in the change list, not to
+silence the warning.*
+
 ### 2026-08-27 — §6 AUDITED against the code, and three of its five answers were wrong
 
 **Nothing in `shared/` changed and no C++ twin was touched, so no parity check
@@ -373,6 +516,118 @@ explicit yes.** Also unmended: that wrong verdict came back at **confidence
 0.94**, which is the failure mode CORONER's own notes warn about for jitter.
 
 Report: `CLAUDE/CORONER/THE_INQUEST.html` (§IV·b covers the closed loop).
+
+### 2026-08-27 — a note before the first render was built from the defaults, in BOTH bodies, and nothing said so
+
+**CORONER reported it, NECROPHONE verified it, and it is now FIXED in both twins
+with a gate that bites.** Files changed: `necrophone_core.js`,
+`necrophone.html` (re-synced), `necrophone_features_test.js` (+3 checks),
+`necrophone-juce/Source/NecrophoneCore.h`, and the staged copies of all four in
+`NECROPHONE-repo/`. **`shared/` untouched**, so no other project's parity check
+or blessed hash can have moved. **NECROPHONE's own regression baselines did NOT
+move** — see the evidence below, which is the whole reason this was safe to do
+rather than escalate.
+
+#### The fault
+
+`setParams` writes TARGETS to `params`. A voice is built from `cur`, and `cur`
+only advances inside `render()` via `smoothTick()`. **So a `noteOn` issued before
+the first `render()` built its voice from `defaults()`, regardless of what had
+just been set.** It did not throw, it did not warn, and it returned a completely
+plausible wrong sound.
+
+Reproduced exactly as reported — four engines set, no `snap()`, summed |x| over a
+one-second G3: **all four byte-identical**, because all four were secretly the
+default. With `snap()` they separate immediately. (Absolute figures differ from
+CORONER's 26932/25960/24766/4732 because the material and duration differ; the
+pattern is identical.)
+
+**Three things the first measurement did not reach, found by probing further:**
+
+1. **The hole is at VOICE-CONSTRUCTION time, not at smoothing time.** `smoothTick`
+   does copy discrete ids every sample (`c[id] = p[id]`), so `cur` heals one
+   sample into the first render. But a voice reads its engine, waveform and
+   **pitch** once, when it is built. Anything read at construction is baked in
+   permanently for that note; anything read per-sample recovers after the ramp,
+   **losing only the attack** — which is precisely the part CORONER measures for
+   `attack`, `phHard` and transients.
+2. **The sharpest form is tuning.** `refA = 415` set and not committed: the first
+   note of a baroque-pitch session plays at **440.000 Hz**. A `tuning` enum is
+   swallowed the same way. An entire microtonal temperament silently does not
+   apply to the first note.
+3. **The bug was actively HIDING a real condition.** Asking for `granular` with
+   no corpse loaded returned a healthy analog tone. Fixed, it correctly returns
+   silence — which is the truth, and the exact thing R15's MORGUE slab label was
+   built to say out loud.
+
+**The knowledge already existed in this estate, in one comment.** The C++ parity
+gates dodge it by hand: `core_blend.cpp` renders a throwaway block with the
+comment **"commit params before note-on"**, and `core_root.cpp` does the same. So
+the parity gates are sound and always were — but nothing else knew, it was never
+written down as a rule, and the C++ twin **had no `snap()` at all**, leaving its
+offline harnesses no escape hatch whatsoever.
+
+#### The decision, and why this one
+
+CORONER offered three options and no view: auto-snap on a cold `noteOn`, warn
+once, or document the offline path. **Chosen: auto-snap, in both bodies** —
+`if (!this._rendered) this.snap();` at the top of `_noteOnDirect`, with
+`_rendered` set inside `render()`. C++ gains the `snap()` it never had
+(`void snap() { cur = params; }`) and the identical guard.
+
+Chosen over a warning because a warning leaves the wrong audio in place and only
+tells you afterwards; chosen over documentation because the documentation already
+existed, in a comment, in one file, and it still got rediscovered. **The
+correctness should not depend on remembering.**
+
+**It is an identity everywhere that already worked, and that was verified, not
+assumed:**
+
+- **regression byte-stable** — `✦ ALL ENGINES STABLE`, baselines untouched
+- **all seven harnesses green**; release check **`✦ FIT TO SHIP`, 75 checks**
+- **both C++ parity gates byte-identical** after the change (`core_blend` 7 lines,
+  `core_root` 10 lines, diffed the way CI diffs them); `core_tunefx` agrees inside
+  its 0.05 Hz bar; `core_smoke` renders clean; `-fsyntax-only` clean vs JUCE 8.0.4
+- the browser and the plug-in both render continuously, so `_rendered` is already
+  true by the time any note arrives — the guard never fires there
+- the regression harness and the parity gates already commit params by hand, so
+  the guard is a no-op in every existing test too
+
+**The gate:** three checks appended to `necrophone_features_test.js` — that four
+engines triggered cold do not collapse into one, that triggering cold is now
+**exactly** equal to snapping first, and that a 415 Hz session's first note is not
+played at 440. **Proved to bite**: the guard was removed in a throwaway copy and
+all three failed, exit 1. Note for whoever edits them — the engines seed
+`Math.random` internally, so the exact-identity check pins the PRNG the way the
+regression harness does; without that it fails on genuine randomness, which cost
+one run here.
+
+**One divergence spotted and deliberately left alone:** C++ `_noteOnDirect` reads
+`params.voiceMode` where JS reads `cur.voiceMode`. Pre-fix that differed only
+before the first render — i.e. only in the broken window. Post-fix `cur == params`
+there, so it is moot. Recorded rather than changed, because changing it would be
+a real behavioural edit with no failing test behind it.
+
+#### Why this belongs in the shared log rather than NECROPHONE's own notes
+
+**The shape is not NECROPHONE-specific: it is "a value that only advances inside
+the render call, read by something that runs outside it."** Any project here with
+a smoothed-parameter block and an offline harness can have it. It is worth ten
+minutes in AUTOPSY, RIGOR, CASKET and PALLBEARER to ask whether a test that
+configures and then immediately measures is measuring the defaults. The tell is
+the one CORONER named: **results that are suspiciously identical across
+configurations that should differ.**
+
+It also generalises a rule this estate already half-knows. LAW-shaped, if anyone
+wants it in §2: *a harness that configures and then immediately measures must
+commit the configuration first, and the core should not require it to remember.*
+
+**Still open, and it is the reason this mattered more than the bug:** the
+training-corpus renderer sketched for CORONER's inverse-parameter model. The same
+omission would have rendered a million samples of the default patch, labelled
+every one with the parameters it had asked for, and produced a dataset that looked
+perfect. That renderer does not exist yet. When it is built it should assert, on
+its own first batch, that varying a parameter varies the audio.
 
 ### 2026-08-27 — the CORONER→NECROPHONE half, measured: the contract is clean, the loop does not close, and the stiffness test is INVERTED
 
@@ -1800,6 +2055,14 @@ itself carrying a drifted version within hours of being written.
 > after re-reading this section** — not to silence the warning. The warning is
 > doing its job, and a version stamp that is bumped reflexively to quiet a
 > message stops being a stamp at all.
+>
+> **AND THAT IS EXACTLY HOW IT WAS DONE** (2026-08-27, the §6 audit entry): moved
+> to 3 only after checking that none of the seven reads appears in either change
+> list, with a derived stamp added so it cannot drift again. **CORONER then reached
+> v4** the same afternoon — `pluckPos` and `pluckFit`, neither of them among the
+> seven — and the clause caught that one too, on the first attempt, warning and
+> continuing while CASKET's 80-check harness stayed green. Two consecutive bumps,
+> two clean degradations. The clause has now earned its place twice.
 
 ### 9.4 What CASKET sends back
 
