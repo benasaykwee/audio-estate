@@ -517,6 +517,95 @@ explicit yes.** Also unmended: that wrong verdict came back at **confidence
 
 Report: `CLAUDE/CORONER/THE_INQUEST.html` (§IV·b covers the closed loop).
 
+### 2026-09-01 (later): round 14 opened without spending the baselines, and a guard turned out to be only a guard
+
+**NECROPHONE only. `shared/` untouched, no other project's parity check or
+blessed hash can have moved.** Two items, and both carry a lesson that is not
+NECROPHONE-specific.
+
+#### R14-102: a DSP round can open for free, and the reason is structural
+
+Bone & Sinew had **no mechanism for stiffness at all**: three parameters, and the
+only allpasses in the core were in the reverb, so it was physically an ideal
+flexible string. CORONER measured it at B = 2.2e-6 with a fit R² of 0.13, less
+stiffness evidence than a detuned sawtooth makes. `phDisp` adds a chain of
+first-order allpasses inside the Karplus-Strong loop.
+
+**The regression baselines did not move, and this is the reusable part.** The
+whole estate has assumed a DSP round begins by re-recording them. It does not
+have to. **The guard is a BYPASS, not a coefficient that happens to vanish.** An
+allpass at a = 0 is *not* an identity, it is a one-sample delay, so a merely
+vanishing coefficient would have moved every baseline. Skipping the chain is
+exact. Same family as R14-101's semitone offset multiplying by exactly 1:
+
+> **When adding to a signal path, ask what the OFF state costs. If "off" still
+> runs the code, it is not free. Make "off" not run the code.**
+
+⚠️ **A parity hazard avoided, worth copying.** The chain costs loop delay and
+delay is pitch, so N is compensated at note-on. The compensation uses the **DC
+phase delay `(1-a)/(1+a)`, which is pure arithmetic**. Evaluating phase delay at
+the fundamental is more accurate and was rejected: it needs `atan2`, and since N
+is an **integer**, one ulp between `Math.atan2` and `std::atan2` could flip the
+rounding and split the two bodies on a boundary note. **Accuracy given up on
+purpose to keep parity.** Anywhere a transcendental feeds an integer decision,
+the two languages are one ulp from disagreeing.
+
+**Gate:** `tests/js_disp.js` ↔ `tests/core_disp.cpp`, byte-identical, in CI.
+⚠️ **It deliberately does NOT compare waveforms**, and the reason generalises:
+the physical engine is excited by **noise**, and the two cores use **different
+RNGs** (`Math.random` vs an inline xorshift), so the bodies render different
+strings from the same patch and always have. Seeding cannot fix it, because they
+are not the same generator. The gate compares the *arithmetic that decides which
+string gets built*, above all the compensated N, which is its pitch. Proved to
+bite twice, including a one-sample N difference at C5 that would have been an
+audible detune between browser and plug-in.
+
+**Verified from outside**: at full stiffness CORONER now reads B = 1.6e-4 at
+R² = 0.97, a 74× rise, and its verdict flips from "Synthetic" to "Plucked or
+Struck". **Found while measuring and NOT fixed:** the high notes were already
+sharp, +12 cents at C5 and +18 at C6 at zero stiffness, from the loop filter's
+uncompensated phase delay. Pre-existing, unrelated, now its own R14 item.
+
+#### R15-114: the face, and the eleven-round blocker that was a `#define`
+
+The bespoke grouped editor was deferred from round four to round fifteen because
+**nobody could compile a plug-in editor here**. That turned out to be almost
+untrue. Including a JUCE module header without a generated `JuceHeader.h` trips
+`juce_TargetPlatform.h`:
+
+```
+#error "No global header file was included!"
+```
+
+**It is only a guard.** Defining `JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED` plus the
+`JUCE_MODULE_AVAILABLE_*` flags parses the **entire editor** against the real
+headers, with no linker and no project. `tests/syntax_face.sh` does it, skips
+with exit 0 when handed no JUCE tree, and was proved to bite by renaming
+`setNumDecimalPlacesToDisplay` to a method JUCE lacks. **Any project here with a
+JUCE editor it believed it could not check should try this.** It is a syntax and
+API check, not a build: layout is still the artifact's job.
+
+**The face is a TABLE, not a drawing** (`Source/FaceSections.h`), and every
+control is built from it through one code path off the APVTS. The reason is a
+bug class: **a control naming a parameter that does not exist fails SILENTLY in
+JUCE** (the attachment is never made, the knob does nothing), and a parameter
+left off the face fails the other way, still automatable and audible but
+unreachable by a human. **Neither shows up in a compile, in pluginval, or in any
+parity gate.** So `tests/js_face.js` reads the table **as TEXT** (the
+`parseCppParams` technique) and checks it against the real registry: 124 of 125
+placed, `engine` excused by name because the relic tabs drive it. Only the body
+of `sections()` is parsed, because prose in a file a tool reads is parsed as
+eagerly as code, which this estate already learned in `Parameters.h`.
+
+**Both new gates are in CI.** Release check **FIT TO SHIP at 79**, all seven
+harnesses green, regression byte-stable, all three parity gates byte-identical.
+125 parameters.
+
+⚠️ **Sandbox note for anyone following:** the CLAUDE mount denies `unlink`, so a
+scratch file created during this work could not be deleted. It was **renamed** to
+`*.dead` and the pattern gitignored, which is the same shunt the git-lock
+workaround uses. Renaming is permitted; deleting is not.
+
 ### 2026-09-01: the seam gets a gate that can only ever speak, never veto
 
 **NECROPHONE only. `shared/` untouched, no core touched, no baseline moved, no
