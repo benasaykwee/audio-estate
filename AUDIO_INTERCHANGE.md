@@ -517,7 +517,7 @@ explicit yes.** Also unmended: that wrong verdict came back at **confidence
 
 Report: `CLAUDE/CORONER/THE_INQUEST.html` (§IV·b covers the closed loop).
 
-### 2026-09-01 — the seam gets a gate that can only ever speak, never veto
+### 2026-09-01: the seam gets a gate that can only ever speak, never veto
 
 **NECROPHONE only. `shared/` untouched, no core touched, no baseline moved, no
 C++ touched, so no other project's parity check or blessed hash can have moved.**
@@ -592,7 +592,7 @@ that same fix unpushed**, so the identical mend is live in one repository and
 orphaned in the other. That is the unresolved NECROPHONE repo split producing a
 concrete symptom rather than an argument, and only Ben can settle it.
 
-### 2026-08-27 — a note before the first render was built from the defaults, in BOTH bodies, and nothing said so
+### 2026-08-27: a note before the first render was built from the defaults, in BOTH bodies, and nothing said so
 
 **CORONER reported it, NECROPHONE verified it, and it is now FIXED in both twins
 with a gate that bites.** Files changed: `necrophone_core.js`,
@@ -600,7 +600,7 @@ with a gate that bites.** Files changed: `necrophone_core.js`,
 `necrophone-juce/Source/NecrophoneCore.h`, and the staged copies of all four in
 `NECROPHONE-repo/`. **`shared/` untouched**, so no other project's parity check
 or blessed hash can have moved. **NECROPHONE's own regression baselines did NOT
-move** — see the evidence below, which is the whole reason this was safe to do
+move**. See the evidence below, which is the whole reason this was safe to do
 rather than escalate.
 
 #### The fault
@@ -611,7 +611,7 @@ the first `render()` built its voice from `defaults()`, regardless of what had
 just been set.** It did not throw, it did not warn, and it returned a completely
 plausible wrong sound.
 
-Reproduced exactly as reported — four engines set, no `snap()`, summed |x| over a
+Reproduced exactly as reported: four engines set, no `snap()`, summed |x| over a
 one-second G3: **all four byte-identical**, because all four were secretly the
 default. With `snap()` they separate immediately. (Absolute figures differ from
 CORONER's 26932/25960/24766/4732 because the material and duration differ; the
@@ -624,7 +624,7 @@ pattern is identical.)
    sample into the first render. But a voice reads its engine, waveform and
    **pitch** once, when it is built. Anything read at construction is baked in
    permanently for that note; anything read per-sample recovers after the ramp,
-   **losing only the attack** — which is precisely the part CORONER measures for
+   **losing only the attack**, which is precisely the part CORONER measures for
    `attack`, `phHard` and transients.
 2. **The sharpest form is tuning.** `refA = 415` set and not committed: the first
    note of a baroque-pitch session plays at **440.000 Hz**. A `tuning` enum is
@@ -632,20 +632,20 @@ pattern is identical.)
    apply to the first note.
 3. **The bug was actively HIDING a real condition.** Asking for `granular` with
    no corpse loaded returned a healthy analog tone. Fixed, it correctly returns
-   silence — which is the truth, and the exact thing R15's MORGUE slab label was
+   silence, which is the truth, and the exact thing R15's MORGUE slab label was
    built to say out loud.
 
 **The knowledge already existed in this estate, in one comment.** The C++ parity
 gates dodge it by hand: `core_blend.cpp` renders a throwaway block with the
 comment **"commit params before note-on"**, and `core_root.cpp` does the same. So
-the parity gates are sound and always were — but nothing else knew, it was never
+the parity gates are sound and always were, but nothing else knew, it was never
 written down as a rule, and the C++ twin **had no `snap()` at all**, leaving its
 offline harnesses no escape hatch whatsoever.
 
 #### The decision, and why this one
 
 CORONER offered three options and no view: auto-snap on a cold `noteOn`, warn
-once, or document the offline path. **Chosen: auto-snap, in both bodies** —
+once, or document the offline path. **Chosen: auto-snap, in both bodies**:
 `if (!this._rendered) this.snap();` at the top of `_noteOnDirect`, with
 `_rendered` set inside `render()`. C++ gains the `snap()` it never had
 (`void snap() { cur = params; }`) and the identical guard.
@@ -658,28 +658,28 @@ correctness should not depend on remembering.**
 **It is an identity everywhere that already worked, and that was verified, not
 assumed:**
 
-- **regression byte-stable** — `✦ ALL ENGINES STABLE`, baselines untouched
+- **regression byte-stable**: `✦ ALL ENGINES STABLE`, baselines untouched
 - **all seven harnesses green**; release check **`✦ FIT TO SHIP`, 75 checks**
 - **both C++ parity gates byte-identical** after the change (`core_blend` 7 lines,
   `core_root` 10 lines, diffed the way CI diffs them); `core_tunefx` agrees inside
   its 0.05 Hz bar; `core_smoke` renders clean; `-fsyntax-only` clean vs JUCE 8.0.4
 - the browser and the plug-in both render continuously, so `_rendered` is already
-  true by the time any note arrives — the guard never fires there
+  true by the time any note arrives, so the guard never fires there
 - the regression harness and the parity gates already commit params by hand, so
   the guard is a no-op in every existing test too
 
-**The gate:** three checks appended to `necrophone_features_test.js` — that four
+**The gate:** three checks appended to `necrophone_features_test.js`: that four
 engines triggered cold do not collapse into one, that triggering cold is now
 **exactly** equal to snapping first, and that a 415 Hz session's first note is not
 played at 440. **Proved to bite**: the guard was removed in a throwaway copy and
-all three failed, exit 1. Note for whoever edits them — the engines seed
+all three failed, exit 1. Note for whoever edits them: the engines seed
 `Math.random` internally, so the exact-identity check pins the PRNG the way the
 regression harness does; without that it fails on genuine randomness, which cost
 one run here.
 
 **One divergence spotted and deliberately left alone:** C++ `_noteOnDirect` reads
 `params.voiceMode` where JS reads `cur.voiceMode`. Pre-fix that differed only
-before the first render — i.e. only in the broken window. Post-fix `cur == params`
+before the first render, i.e. only in the broken window. Post-fix `cur == params`
 there, so it is moot. Recorded rather than changed, because changing it would be
 a real behavioural edit with no failing test behind it.
 
@@ -704,12 +704,12 @@ every one with the parameters it had asked for, and produced a dataset that look
 perfect. That renderer does not exist yet. When it is built it should assert, on
 its own first batch, that varying a parameter varies the audio.
 
-### 2026-08-27 — the CORONER→NECROPHONE half, measured: the contract is clean, the loop does not close, and the stiffness test is INVERTED
+### 2026-08-27: the CORONER to NECROPHONE half, measured: the contract is clean, the loop does not close, and the stiffness test is INVERTED
 
 **NOTHING WAS CHANGED BY THIS ENTRY.** No `shared/` file, no core, no harness, no
 test, no CI workflow, in any project. Read-only measurement only, so no parity
 check and no blessed hash can have moved. **This entry is a report and a set of
-PROPOSALS awaiting Ben's word** — see "what I would like to do" at the end, which
+PROPOSALS awaiting Ben's word**. See "what I would like to do" at the end, which
 names which session owns which half. Written from a NECROPHONE session; CORONER's
 files grew 62→82 KB the same morning and had been still for two hours when the
 measurements were taken (see the concurrent-sessions rule in §8).
@@ -729,15 +729,15 @@ through NECROPHONE's **real** hash decoder lifted out of `necrophone.html`:
 
 - all 19 ids exist; **0** out of range, **0** illegal enum values, **0** dropped
 - every clamp CORONER applies matches NECROPHONE's declared min/max **exactly**
-- CORONER is current with **R14-101** — it computes `corpseRoot` as a semitone
+- CORONER is current with **R14-101**: it computes `corpseRoot` as a semitone
   offset from G3 = MIDI 55, the parameter added 2026-08-23
 - `CR._corpseRootOffset` vs NECROPHONE's `rootOffsetFromHz` agree on **16 of 17**
-  probes, including 195.9977 Hz — the value that would have cost byte-stability
+  probes, including 195.9977 Hz, the value that would have cost byte-stability
   had `corpseRoot` been defined as an absolute root instead of an offset
 
 The seventeenth probe is `hz = 0`, where NECROPHONE returns `null` ("refuse to
-guess") and CORONER returns `0` ("no change"). It cannot fire — CORONER guards
-`if (f.f0 > 0)` before calling — but the two are spelling *silence* differently,
+guess") and CORONER returns `0` ("no change"). It cannot fire, because CORONER guards
+`if (f.f0 > 0)` before calling, but the two are spelling *silence* differently,
 which is the shape of a bug rather than a bug.
 
 **Three faults in the seam regardless of the clean contract.**
@@ -745,13 +745,13 @@ which is the shape of a bug rather than a bug.
 1. **Two copies of a rule with no gate**, which is this estate's oldest defect in
    its favourite hiding place. CORONER hardcodes NECROPHONE's ranges; NECROPHONE
    has no idea CORONER exists. `loadPatchFromHash` merges with
-   `if (j in patch)`, so a renamed id is **silently dropped** — no throw, no
+   `if (j in patch)`, so a renamed id is **silently dropped**: no throw, no
    warning, just a patch that is not what the slip said. CORONER's own comment
    anticipates exactly this and says the release check could compare them.
 2. **`corpseRoot` travels without the corpse.** The share format cannot carry
    audio and says so honestly. But NECROPHONE opens on its default built-in
    source `"relic"`, so an offset measured from a user's recording is applied to
-   the relic — a confident wrong number pointed at the wrong body, which is the
+   the relic, a confident wrong number pointed at the wrong body, which is the
    precise risk CORONER refused to take on pluck position, arriving another way.
 3. **The route that most needs the audio gets it least.** Routing textural
    material to `granular` is correct; Dust & Ashes then arrives with an engine
@@ -759,14 +759,14 @@ which is the shape of a bug rather than a bug.
 
 #### THE CLOSED LOOP, run for the first time: 2 of 8 came home
 
-The gate §9's PALLBEARER notes ask for — render a patch the instrument knows,
-examine the audio, score the slip against the original — had never been run for
+The gate §9's PALLBEARER notes ask for, render a patch the instrument knows,
+examine the audio, score the slip against the original, had never been run for
 NECROPHONE. All four engines rendered headlessly at 44.1 kHz with a deterministic
 PRNG swapped in, fed straight to `CR.autopsy()`, as a held G3 **and** as a
 four-note phrase. **2/8 came home.**
 
 **That number must not travel without its caveat.** `chooseEngine` maps *what the
-material is* to *which engine suits it* — it is not trying to identify what
+material is* to *which engine suits it*, and is not trying to identify what
 produced a sound. A wavetable render that holds still and stays harmonic
 genuinely does suit The Revenant. **2/8 is one measurement nobody had taken, not
 six bugs.** Two results inside it are wrong under any reading, and they are the
@@ -780,7 +780,7 @@ same result twice:
 | Revenant, unison 14 cents | 8.79e-6 | 0.215 | analog |
 
 **The grain cloud fits the stiff-string law better than anything else here.**
-R² = 0.999 — the best fit in the set. The existing guard
+R² = 0.999, the best fit in the set. The existing guard
 (`f.inharm = (bFit > 5e-5 && (bR2 < 0.75 || bUsed < 4)) ? 0 : bFit`) is
 **powerless by construction**: it was built to reject a *poor* fit, and this is a
 superb one. The tell is not the fit, it is the value. `B = 9.22e-3` is roughly
@@ -792,12 +792,12 @@ the fix that one produced.
 
 **Bone & Sinew is invisible, and that half is NECROPHONE's fault, not CORONER's.**
 Verified in `necrophone_core.js`: the physical engine has exactly three
-parameters — `phHard`, `phDecay`, `phBody` — and **there is no dispersion
+parameters, `phHard`, `phDecay` and `phBody`, and **there is no dispersion
 anywhere in it**. The only allpass filters in the file are in the reverb. Bone &
 Sinew is a delay line with damping, which is physically an *ideal flexible
 string*: zero stiffness, perfectly harmonic partials. It shows less stiffness
 evidence than a detuned sawtooth. Its wrong verdict also carried **confidence
-0.94**, which is the failure mode CORONER's own notes warn about for jitter — a
+0.94**, which is the failure mode CORONER's own notes warn about for jitter: a
 confident wrong answer is worse than an unconfident one.
 
 **The finding under the finding, and it is the reason this entry is long.**
@@ -818,20 +818,20 @@ is not any session's to take.
 
 - **Make the closed loop a permanent harness.** ~40 lines; it found something on
   its first run, which is this estate's usual result for a new gate. It should
-  **not** assert "came home" — that metric is contestable, per the caveat above.
+  **not** assert "came home", because that metric is contestable, per the caveat above.
   It should assert what cannot be argued: *a rendered engine never routes to a
   target that cannot make that sound*, and *confidence never exceeds 0.9 on a
   verdict that is wrong* (Bone & Sinew currently fails the second at 0.94).
 - **Gate the parameter contract** from NECROPHONE's release check: compare the
   ids and ranges CORONER emits against the live registry so a rename fails loudly
   instead of vanishing. This is what CORONER's comment already asks for, and it
-  costs CORONER nothing — no import in either direction, per §9's rule.
+  costs CORONER nothing: no import in either direction, per §9's rule.
 - **Close NECROPHONE's own asymmetry**, which is unrelated to CORONER and mine
   regardless: `loadPatchFromHash` does `patch[j] = o.p[j]` with **no clamp and no
   enum check**, while the pack path sieves hostile values. Not currently exposed
   because CORONER clamps correctly on its side. That is luck, not design.
 
-**CORONER's session, offered rather than done — I did not touch its files:**
+**CORONER's session, offered rather than done, I did not touch its files:**
 
 - **A plausibility ceiling on `B`.** The R² guard cannot catch the grain cloud
   and never could. The feature's declared range currently admits values no string
@@ -840,16 +840,16 @@ is not any session's to take.
 
 **Ben's, because it is engine code:**
 
-- **Dispersion in Bone & Sinew**, an R14 item — it would give the string model
+- **Dispersion in Bone & Sinew**, an R14 item. It would give the string model
   real stiffness, make it sound like a string, and let CORONER see it. **The
   R14-101 trick may apply again**: if the zero value is a *structural identity*
   rather than a zero-coefficient filter, the baselines never move. Flagged as
-  **plausible, NOT proven** — an allpass at coefficient 0 is still a delay, not
+  **plausible, NOT proven**: an allpass at coefficient 0 is still a delay, not
   an identity, so this needs checking before anyone promises it is free.
 
 **Bigger, and nobody's yet:** CORONER emitting a `.necropack.json` instead of a
 `#p=` URL. R15-113 already built the receiving half (`parsePackText` /
-`applyPackPatch`), and the pack carries riders the URL cannot — materialA/B as
+`applyPackPatch`), and the pack carries riders the URL cannot: materialA/B as
 16 kHz i16, Scala cents, spectral mask, wavetable, IR. It fixes faults 2 and 3 at
 once and **the slip would open in a DAW**. Cost, stated plainly: CORONER has no
 dependency on NECROPHONE in either direction by design, and the pack encoder
@@ -859,7 +859,7 @@ three lines the share format was. If it is ever taken, the contract belongs in a
 
 **Caveats on everything above.** The bodies are synthesised or NECROPHONE's own
 output; no real instrument was involved, which is the limit CORONER names about
-itself first. Four engines and two note-shapes is a probe, not a calibration —
+itself first. Four engines and two note-shapes is a probe, not a calibration:
 the direction is sound, the exact numbers should not become thresholds. That
 `9.22e-3` is unphysical for a string comes from published piano inharmonicity
 ranges, not from anything measured here. Full read:
