@@ -517,6 +517,81 @@ explicit yes.** Also unmended: that wrong verdict came back at **confidence
 
 Report: `CLAUDE/CORONER/THE_INQUEST.html` (§IV·b covers the closed loop).
 
+### 2026-09-01 — the seam gets a gate that can only ever speak, never veto
+
+**NECROPHONE only. `shared/` untouched, no core touched, no baseline moved, no
+C++ touched, so no other project's parity check or blessed hash can have moved.**
+Files: `necrophone.html`, `necrophone_uilogic_test.js` (+15 checks, 740 → **755**),
+`necrophone_release_check.js` (75 → **79** checks), new
+`necrophone_coroner_probe.js`, plus the staged copies. Release check
+**✦ FIT TO SHIP**, all seven harnesses green, regression byte-stable.
+
+**Closing what the Aug 27 entry opened, and one half closed itself.**
+
+1. **The one input a stranger controls now has a sieve.** A shared `#p=` link was
+   the only import path in NECROPHONE with no gate: the pack reader sieves,
+   `decodeRite` clamps, the cookbook runs every step through `normalizeRecipe`,
+   and `loadPatchFromHash` did `patch[j] = o.p[j]`. Its `j in patch` test proved
+   only that the **key** was real. New `sievePatch` drops an unknown id, drops an
+   illegal enum, drops a non-finite number, and **clamps** an out-of-range number
+   rather than dropping it, because the common case is an old link whose range has
+   narrowed. It also refuses JavaScript's coercions: a boolean must not become 1,
+   and null, arrays and objects are not numbers. The loader now *says* when a link
+   was not clean, because silently repairing one produces a sound somebody later
+   tries to debug.
+2. **The closed loop exists, and is deliberately NOT a gate.** `necrophone_coroner_probe.js`
+   renders all four engines, hands the audio to CORONER, and brings the slip back
+   through NECROPHONE's own front door: every parameter real, every value in range,
+   the whole slip through the sieve untouched. 20 of 20.
+
+⚠️ **The design decision worth carrying to any future seam here, and §9.3 is why.**
+The obvious build was a harness importing `coroner_core.js` and gating CI on it.
+**§9.3 forbids exactly that**: *"a hard dependency would put each project's suite
+at the mercy of a file the other is still writing."* That is not hypothetical
+here. CORONER's core grew 62 → 82 KB mid-measurement on Aug 27 and 82 → 111 KB
+since. A NECROPHONE build importing it would go red for reasons that have nothing
+to do with NECROPHONE. So:
+
+- the probe is **not one of the seven**, CI does not run it, and it **skips
+  cleanly with exit 0** wherever CORONER is absent (which inside `NECROPHONE-repo/`
+  is always);
+- the release check's new **§IV-c** reads CORONER's core **as TEXT and never
+  imports it** (the technique `parseCppParams` already uses on `Parameters.h`),
+  brace-matches `routeToNecrophone` so `routeToPallbearer`'s parameter names
+  cannot be mistaken for ours, and **withholds its verdict** when it cannot parse
+  confidently rather than reporting clean;
+- and every outcome in that section is a **`note()`, never a failure**. Proved by
+  teaching CORONER to emit a parameter this build does not have: it named it and
+  **exited 0**.
+
+**The rule, stated so the next seam does not have to rediscover it:** *a
+cross-project check may read the other project, but it must never be able to fail
+your build. Report loudly, veto never.* Reading source as text, withholding on a
+bad parse, and noting rather than failing are the three moves that make that
+possible.
+
+**Both new hard gates were proved to bite** by re-opening each wound in a
+throwaway copy: the release check refuses a build whose hash loader has gone back
+to merging raw, and one missing the sieve entirely.
+
+#### CORONER closed its half, from the Aug 27 offer
+
+The Aug 27 finding had two halves. **Theirs is fixed.** The grain cloud fitted a
+stiff string at R² = 0.999 with `B = 9.22e-3`, and no fit-quality guard could ever
+catch it because the fit was excellent. CORONER added the **plausibility ceiling**
+that half needed (`B_MAX_PLAUSIBLE = 2e-3`) and moved `FEATURE_VERSION` to **3**.
+Measured from this side today, the grain cloud reads **B = 0**. **Ours is still
+open:** Bone & Sinew still reads 2.23e-6 at R² = 0.131, because it still has no
+dispersion. The probe now reports the two halves separately, so a fix to one can
+never again look like a fix to both.
+
+⚠️ **Two things left standing, both outside this session's reach.** Nobody has
+confirmed **CI went green on the Aug 31 push**; the snap fix touched both cores
+and its first x86-64 outing is unverified. And **`necrophone-juce` still carries
+that same fix unpushed**, so the identical mend is live in one repository and
+orphaned in the other. That is the unresolved NECROPHONE repo split producing a
+concrete symptom rather than an argument, and only Ben can settle it.
+
 ### 2026-08-27 — a note before the first render was built from the defaults, in BOTH bodies, and nothing said so
 
 **CORONER reported it, NECROPHONE verified it, and it is now FIXED in both twins
