@@ -1260,6 +1260,20 @@ var PB = (function () {
     var bus = this.coupleBus;
     var COUPLE_K = 0.018;          // small: this path is inside the feedback loop
 
+    /* THE OSCILLATION FIX (2026-09-01). `bus` was the raw SUM of every other
+       string's bridge output, so the loop gain seen by any one string scaled
+       with how many strings were feeding it: a six-string got roughly 1.5x
+       the injection a four-string did at the same `couple` value, which is
+       why the self-oscillation threshold measured differently per tuning
+       (0.42 / 0.34 / 0.27 for four / five / six strings) instead of being one
+       property of the parameter. Multiplying each threshold by (N-1) collapsed
+       them to 1.26 / 1.36 / 1.35 — confirmation the missing term was a plain
+       divisor. Diagnosed in THE_VIEWING.html, applied here: divide by the
+       number of OTHER strings actually contributing, so `couple` means the
+       same thing regardless of tuning. Guarded at 1 for the degenerate case
+       so a future single-string patch cannot divide by zero. */
+    var coupleDiv = nStr > 1 ? (nStr - 1) : 1;
+
     /* Prime the idle strings on demand. Doing it here rather than eagerly
        means the cost is only paid when coupling is actually switched on,
        and it cannot be got wrong by a parameter change arriving in the
@@ -1280,7 +1294,7 @@ var PB = (function () {
         var runs = st.sounding || st.atkOn || (coupling && st.passive);
         if (!runs) { st._bridge = 0; continue; }
         var inject = 0;
-        if (coupling) inject = COUPLE_K * couple * (bus - st._bridge);
+        if (coupling) inject = COUPLE_K * couple * (bus - st._bridge) / coupleDiv;
         var bridge = st.tick(inject, layerData);
         st._bridge = bridge;
         newBus += bridge;
@@ -1732,6 +1746,43 @@ if (typeof registerProcessor === 'function' && typeof AudioWorkletProcessor === 
     buildBoard(); syncWidgets();
     say('Loaded <b>' + name + '</b>.');
   }
+
+  // ---------------------------------------------------------------
+  // the #p= reader — the CORONER seam, closed from this end
+  // ---------------------------------------------------------------
+  /* CORONER's shareLink() (and NECROPHONE's, which set the format first)
+     both end `#p=' + base64url(JSON.stringify({v:1, p:<delta from
+     defaults>}))`. This page had never read that link, which meant a
+     correct, in-range PALLBEARER patch could be computed and had nowhere
+     to land — the whole gap recorded in _HANDOFF/CORONER_SEAM.md §7.3.
+     Mirrors NECROPHONE's b64urlDecode/loadPatchFromHash exactly enough
+     that the two instruments speak one link shape; adapted to this page's
+     own sanitize()/setParam/syncWidgets, and — per §7.4 item 1 — refuses
+     an unknown major `v` instead of half-loading it, the same reasoning
+     PluginProcessor.cpp already applies to saved state. */
+  function b64urlDecode(s) {
+    s = s.replace(/-/g, '+').replace(/_/g, '/');
+    while (s.length % 4) s += '=';
+    return decodeURIComponent(escape(atob(s)));
+  }
+  function loadPatchFromHash() {
+    if (typeof location === 'undefined' || !location.hash) return false;
+    var m = location.hash.match(/[#&]p=([^&]+)/);
+    if (!m) return false;
+    var o;
+    try { o = JSON.parse(b64urlDecode(m[1])); } catch (e) { return false; }
+    if (!o || typeof o !== 'object' || !o.p || typeof o.p !== 'object') return false;
+    if (o.v !== 1) {
+      say('A shared link arrived carrying patch version ' + o.v +
+          ', which this build does not know how to read. Ignored rather than guessed at.', true);
+      return false;
+    }
+    patch = PBm.sanitize(Object.assign(PBm.defaults(), o.p));
+    if (node) node.port.postMessage({ type: 'patch', patch: patch });
+    buildBoard(); syncWidgets();
+    say('Loaded a shared patch from the link.');
+    return true;
+  }
   function buildPresets() {
     var host = document.getElementById('presets');
     Object.keys(PRESETS).forEach(function (n) {
@@ -2025,8 +2076,11 @@ if (typeof registerProcessor === 'function' && typeof AudioWorkletProcessor === 
   };
 
   buildBoard(); buildControls(); buildPresets(); buildKeys();
-  applyPreset('Precision');
-  document.getElementById('presets').firstChild.className = 'on';
+  // a shared link takes precedence over the instrument's own opening voice
+  if (!loadPatchFromHash()) {
+    applyPreset('Precision');
+    document.getElementById('presets').firstChild.className = 'on';
+  }
 })();
 </script>
 </body>

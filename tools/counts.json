@@ -1,5 +1,5 @@
 {
-  "changed": "2026-08-27",
+  "changed": "2026-09-01",
   "projects": {
     "autopsy": {
       "harnesses": {
@@ -107,8 +107,8 @@
     "pallbearer": {
       "harnesses": {
         "pallbearer_test": {
-          "value": 193,
-          "measured": "2026-08-23"
+          "value": 203,
+          "measured": "2026-09-01"
         },
         "pallbearer_plugin_test": {
           "value": 38,
@@ -121,14 +121,14 @@
       },
       "parity": 13335,
       "baselines": 11,
-      "assertions": 256,
+      "assertions": 266,
       "harnessCount": 3,
-      "measured": "2026-08-23"
+      "measured": "2026-09-01"
     }
   },
   "estate": {
     "parity": 108282,
-    "assertions": 1632,
+    "assertions": 1642,
     "baselines": 67
   }
 }

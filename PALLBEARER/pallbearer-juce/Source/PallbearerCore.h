@@ -709,6 +709,11 @@ public:
         double bus = coupleBus;
         const double COUPLE_K = 0.018;
         bool coupling = couple > 0.001;
+        /* THE OSCILLATION FIX (2026-09-01), mirrored from pallbearer_core.js.
+           Divide by the number of OTHER strings actually contributing to the
+           bus, so `couple` means the same thing on a four-string as a six.
+           See the JS twin for the full measurement. */
+        double coupleDiv = nStr > 1 ? (double)(nStr - 1) : 1.0;
         if (coupling) {
             for (size_t ps2 = 0; ps2 < nStr; ++ps2)
                 if (!strings[ps2].primed && !strings[ps2].sounding)
@@ -723,7 +728,7 @@ public:
                 bool runs = st.sounding || st.atkOn || (coupling && st.passive);
                 if (!runs) { st._bridge = 0; continue; }
                 double inject = 0.0;
-                if (coupling) inject = COUPLE_K * couple * (bus - st._bridge);
+                if (coupling) inject = COUPLE_K * couple * (bus - st._bridge) / coupleDiv;
                 double bridge = st.tick(inject, attackLayer);
                 st._bridge = bridge;
                 newBus += bridge;

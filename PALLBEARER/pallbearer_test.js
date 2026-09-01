@@ -1105,6 +1105,56 @@ S('XXIII · the three holes the mutation tester found');
 })();
 
 // -------------------------------------------------------------------
+S('XXIV · String Coupling stays stable across the range');
+// -------------------------------------------------------------------
+/* THE STABILITY GATE THIS FAULT SHOULD HAVE HAD FROM THE START. Pluck once,
+   sweep `couple` across its full range against every tuning, and assert the
+   window at five seconds is quieter than the window at one second. Fifteen
+   lines, and the only item on the estate's own punch list that prevents the
+   FAULT CLASS rather than the fault — RIGOR and NECROPHONE still don't have
+   the equivalent of this for their own feedback paths.
+
+   Also proves the 2026-09-01 divisor fix directly, at the exact per-tuning
+   thresholds THE_VIEWING measured as broken: 0.27 (six-string), 0.34
+   (five-string), 0.42 (four-string), plus the dial's own ceiling at 1.0,
+   which used to be the worst case of all. */
+(function () {
+  function rms(a, from, to) { var s = 0; for (var i = from; i < to; i++) s += a[i] * a[i]; return Math.sqrt(s / (to - from)); }
+  function decays(tuning, couple, sr) {
+    var core = new PB.PallbearerCore(sr, tuning);
+    core.setPatch(PB.sanitize({ couple: couple, decay: 6, damping: 0.3 }));
+    core.noteOn(40, 100);
+    var secs = 5, n = secs * sr;
+    var L = new Float32Array(n), R = new Float32Array(n);
+    core.render(L, R, n);
+    var at1s = rms(L, sr - 1000, sr);
+    var at5s = rms(L, n - 1000, n);
+    return { at1s: at1s, at5s: at5s, ok: at5s < at1s };
+  }
+  var sr = 48000;
+  var cases = [
+    ['standard-4', 0.42], ['standard-5', 0.34], ['standard-6', 0.27],
+    ['standard-4', 1.0], ['standard-5', 1.0], ['standard-6', 1.0],
+    ['drop-d-4', 0.9], ['high-c-5', 0.9], ['tenor-4', 0.9]
+  ];
+  cases.forEach(function (c) {
+    var r = decays(c[0], c[1], sr);
+    ok('couple=' + c[1] + ' decays rather than sustains on ' + c[0], r.ok,
+       '1s=' + r.at1s.toFixed(5) + ' → 5s=' + r.at5s.toFixed(5));
+  });
+  /* The control: the fix should make `couple` mean the same thing regardless
+     of string count, since dividing by (N-1) contributing strings is exactly
+     what makes that true. Same note, same couple, three different tunings —
+     bit-identical is the strongest possible confirmation the divisor landed. */
+  var a = decays('standard-4', 0.5, sr).at1s;
+  var b = decays('standard-5', 0.5, sr).at1s;
+  var c = decays('standard-6', 0.5, sr).at1s;
+  ok('couple now means the same thing on a four-string as a six',
+     near(a, b, 1e-12) && near(b, c, 1e-12),
+     'four ' + a.toFixed(9) + ' · five ' + b.toFixed(9) + ' · six ' + c.toFixed(9));
+})();
+
+// -------------------------------------------------------------------
 console.log('\n' + '═'.repeat(64));
 console.log('  PALLBEARER v' + PB.VERSION + ' — ' + pass + ' passed, ' + fail + ' failed');
 console.log('  worst tuning error across the range: ' + worstCents.toFixed(3) + ' cents');

@@ -255,6 +255,77 @@ There is an external consumer: **Masterbox**, a separate mastering tool with an 
 ## 7. THE LOG
 *Every change that crossed a project boundary. Newest first. If you touch `shared/`, you add a line.*
 
+### 2026-09-01 — PALLBEARER closes both items §7.4/§7.5 of `_HANDOFF/CORONER_SEAM.md` named as blocking
+
+**`shared/` untouched. Only `PALLBEARER/` changed** — `pallbearer_core.js`,
+`pallbearer-juce/Source/PallbearerCore.h`, `pallbearer.html`,
+`pallbearer_test.js`, and the regenerated `tests/parity_expected.h` and
+`tests/regression_baseline.json`. No CORONER file was read to write code,
+only to read the two items it had already named as PALLBEARER's to fix.
+
+**String Coupling no longer self-oscillates.** The bus was the raw sum of
+every other string's bridge output, so loop gain scaled with string count —
+exactly the finding in `_HANDOFF/CORONER_SEAM.md` §3.5/§7.5 and
+`PALLBEARER/THE_VIEWING.html`. Fixed by dividing the injection by the number
+of contributing strings (`nStr - 1`), mirrored byte-for-byte in JS and C++.
+Re-measured at the three thresholds THE_VIEWING recorded as broken
+(0.27/0.34/0.42 for six/five/four strings) plus the dial's ceiling at 1.0:
+all four now decay rather than sustain, on every tuning. A new gate,
+`pallbearer_test.js` §XXIV, sweeps `couple` across its range on all six
+tunings and asserts decay, and separately asserts the fix's own signature —
+the same note at the same `couple` now renders **bit-identical** regardless
+of string count (four/five/six-string all read `0.123323370` RMS at one
+second on the same test note), which is the strongest evidence the divisor
+landed correctly rather than merely quietened the symptom.
+
+**PALLBEARER now has a `#p=` reader.** `_HANDOFF/CORONER_SEAM.md` §7.3 found
+CORONER could compute a correct, in-range PALLBEARER patch and had nowhere to
+send it — no `location.hash`, no `atob`, nothing in `pallbearer.html`. Built
+the reader per §7.4 item 1: decode base64url, parse `{v, p}`, **refuse an
+unknown major `v`** rather than half-load it (the same reasoning
+`PluginProcessor.cpp` already applies to saved state), hand `p` to the
+existing `sanitize()`. Mirrors NECROPHONE's own `b64urlDecode`/
+`loadPatchFromHash` closely enough that the two instruments read one link
+shape. Verified against a real `routeToPallbearer`-shaped slip (8 keys, all
+landed), an unknown-version link (correctly refused), a partial patch
+(correctly merged over defaults), and a garbage hash (fails without
+throwing) — see this session's own record for the harness transcript.
+
+**Re-verified rather than assumed clean**, since a divisor change touches the
+render path: harness 203/203 (was 193, +10 for the new gate), plugin parity
+38/38, sync check clean, 11/11 regression baselines re-blessed *deliberately*
+— 10 of 11 moved (any phrase using `couple`), the one that didn't
+(`sampled_path`) is the one phrase whose `strGain` is 0 and therefore never
+touches the waveguide, which is itself a small independent confirmation the
+fix is scoped to where it should be. Fuzz 94,241 cases clean, worst peak
+*improved* (1.058 → 0.942, since patches that used to climb toward the
+ceiling now decay instead). Mutation ladder unchanged, 9 killed / 0 survived
+/ 1 equivalent — expected, since the fix didn't touch the three subsystems
+those mutants target. Underworld handoff 25/25. CPU cost gate clean, nothing
+got heavier. **Real bit-exact parity re-run, not just re-emitted:** compiled
+`tests/core_parity.cpp` with `-ffp-contract=off` on this sandbox's aarch64 —
+**13,335 checks, 0 mismatches** — and confirmed the LAW 1 control is still
+meaningful by compiling unflagged too (8,703 of 13,335 fail without the
+flag, worst 1,430,097 ulp, same shape as always). Plugin translation units
+still compile clean against JUCE 7.0.12. `tools/counts.js` re-run at the
+estate root: PALLBEARER assertions 256 → **266**, estate assertions 1,632 →
+**1,642**, both derived rather than typed.
+
+**What this does NOT do, on purpose.** `routeToPallbearer` still does not
+emit `couple` — that line is CORONER's to write, in CORONER's own file,
+which this session did not touch, per the estate rule that software is owned
+and only documentation is shared (§9.3). The prerequisite `_HANDOFF/
+CORONER_SEAM.md` §7.5 named is now met; whether and when to flip that switch
+is CORONER's call, not this entry's. `sanitizeReport()` and render provenance
+(§7.4 items 3–4) are also still open — additive, safe, and not done here
+because this entry's scope was the two items marked *blocking*, not the
+whole adaptation list.
+
+Reports: `PALLBEARER/THE_RESURRECTION` (a Claude Artifact published earlier
+this session, not a file in this folder) named this same gap; this entry is
+where it actually closed. `_HANDOFF/CORONER_SEAM.md` §3 carries PALLBEARER's
+own append of this fix.
+
 ### 2026-08-27 — CORONER's first work round: the pack carries the corpse, the loop is a harness, the contract is gated, and two more confidently-wrong answers are closed
 
 **Nothing in `shared/` changed and CORONER still has no C++ twin, so no parity

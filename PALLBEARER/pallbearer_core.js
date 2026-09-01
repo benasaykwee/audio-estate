@@ -948,6 +948,20 @@ var PB = (function () {
     var bus = this.coupleBus;
     var COUPLE_K = 0.018;          // small: this path is inside the feedback loop
 
+    /* THE OSCILLATION FIX (2026-09-01). `bus` was the raw SUM of every other
+       string's bridge output, so the loop gain seen by any one string scaled
+       with how many strings were feeding it: a six-string got roughly 1.5x
+       the injection a four-string did at the same `couple` value, which is
+       why the self-oscillation threshold measured differently per tuning
+       (0.42 / 0.34 / 0.27 for four / five / six strings) instead of being one
+       property of the parameter. Multiplying each threshold by (N-1) collapsed
+       them to 1.26 / 1.36 / 1.35 — confirmation the missing term was a plain
+       divisor. Diagnosed in THE_VIEWING.html, applied here: divide by the
+       number of OTHER strings actually contributing, so `couple` means the
+       same thing regardless of tuning. Guarded at 1 for the degenerate case
+       so a future single-string patch cannot divide by zero. */
+    var coupleDiv = nStr > 1 ? (nStr - 1) : 1;
+
     /* Prime the idle strings on demand. Doing it here rather than eagerly
        means the cost is only paid when coupling is actually switched on,
        and it cannot be got wrong by a parameter change arriving in the
@@ -968,7 +982,7 @@ var PB = (function () {
         var runs = st.sounding || st.atkOn || (coupling && st.passive);
         if (!runs) { st._bridge = 0; continue; }
         var inject = 0;
-        if (coupling) inject = COUPLE_K * couple * (bus - st._bridge);
+        if (coupling) inject = COUPLE_K * couple * (bus - st._bridge) / coupleDiv;
         var bridge = st.tick(inject, layerData);
         st._bridge = bridge;
         newBus += bridge;
