@@ -461,9 +461,20 @@ jobs:
       # `quantize` had no JavaScript test at all — its only guard was the
       # parity gate, which proves the twins agree and not that either is
       # right.
+
+      # RAISED 2026-09-02: was 30, which the twelve minute estimate above
+      # justified comfortably at the time. The nightly went red on Sep 1 and
+      # Sep 2 with no code change behind it: origin's tip was e7cea7c on both
+      # of those nights and on Aug 31, when the very same pass finished green.
+      # The mutants simply slowed from roughly 27 seconds each to roughly two
+      # minutes each, so the run reached 15 of 19 and the cap killed it.
+      # Nothing was actually failing; every mutant it did reach was killed, or
+      # survived as an expected equivalent. Seventy five is about double the
+      # 38 minutes a full pass now needs, and still leaves the soak step
+      # beside it as the job's long pole.
       - name: Mutation tester (a test for the tests)
         run: node tests/casket_mutate.js
-        timeout-minutes: 30
+        timeout-minutes: 75
 
   plugin:
     name: AU / VST3 build
