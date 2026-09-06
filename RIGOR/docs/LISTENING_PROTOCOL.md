@@ -34,6 +34,13 @@ For general listening leave it off. Turn it on when you are judging multiband co
 
 ## 1. Do the styles actually differ? *(20 minutes, and the question I cannot answer)*
 
+**Read this first, it changed on 5 September 2026.** Until that date, clicking a style or pressing 1-4 moved the **name and the signal path only**. The knee, attack, release, auto-release and ratio stayed exactly where they were. So Spasm arrived carrying whatever recipe you were already on — from Fresh, a 6 dB knee and a **10 ms attack**, when Spasm's own attack is **0.5 ms**. The table below says the fast follower is the whole point of Spasm; with a 10 ms attack in front of it, most of that point never reached your ears. Measured against the standing Fresh recipe: Spasm came out **4.71 dB loud**, Repose **2.74 dB quiet**.
+
+Now a pick brings the whole recipe. **Two consequences for this hour:**
+
+- **Any earlier impression of Spasm was of a blunted Spasm.** Worth forming again, and it makes the 2 ms question below answerable for the first time.
+- **Cycling 1-4 now changes the path AND the recipe together**, which is the honest way to hear a *style*. If you want the controlled comparison the "Path" column below describes — same knee, same attack, same release, only the detector moving — set those four controls back by hand after each pick. Both comparisons are worth an ear; they answer different questions.
+
 Load **Vocal — Settling**, press play, then cycle **1 · 2 · 3 · 4**.
 
 **This section changed, and the change matters.** An earlier version of this document told you not to bother comparing Fresh and Spasm, because measurement had shown they were the *same signal path* — identical topology, differing only in defaults. That was true when it was written. It is no longer true: Spasm now has its own peak-follower decay, 2 ms against Fresh's 15, so it tracks transients far more tightly. **All four are now genuinely different paths.** Compare all four.
@@ -49,7 +56,7 @@ Load **Vocal — Settling**, press play, then cycle **1 · 2 · 3 · 4**.
 
 **Does Settling feel like an optical compressor, or does it just feel slow?** If it feels like a slow Fresh rather than a different animal, the level-dependent attack is not pulling its weight and should be made stronger.
 
-**Is Spasm's 2 ms follower right, or is it now too twitchy?** This is a change made on my judgement, without hearing it. 2 ms was chosen because it is roughly where a peak follower stops smoothing and starts tracking, but the honest answer is that I picked a plausible number. If Spasm now sounds nervous or grainy on drums, the figure is too low; if it still sounds like a fast Fresh, it is too high. **This is the single most useful thing you could tell me about this round.**
+**Is Spasm's 2 ms follower right, or is it now too twitchy?** This is a change made on my judgement, without hearing it. 2 ms was chosen because it is roughly where a peak follower stops smoothing and starts tracking, but the honest answer is that I picked a plausible number. If Spasm now sounds nervous or grainy on drums, the figure is too low; if it still sounds like a fast Fresh, it is too high. **This is the single most useful thing you could tell me about this round.** Note that this question was not fairly askable until 5 September: a 2 ms follower sitting behind Fresh's 10 ms attack cannot show you what it does.
 
 ---
 

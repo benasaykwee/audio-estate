@@ -247,17 +247,17 @@ RigorAudioProcessorEditor::RigorAudioProcessorEditor(RigorAudioProcessor& p)
     addAndMakeVisible(curve);
     addAndMakeVisible(chart);
 
-    auto* styleParam = dynamic_cast<juce::AudioParameterChoice*>(
-        proc.apvts.getParameter("style"));
+    /* A pick hands the whole job to proc.applyStyle, which pours in the
+       recipe as well as the name. This used to write the choice parameter
+       here and stop there, which meant the button moved the label and left
+       the knee, attack, release, auto-release and ratio wherever they were
+       — see the comment on applyStyle in PluginProcessor.cpp. The editor
+       does not carry a copy of the recipe and must not grow one. */
     for (int i = 0; i < 4; ++i) {
         styleBtn[i].setButtonText(STYLE_LABEL[i]);
         styleBtn[i].setClickingTogglesState(false);
-        styleBtn[i].onClick = [this, i, styleParam] {
-            if (styleParam) {
-                styleParam->beginChangeGesture();
-                *styleParam = i;
-                styleParam->endChangeGesture();
-            }
+        styleBtn[i].onClick = [this, i] {
+            proc.applyStyle(i);
             syncStyleButtons();
         };
         addAndMakeVisible(styleBtn[i]);

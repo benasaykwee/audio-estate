@@ -64,6 +64,22 @@ Fresh's 15 — but it became true by being fixed, not by having been right. A
 harness asserts the topology count, derived from the style table rather than
 written down, so the claim cannot drift from the code again.
 
+**And a style is a path AND a recipe, which is the half this file skipped.**
+Each style carries five defaults — `knee`, `attack`, `release`, `autoRel`,
+`ratio` — that are written into the case when you pick the style, and are
+freely overridable afterwards. Until 5 September 2026 that sentence was
+aspirational in both bodies: picking a style moved the name and the path and
+left the five where they were, so Spasm arrived with Fresh's 10 ms attack in
+front of its 2 ms follower. The recipe now lands whole, in the browser and in
+the plugin, and both harnesses derive the field list from `styleDefaults()`
+rather than naming it, so a sixth field added to the table breaks the test if
+the instruments do not carry it.
+
+A case file saved before that date is still perfectly valid and needs no
+migration: it records whatever five values were actually in force, which is
+exactly what it always did. Nothing about the format changed, only what a
+button writes into it.
+
 ## Two rules that are not obvious
 
 **The crossover pair is kept apart by pushing the LOWER one down.** If both are at the ceiling there is no room to raise the upper one, and the splitter's own separation rule then designs a filter section at 23,760 Hz — past `0.45·fs` at 48 k and past Nyquist below it. Found by the fuzzer; the sanitiser now lowers `xover[0]` to `20000/1.1` first.

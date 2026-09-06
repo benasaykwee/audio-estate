@@ -98,6 +98,19 @@ edit.replace(/bind\([A-Za-z]+,\s*"([a-z0-9_]+)"\)/g, function (m, id) { bound.pu
 edit.replace(/proc\.apvts,\s*"([a-z0-9_]+)"/g, function (m, id) { bound.push(id); return m; });
 edit.replace(/getParameter\("([a-z0-9_]+)"\)/g, function (m, id) { bound.push(id); return m; });
 edit.replace(/\{\s*"([a-z0-9_]+)",\s*"[^"]+"\s*\}/g, function (m, id) { bound.push(id); return m; });
+/* REACHED THROUGH THE PROCESSOR, not named in the editor at all.
+   Round 14 moved the style buttons onto proc.applyStyle, which writes the
+   choice and the five recipe parameters. The editor no longer says the
+   word "style" anywhere, and this collector reads the editor's own text —
+   so without this, a control that visibly exists and visibly works would
+   be counted as missing. Derived from the processor's RECIPE_PARAMS and
+   gated on the editor actually making the call: delete the button and the
+   ids stop counting, which is the behaviour that makes the count honest. */
+if (/proc\.applyStyle\(/.test(edit)) {
+  bound.push('style');
+  var rp = (/RECIPE_PARAMS\[5\]\s*=\s*\{([^}]*)\}/.exec(proc) || [])[1] || '';
+  (rp.match(/"([a-z0-9_]+)"/g) || []).forEach(function (q) { bound.push(q.replace(/"/g, '')); });
+}
 bound = bound.filter(function (v, i) { return bound.indexOf(v) === i; });
 /* ---- WHICH PARAMETERS HAVE NO KNOB ----
    `bound.length > 8` was another floor: 34 of 46 are bound, so it passed
@@ -253,6 +266,107 @@ console.log('\n— namespace qualification —');
   var cm = /(::)?\bjuce_[a-z]\w*/.exec(clean);
   ok(cm && cm[1] === '::',
      'while the corrected form reads as qualified and passes');
+})();
+
+/* ============================================================
+   ROUND 14 — the style button applies the RECIPE, not just the name
+   ============================================================
+   Censused for on 2026-08-24 after CASKET had the same fault, still
+   standing on 2026-09-05: the editor wrote the "style" choice parameter
+   and nothing else. The engine reads styleCfg for the PATH, so the sound
+   did change and the fault hid behind that.
+
+   Every list here is DERIVED. The recipe fields come from the JS core's
+   styleDefaults, the parameter ids from the processor's own RECIPE_PARAMS,
+   the values from the twin's STYLE_CFG. Nothing states an expected value:
+   round 6 shipped an assertion that named `VERSION = "0.3"` and passed for
+   two rounds while the two files disagreed. */
+console.log('\n— the style applies its recipe —');
+(function () {
+  var fields = Object.keys(R.styleDefaults('fresh'));
+  ok(fields.length === 5, 'a recipe is ' + fields.length + ' fields (' + fields.join(', ') + ')');
+
+  /* the ids the processor says it writes */
+  var listed = (/RECIPE_PARAMS\[5\]\s*=\s*\{([^}]*)\}/.exec(proc) || [])[1] || '';
+  var ids = (listed.match(/"([a-z0-9_]+)"/g) || []).map(function (q) { return q.replace(/"/g, ''); });
+  ok(ids.length === fields.length,
+     'the processor names one parameter per recipe field (' + ids.join(', ') + ')');
+  var undeclared = ids.filter(function (id) { return declared.indexOf(id) < 0; });
+  ok(undeclared.length === 0,
+     'and every one of them is a declared parameter' +
+     (undeclared.length ? ' — MISSING: ' + undeclared.join(', ') : ''));
+
+  /* the editor must delegate, and must not grow its own copy of the table */
+  ok(/proc\.applyStyle\(i\)/.test(edit),
+     'the style buttons call proc.applyStyle — they no longer write the choice alone');
+  ok(!/styleParam->beginChangeGesture|\*styleParam = i/.test(edit),
+     'and the old name-only write is gone from the editor');
+  ok(/void RigorAudioProcessor::applyStyle\(int style\)/.test(proc),
+     'applyStyle is defined in the processor');
+  ok(/void applyStyle\(int style\);/.test(procH),
+     'and declared in its header, so the editor call resolves');
+
+  /* THE RULE THAT MATTERS: no second copy of the recipe. The values must
+     come out of styleCfg, the table the engine itself reads. */
+  var body = (/void RigorAudioProcessor::applyStyle\(int style\)[\s\S]*?\n\}/.exec(proc) || [])[0] || '';
+  ok(/rigor::styleCfg\(style\)/.test(body),
+     'the recipe is read from rigor::styleCfg — the table the ENGINE uses, no third copy');
+  ok(!/\d+\.\d+\s*,\s*\d+\.\d+\s*,\s*\d+\.\d+/.test(body),
+     'and no literal recipe values are written in the function');
+
+  /* one discrete action, one undo step — the same rule recallCase follows */
+  ok(/undoMgr\.beginNewTransaction\("style"\)/.test(body),
+     'a pick is one undo transaction, not one per parameter it happens to move');
+
+  /* THE RECIPE IS ACTUALLY WRITTEN.
+     My first draft of this section asserted only that styleCfg was read
+     and that gestures existed somewhere in the body — and then passed
+     cleanly against a mutant whose entire recipe loop had been replaced
+     with `(void)v;`. The style parameter's own gestured write satisfied
+     both. That is the twenty-fourth bad assertion of mine on this project
+     and the same species as every other one: it restated the shape of the
+     code instead of demanding the behaviour.
+
+     What a static reader CAN prove is that a loop over the whole of
+     RECIPE_PARAMS reaches setValueNotifyingHost. What it cannot prove is
+     that the host receives the value, because nothing here links JUCE —
+     that is the CI build's job and the plugin's own listening test's. */
+  var loop = (/for \(int i = 0; i < \d+; \+\+i\)[\s\S]*?\n        \}/.exec(body) || [])[0] || '';
+  ok(!!loop, 'applyStyle loops over the recipe');
+  ok(/getParameter\(RECIPE_PARAMS\[i\]\)/.test(loop),
+     'and the loop looks each recipe parameter up by name');
+  ok(/setValueNotifyingHost/.test(loop),
+     'and WRITES it — the assertion a gutted loop has to fail');
+  ok(/beginChangeGesture/.test(loop) && /endChangeGesture/.test(loop),
+     'each write gestured, so a host records it as a deliberate move');
+  var bound2 = Number((/for \(int i = 0; i < (\d+); \+\+i\)/.exec(loop) || [])[1]);
+  var dim = Number((/RECIPE_PARAMS\[(\d+)\]/.exec(procH) || [])[1]);
+  ok(bound2 === fields.length && dim === fields.length,
+     'the loop runs the full length of the recipe (' + bound2 + ' of ' +
+     fields.length + ', array declared ' + dim + ') — a short loop would ' +
+     'drop the last field in silence');
+
+  /* the twin's table must actually carry the recipe, and must agree with
+     the JS field for field — otherwise the plugin would apply a recipe
+     the browser has never heard */
+  var rows = (/STYLE_CFG\[NUM_STYLES\]\s*=\s*\{([\s\S]*?)\n\};/.exec(core) || [])[1] || '';
+  var nums = rows.split('\n').filter(function (l) { return /\{/.test(l); })
+                 .map(function (l) { return (l.match(/-?[\d.]+/g) || []).map(Number); });
+  ok(nums.length === R.STYLES.length,
+     'the twin carries a row per style (' + nums.length + ')');
+  var wrong = [];
+  R.STYLES.forEach(function (s, i) {
+    var d = R.styleDefaults(s), row = nums[i] || [];
+    /* the recipe occupies the last five columns of StyleCfg, in the order
+       knee, attack, release, autoRel, ratio — read from the end so adding
+       a path field to the front cannot silently shift the comparison */
+    var tail = row.slice(row.length - 5);
+    var want = [d.knee, d.attack, d.release, d.autoRel ? 1 : 0, d.ratio];
+    for (var k = 0; k < 5; k++) if (tail[k] !== want[k]) wrong.push(s + '.' + fields[k]);
+  });
+  ok(wrong.length === 0,
+     'and every recipe value in the twin matches the JS core' +
+     (wrong.length ? ' — DIFFERS: ' + wrong.join(', ') : ''));
 })();
 
 console.log('\n— INTERCHANGE laws —');

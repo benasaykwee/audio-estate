@@ -160,8 +160,8 @@ somebody compiled the gate to settle it.
 | | |
 |---|---|
 | Core harness | **233** |
-| UI-logic harness | 176 |
-| Plugin lint | 32 |
+| UI-logic harness | 192 |
+| Plugin lint | 49 |
 | Fuzzer | 18 |
 | **Audits** (latency, automation, transitions, extremes, advice) | **46** |
 | **Stress** (hostile input samples, determinism, block boundaries) | **50** |

@@ -78,7 +78,8 @@ With `bands > 1` this whole chain runs once per band behind a Linkwitz-Riley spl
 
 ## 5. The four styles
 
-Four signal paths, not four presets. Nothing on the panel exposes the topology.
+Four signal paths, **and** four recipes. The path is the part nothing on the
+panel exposes; the recipe is five ordinary parameters the pick writes for you.
 
 | | **Fresh** | **Settling** | **Spasm** | **Repose** |
 |---|---|---|---|---|
@@ -89,6 +90,32 @@ Four signal paths, not four presets. Nothing on the panel exposes the topology.
 | Peak follower | 15 ms | — | **2 ms** | — |
 | Attack | as set | **scales with overshoot** | as set | as set |
 | Release | as set ± auto | auto, always | auto, fast | auto, slow |
+
+Each style also carries a **recipe**: five defaults — knee, attack, release,
+auto-release, ratio — poured into the case when you pick it, and freely
+overridable afterwards. The values are not repeated here on purpose. They live
+in one table in `rigor_core.js`, and `docs/STYLES_MEASURED.md` prints them from
+that table via `node tests/rigor_styles.js`. A restated number is not a
+measured one, and this project has already lost a round to a documentation
+table that had been stale for four.
+
+**The recipe went missing for the project's entire life, and was found by a
+census rather than by a report.** Picking a style wrote the name, the engine
+read the path from it, and the five recipe defaults — knee, attack, release,
+auto-release, ratio — stayed exactly where they had been. Both bodies did it.
+It survived by ear because the path change is real: clicking Spasm genuinely
+sounded different, just not like Spasm. From the standing Fresh recipe,
+measured on a step with transients at threshold −26 with makeup off, Spasm came
+out **4.71 dB loud** and Repose **2.74 dB quiet**, worst sample error around
+−17 dBFS.
+
+The suite never saw it because every test helper in the project builds its
+state as `defaultState()` plus `styleDefaults(name)` — so the harness had been
+measuring the styles with their recipes since the first round, while neither
+instrument applied them. Two paths, one tested, for the third time on this
+project. Fixed 5 September 2026; the regression hashes did not move, which is
+the proof that the baselines were right and the instruments were the odd ones
+out.
 
 **Four is a recent number.** Until round 8 there were three: Fresh and Spasm
 shared a path and rendered bit-identically on identical settings, differing

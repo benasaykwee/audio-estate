@@ -89,6 +89,18 @@ public:
     void recallCase(int slot);
     int activeCase() const { return curCase; }
 
+    /* PICKING A STYLE POURS IN ITS WHOLE RECIPE. See the definition in
+       the .cpp for the bug this ends and what it measured. The five
+       recipe values come from rigor::styleCfg — the same table the
+       engine reads its topology out of, so there is no third copy to
+       drift. Lives here rather than in the editor because it is one
+       undo transaction, and because a host or a future headless caller
+       has as much right to a whole style as a mouse does. */
+    void applyStyle(int style);
+    /* the recipe's parameter ids, in styleCfg field order — named once,
+       so the editor, the lint and this function cannot disagree */
+    static const char* const RECIPE_PARAMS[5];
+
 private:
     rigor::State buildState() const;
     std::unique_ptr<rigor::Multi> engine;

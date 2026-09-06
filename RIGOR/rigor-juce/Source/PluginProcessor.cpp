@@ -261,6 +261,53 @@ void RigorAudioProcessor::recallCase(int slot)
     curCase = slot;
 }
 
+/* THE STYLE RECIPE, APPLIED WHOLE.
+
+   Until 2026-09-05 the style buttons wrote the "style" choice and nothing
+   else, in both bodies. The engine reads rigor::styleCfg for the PATH —
+   topology, detector, RMS window, peak decay — so a pick really did change
+   the sound, which is precisely why nobody caught it by ear and why it
+   took a census to find. What never arrived was the recipe: knee, attack,
+   release, auto-release, ratio. Spasm turned up wearing Fresh's 6 dB knee,
+   10 ms attack and 4:1, so the 0.5 ms attack that IS the punch was never
+   heard by anyone who reached it through a button.
+
+   Measured against the standing Fresh recipe on a step with transients,
+   threshold -26, makeup off: Spasm 4.71 dB loud, Repose 2.74 dB quiet,
+   Settling 0.35 dB off.
+
+   The values come out of styleCfg, not out of a table written here. A
+   recipe with two copies is the defect the estate already knows by name.
+
+   Everything OUTSIDE the recipe is deliberately left alone: threshold,
+   lookahead, mix, link, the sidechain, the bands. Those are the settings
+   a person dialled for their material, and a style pick is a change of
+   character, not a reset. */
+const char* const RigorAudioProcessor::RECIPE_PARAMS[5] =
+    { "knee", "attack", "release", "auto_rel", "ratio" };
+
+void RigorAudioProcessor::applyStyle(int style)
+{
+    if (style < 0 || style >= rigor::NUM_STYLES) return;
+    const rigor::StyleCfg& c = rigor::styleCfg(style);
+    const double v[5] = { c.knee, c.attack, c.release, c.autoRel ? 1.0 : 0.0, c.ratio };
+
+    /* one discrete action, one undo step — the same reasoning as recallCase */
+    undoMgr.beginNewTransaction("style");
+
+    if (auto* sp = apvts.getParameter("style")) {
+        sp->beginChangeGesture();
+        sp->setValueNotifyingHost(sp->convertTo0to1((float)style));
+        sp->endChangeGesture();
+    }
+    for (int i = 0; i < 5; ++i)
+        if (auto* p = apvts.getParameter(RECIPE_PARAMS[i])) {
+            p->beginChangeGesture();
+            p->setValueNotifyingHost(p->convertTo0to1((float)v[i]));
+            p->endChangeGesture();
+        }
+}
+
 juce::AudioProcessorEditor* RigorAudioProcessor::createEditor()
 {
     return new RigorAudioProcessorEditor(*this);

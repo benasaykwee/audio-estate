@@ -2180,6 +2180,41 @@ var UIH = {
   DBMIN: -60, DBMAX: 0,
   STYLE_LABEL: { fresh: ['Fresh', 'CLEAN'], settling: ['Settling', 'OPTO'],
                  spasm: ['Spasm', 'PUNCH'], repose: ['Repose', 'BUS'] },
+
+  /* APPLY A STYLE'S WHOLE RECIPE OVER A STATE, mutating neither argument.
+
+     The bug this exists to end, found 2026-08-24 by censusing RIGOR for
+     the fault CASKET had rather than waiting for it to be reported, and
+     still standing on 2026-09-05: both bodies moved the NAME only.
+
+     RIGOR's version was the half-visible kind, which is why it survived
+     a census. The engine reads STYLE[name] for the PATH — topology,
+     detector, RMS window, peak decay — so clicking Spasm really did
+     change the topology and really did sound different, which is exactly
+     what a person checking would look for. What it did not do was bring
+     the recipe: knee, attack, release, auto-release, ratio. So Spasm
+     arrived wearing Fresh's 6 dB knee, 10 ms attack, 200 ms release and
+     4:1, and the 0.5 ms attack that IS the punch never landed.
+
+     Measured on a step with transients, threshold -26, makeup off,
+     against the standing Fresh recipe: Spasm came out 4.71 dB LOUD,
+     Repose 2.74 dB quiet, Settling 0.35 dB off, worst sample error
+     around -17 dBFS on material peaking near -25. Not subtle.
+
+     Two paths, one tested, again: every test helper in the suite builds
+     its state as defaultState + styleDefaults(name), so the harness has
+     been measuring the styles WITH their recipes for the project's whole
+     life, while neither instrument applied them. The baselines were
+     right and both instruments were the odd ones out — the same shape as
+     round 12's factory-preset find, and the reason the hashes below do
+     not move. */
+  applyStyle: function (state, style, defaults) {
+    var out = {};
+    for (var k in state) if (Object.prototype.hasOwnProperty.call(state, k)) out[k] = state[k];
+    for (var j in defaults) if (Object.prototype.hasOwnProperty.call(defaults, j)) out[j] = defaults[j];
+    out.style = style;
+    return out;
+  },
   dbToY: function (db, h) {
     var v = db < this.DBMIN ? this.DBMIN : (db > this.DBMAX ? this.DBMAX : db);
     return (this.DBMAX - v) / (this.DBMAX - this.DBMIN) * h;
@@ -2895,6 +2930,19 @@ function buildRack() {
   updateLabels();
 }
 
+/* PICKING A STYLE — the one place it happens, for both the buttons and
+   the 1-4 keys. Two call sites naming the same rule is how the rule ends
+   up half-applied; the project has paid for that twice already.
+
+   pushUndo runs first and unthrottled, so a pick is exactly one Exhume
+   step: you get the whole recipe back, not the name on its own, which
+   would leave you in a state you were never in. */
+function pickStyle(s) {
+  pushUndo(false);
+  setStateObj(UIH.applyStyle(state(), s, RIGOR.styleDefaults(s)));
+  commit(true); syncStyleButtons();
+}
+
 /* style buttons */
 function buildStyles() {
   var host = el('styles');
@@ -2904,11 +2952,7 @@ function buildStyles() {
     var L = UIH.STYLE_LABEL[s];
     b.innerHTML = '<b>' + L[0] + '</b><i>' + L[1] + '</i>';
     b.dataset.style = s;
-    b.addEventListener('click', function () {
-      pushUndo(false);
-      state().style = s;
-      commit(true); syncStyleButtons();
-    });
+    b.addEventListener('click', function () { pickStyle(s); });
     host.appendChild(b);
   });
 }
@@ -3501,7 +3545,7 @@ document.addEventListener('keydown', function (e) {
   var k = e.key.toLowerCase();
   if (e.key === ' ') { e.preventDefault(); playing ? stop() : play(); }
   else if (k === 'b') { pushUndo(false); state().bypass = !state().bypass; commit(false); syncStyleButtons(); }
-  else if (k >= '1' && k <= '4') { pushUndo(false); state().style = RIGOR.STYLES[+k - 1]; commit(true); syncStyleButtons(); }
+  else if (k >= '1' && k <= '4') { pickStyle(RIGOR.STYLES[+k - 1]); }
   /* A and S keep their old meanings exactly — four slots should not cost
      anybody the two shortcuts they already had. C and D are reached by
      stepping rather than by letter, because the obvious letters are taken:

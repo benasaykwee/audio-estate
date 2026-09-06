@@ -306,6 +306,98 @@ console.log('\n— undo across writes it did not make (item 13) —');
      'and every slot has a stack for it to push onto');
 })();
 
+/* ============================================================
+   ROUND 14 — a style pick brings its whole recipe
+   ============================================================
+   The bug: both bodies wrote the style NAME and stopped. The engine reads
+   STYLE[name] for the PATH (topology, detector, RMS window, peak decay),
+   so a pick genuinely changed the sound, which is why it survived by ear
+   and needed a census to find. The recipe — knee, attack, release,
+   auto-release, ratio — never arrived, so Spasm turned up with Fresh's
+   6 dB knee and 10 ms attack and the 0.5 ms that IS the punch was never
+   heard by anyone who reached it through a button.
+
+   The recipe field list is DERIVED from styleDefaults, never named here.
+   A sixth field added to the table must break this test if the instrument
+   does not carry it, which an enumerated list could not do. */
+console.log('\n— a style pick brings its whole recipe (round 14) —');
+(function () {
+  var app = blocks[3] || '';
+  var fields = Object.keys(R.styleDefaults('fresh'));
+  ok(fields.length >= 5, 'a recipe is ' + fields.length + ' fields (' + fields.join(', ') + ')');
+
+  /* --- the helper, pure --- */
+  if (UIH) {
+    ok(typeof UIH.applyStyle === 'function', 'UIH.applyStyle exists');
+    var before = R.defaultState();
+    var got = UIH.applyStyle(before, 'spasm', R.styleDefaults('spasm'));
+    var want = R.styleDefaults('spasm');
+    var landed = fields.filter(function (f) { return got[f] === want[f]; });
+    ok(landed.length === fields.length,
+       'spasm arrives whole — all ' + fields.length + ' recipe fields applied (' +
+       landed.length + '/' + fields.length + ')');
+    ok(got.style === 'spasm', 'and the name moves too');
+
+    /* nothing OUTSIDE the recipe may move: a style pick is a change of
+       character, not a reset of the threshold you dialled */
+    var moved = Object.keys(before).filter(function (k) {
+      return fields.indexOf(k) < 0 && k !== 'style' &&
+             JSON.stringify(got[k]) !== JSON.stringify(before[k]);
+    });
+    ok(moved.length === 0,
+       'and nothing outside the recipe moves' + (moved.length ? ' — but ' + moved.join(', ') + ' did' : ''));
+    ok(before.style === 'fresh' && before.knee === R.styleDefaults('fresh').knee,
+       'the input state is not mutated');
+
+    /* THE ASSERTION THAT WOULD HAVE CAUGHT THE BUG. A style whose recipe
+       differs must not be reachable as another style in costume. */
+    var a = UIH.applyStyle(R.defaultState(), 'spasm', R.styleDefaults('spasm'));
+    var b = UIH.applyStyle(R.defaultState(), 'repose', R.styleDefaults('repose'));
+    var differ = fields.filter(function (f) { return a[f] !== b[f]; });
+    ok(differ.length > 0,
+       'spasm is not repose in costume — ' + differ.length + ' recipe fields differ (' +
+       differ.join(', ') + ')');
+  }
+
+  /* --- the instrument, executed --- */
+  var src = (/function pickStyle\(s\) \{[\s\S]*?\n\}/.exec(app) || [])[0];
+  ok(!!src, 'there is a single pickStyle in the shipped source');
+  if (src) {
+    var live = R.defaultState();
+    live.thresh = -37.5;              /* something the recipe must not touch */
+    var box = { RIGOR: R, UIH: UIH, JSON: JSON,
+                cases: { A: live }, which: 'A',
+                state: function () { return box.cases.A; },
+                setStateObj: function (s) { box.cases.A = s; },
+                pushUndo: function () { box.undoCalls++; },
+                commit: function (rb) { box.rebuilt = rb; },
+                syncStyleButtons: function () {},
+                undoCalls: 0, rebuilt: false };
+    vm.createContext(box);
+    new vm.Script(src + '\npickStyle("spasm");').runInContext(box);
+    var after = box.cases.A, want2 = R.styleDefaults('spasm');
+    var got2 = fields.filter(function (f) { return after[f] === want2[f]; });
+    ok(got2.length === fields.length,
+       'picking spasm in the instrument lands all ' + fields.length +
+       ' recipe fields (' + got2.length + '/' + fields.length + ')');
+    ok(after.style === 'spasm', 'and the style itself');
+    ok(after.thresh === -37.5, 'and leaves the threshold you dialled alone');
+    ok(box.undoCalls === 1, 'a pick is exactly one undo step — the whole recipe comes back, not the name alone');
+    ok(box.rebuilt === true, 'and the rack is rebuilt, so the sliders show what actually changed');
+  }
+
+  /* BOTH call sites, because the second place is the one that gets missed.
+     Round 12 found `state().sc.listen` alive in the keyboard handler two
+     rounds after the same defect was fixed in the rack: a rule enforced in
+     one of the two places it applies is decoration in the other. */
+  ok(/b\.addEventListener\('click', function \(\) \{ pickStyle\(s\); \}\)/.test(app),
+     'the style BUTTONS go through pickStyle');
+  ok(/k >= '1' && k <= '4'.*pickStyle\(RIGOR\.STYLES\[\+k - 1\]\)/.test(app),
+     'and so do the 1-4 KEYS');
+  ok(!/state\(\)\.style = /.test(app),
+     'and nothing anywhere writes state().style on its own — that IS the bug');
+})();
+
 console.log('\n— the preset browser and its tags (item 12) —');
 (function () {
   var app = blocks[3] || '';
