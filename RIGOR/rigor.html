@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RIGOR — the body stops moving</title>
+<title>RIGOR, the body stops moving</title>
 <style>
   :root{
     --bg:#08070c; --panel:#100e17; --panel2:#15121e; --line:#2a2433;
@@ -35,7 +35,7 @@
   .disp h2{margin:0 0 8px;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;
     color:var(--gold);font-weight:normal;display:flex;gap:10px;align-items:baseline}
   .disp h2 span{color:var(--dim);letter-spacing:1px;font-size:10.5px}
-  /* the comparison slot — dimmer than the active one, but visibly marked,
+  /* the comparison slot, dimmer than the active one, but visibly marked,
      so Diff/Copy/Level never act on a slot you have to guess at */
   button.ref{border-color:rgba(201,162,39,.55);color:var(--gold)}
   .specbar{display:flex;align-items:center;gap:14px;margin:10px 0 0}
@@ -104,7 +104,7 @@
 <header>
   <h1>RIGOR</h1>
   <span class="tag">the body stops moving</span>
-  <span class="ver mono" id="verTag">v–</span>
+  <span class="ver mono" id="verTag">v, </span>
 </header>
 
 <div class="bar">
@@ -139,7 +139,7 @@
 
 <div class="displays">
   <div class="disp">
-    <h2>The Stiffening Curve <span id="curveInfo">—</span></h2>
+    <h2>The Stiffening Curve <span id="curveInfo">-</span></h2>
     <canvas id="curve" width="760" height="760" role="img"
             aria-label="Transfer curve: input level against output level, with the threshold and knee marked."></canvas>
   </div>
@@ -172,12 +172,12 @@
   <dl>
     <dt>Space</dt><dd>play / stop</dd>
     <dt>B</dt><dd>bypass</dd>
-    <dt>1 – 4</dt><dd>Fresh · Settling · Spasm · Repose</dd>
+    <dt>1  to 4</dt><dd>Fresh · Settling · Spasm · Repose</dd>
     <dt>A / S</dt><dd>Case A / Case B</dd>
     <dt>[ / ]</dt><dd>step through Case A · B · C · D</dd>
     <dt>M</dt><dd>toggle auto makeup</dd>
     <dt>L</dt><dd>sidechain listen</dd>
-    <dt>D</dt><dd>delta — hear only what was removed</dd>
+    <dt>D</dt><dd>delta, hear only what was removed</dd>
     <dt>P</dt><dd>placement: left/right ↔ mid/side</dd>
     <dt>O</dt><dd>spectrum: both traces · detector only · output only</dd>
     <dt>drag on chart</dt><dd>set the threshold</dd>
@@ -186,7 +186,7 @@
   </dl>
   <p style="color:var(--dim);font-size:12.5px;margin:16px 0 0">
     Grey is what came in. Blue is what leaves. The red band hanging from the ceiling is
-    the flatline — gain reduction. The harder RIGOR works, the flatter it reads.</p>
+    the flatline, gain reduction. The harder RIGOR works, the flatter it reads.</p>
 </div></div>
 <div id="diff" role="dialog" aria-label="Difference between the current case and the comparison case"><div>
   <h3>Case difference</h3>
@@ -2169,13 +2169,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RIGOR;
 var nmText = document.getElementById('nm-src').textContent;
 var ndText = document.getElementById('nd-src').textContent;
 var coreText = document.getElementById('core-src').textContent;
-/* NM first — the core closes over it. Same order the worklet uses. */
+/* NM first, the core closes over it. Same order the worklet uses. */
 var coreBundle = nmText + '\n' + ndText + '\n' + coreText;
 var RIGOR = (new Function(coreBundle + ';return RIGOR;'))();
 var el = function (id) { return document.getElementById(id); };
 el('verTag').textContent = 'v' + RIGOR.VERSION;
 
-/* UIH-START — pure UI helpers (headless-tested; no DOM, no audio) */
+/* UIH-START, pure UI helpers (headless-tested; no DOM, no audio) */
 var UIH = {
   DBMIN: -60, DBMAX: 0,
   STYLE_LABEL: { fresh: ['Fresh', 'CLEAN'], settling: ['Settling', 'OPTO'],
@@ -2188,8 +2188,8 @@ var UIH = {
      still standing on 2026-09-05: both bodies moved the NAME only.
 
      RIGOR's version was the half-visible kind, which is why it survived
-     a census. The engine reads STYLE[name] for the PATH — topology,
-     detector, RMS window, peak decay — so clicking Spasm really did
+     a census. The engine reads STYLE[name] for the PATH, topology,
+     detector, RMS window, peak decay, so clicking Spasm really did
      change the topology and really did sound different, which is exactly
      what a person checking would look for. What it did not do was bring
      the recipe: knee, attack, release, auto-release, ratio. So Spasm
@@ -2205,7 +2205,7 @@ var UIH = {
      its state as defaultState + styleDefaults(name), so the harness has
      been measuring the styles WITH their recipes for the project's whole
      life, while neither instrument applied them. The baselines were
-     right and both instruments were the odd ones out — the same shape as
+     right and both instruments were the odd ones out, the same shape as
      round 12's factory-preset find, and the reason the hashes below do
      not move. */
   applyStyle: function (state, style, defaults) {
@@ -2223,7 +2223,7 @@ var UIH = {
     var t = y < 0 ? 0 : (y > h ? h : y);
     return this.DBMAX - (t / h) * (this.DBMAX - this.DBMIN);
   },
-  /* ratio slider is heavily skewed so the useful 1–10 range gets real travel */
+  /* ratio slider is heavily skewed so the useful 1 to 10 range gets real travel */
   ratioFromSlider: function (v) {
     var r = 1 + (Math.pow(v, 3.2)) * (60 - 1);
     return r >= 59.5 ? 1000 : Math.round(r * 10) / 10;
@@ -2245,7 +2245,7 @@ var UIH = {
 
   /* ---- REDRAW BUDGET (round 8) ----
      This used to be `if (!reduce) frame();` at the bottom of the file,
-     which did not reduce motion — it switched the instrument OFF. A user
+     which did not reduce motion, it switched the instrument OFF. A user
      with prefers-reduced-motion set got a frozen gain-reduction meter and
      a frozen chart, which is worse accessibility than the animation was.
 
@@ -2279,7 +2279,7 @@ var UIH = {
      handle and has to know.
 
      `sep` mirrors sanitizeState's 1.1x minimum separation rather than
-     inventing a second rule — the core would enforce it anyway, and a UI
+     inventing a second rule, the core would enforce it anyway, and a UI
      that lets go somewhere the core will not accept is a UI that lies. */
   dragXover: function (pair, idx, hz) {
     var lo = pair[0], hi = pair[1], sep = 1.1;
@@ -2354,7 +2354,7 @@ var UIH = {
     }
     return rows.join('\n') + '\n';
   },
-  /* factory case files — validated against core sanitize in the harness */
+  /* factory case files, validated against core sanitize in the harness */
   FACTORY: [
     { name: 'Vocal — Settling', tags: ['vocal','gentle','sidechain'], s: { style: 'settling', thresh: -26, ratio: 3, knee: 6, attack: 12, release: 220, autoMakeup: true, scOn: true, scHp: 120, scLp: 16000, meta: { name: 'Vocal — Settling' } } },
     { name: 'Drum Bus — Spasm', tags: ['drums','bus','parallel','fast'], s: { style: 'spasm', thresh: -18, ratio: 6, knee: 2, attack: 1.5, release: 60, mix: 0.7, autoMakeup: true, meta: { name: 'Drum Bus — Spasm' } } },
@@ -2393,13 +2393,13 @@ if (typeof window !== 'undefined') window.UIH = UIH;
    state, slabs, undo
    ============================================================ */
 /* FOUR SLOTS, NOT TWO. Two is enough to compare; four is enough to decide
-   — you can hold the original, the change, and the two ideas you had while
+, you can hold the original, the change, and the two ideas you had while
    listening, without one of them having to be the thing you overwrite.
 
    A and B keep their exact previous starting points, so nothing anybody
    already had in muscle memory moved. C and D take the remaining two
    styles, which makes the four slots a ready-made pass through all four
-   topologies — the comparison docs/LISTENING_PROTOCOL.md asks for, and the
+   topologies, the comparison docs/LISTENING_PROTOCOL.md asks for, and the
    one that answers whether Spasm's 2 ms peak follower is right by ear. */
 var SLOTS = ['A', 'B', 'C', 'D'];
 var cases = {
@@ -2445,12 +2445,12 @@ function pushUndo(throttle) {
 }
 /* UNDO FOR A SLOT THAT IS NOT THE ACTIVE ONE (item 13).
 
-   Two actions write to a case you are not looking at — Copy overwrites the
+   Two actions write to a case you are not looking at, Copy overwrites the
    comparison slot, and level-match adjusts its makeup. Both used
    pushUndo(), which pushes the CURRENT slot's state onto the CURRENT
    slot's stack. So Copy had no undo at all (it destroyed a case with no
    way back), and level-match pushed a snapshot of the wrong case onto the
-   wrong stack — pressing Exhume afterwards reverted something you had not
+   wrong stack, pressing Exhume afterwards reverted something you had not
    changed while leaving the thing you had changed exactly as it was.
 
    The general shape of item 13: the undo lineage only knew about changes
@@ -2481,7 +2481,7 @@ var lastAudio = null;
 /* THE WORKLET'S ANALYSER TAP.
 
    The spectrum used to work only from the ScriptProcessor fallback. On the
-   worklet — the fast path, the one almost everybody actually runs — the
+   worklet, the fast path, the one almost everybody actually runs, the
    engine lives on the audio thread, `spEngine` is null, and the old stub
    here returned 0 forever, so the analyser drew an empty box and looked
    like a rendering bug rather than a missing wire.
@@ -2494,7 +2494,7 @@ var lastAudio = null;
 
    Contract: the worklet's arrays are oldest-first, exactly like the core's
    scTap and outTap, so this is a copy and never a re-ordering. Both paths
-   feed the same Float64 numbers into the same spectrum function — the fast
+   feed the same Float64 numbers into the same spectrum function, the fast
    path and the fallback cannot disagree about what they are showing. */
 var workletTap = { sc: null, out: null };
 function copyTap(src, o) {
@@ -2546,7 +2546,7 @@ function ensureCtx() {
         var d = ev.data;
         if (!d) return;
         /* the message is now an envelope rather than the meters object
-           itself — read the shape, do not assume it */
+           itself, read the shape, do not assume it */
         meters = d.m || d;
         if (d.sc) workletTap.sc = d.sc;
         if (d.out) workletTap.out = d.out;
@@ -2693,7 +2693,7 @@ var TOGGLES = [
   { k: 'detOs', lab: 'True-peak detection' },
   { k: 'scOn', lab: 'Sidechain filter' },
   { k: 'scListen', lab: 'Listen to the chest' },
-  { k: 'delta', lab: 'Delta — hear the removal' },
+  { k: 'delta', lab: 'Delta, hear the removal' },
   /* Only meaningful with 2+ bands and bypass engaged. Off = bypass is
      dry and bit-transparent; on = bypass still runs the crossover, so
      an A/B isolates the compression rather than the whole plugin. */
@@ -2774,7 +2774,7 @@ function buildRack() {
           return;
         }
         set(state(), it.k, nv);
-        /* commit WITHOUT rebuilding — rebuilding destroys the slider mid-drag
+        /* commit WITHOUT rebuilding, rebuilding destroys the slider mid-drag
            (the exact bug AUTOPSY v0.4 shipped and had to fix) */
         commit(false);
       });
@@ -2930,7 +2930,7 @@ function buildRack() {
   updateLabels();
 }
 
-/* PICKING A STYLE — the one place it happens, for both the buttons and
+/* PICKING A STYLE, the one place it happens, for both the buttons and
    the 1-4 keys. Two call sites naming the same rule is how the rule ends
    up half-applied; the project has paid for that twice already.
 
@@ -2966,7 +2966,7 @@ function syncStyleButtons() {
     var b = el('btn' + k);
     if (!b) return;
     b.classList.toggle('on', which === k);
-    /* the comparison slot is named on the button too — otherwise the only
+    /* the comparison slot is named on the button too, otherwise the only
        way to know what Diff is about to compare is to remember */
     b.classList.toggle('ref', which !== k && prevWhich === k);
     b.setAttribute('aria-pressed', which === k ? 'true' : 'false');
@@ -3086,19 +3086,19 @@ function drawChart() {
   cx.textAlign = 'right'; cx.font = '16px Menlo,monospace';
   var g = hist.length ? hist[hist.length - 1].g : 0;
   cx.fillStyle = '#e05561'; cx.fillText('GR ' + g.toFixed(1), W - padR - 6, padT + 22);
-  cx.fillStyle = '#5aa8e0'; cx.fillText('OUT ' + (hist.length ? hist[hist.length - 1].o.toFixed(1) : '—'), W - padR - 6, padT + 42);
+  cx.fillStyle = '#5aa8e0'; cx.fillText('OUT ' + (hist.length ? hist[hist.length - 1].o.toFixed(1) : '-'), W - padR - 6, padT + 42);
   /* the two meters a sample peak cannot give you */
   var tpDb = meters.tpL > 1e-7 ? 20 * Math.log10(Math.max(meters.tpL, meters.tpR)) : -99;
   cx.font = '14px Menlo,monospace';
   cx.fillStyle = tpDb > -1 ? '#e05561' : '#8a8494';
   cx.fillText(tpDb.toFixed(2) + ' dBTP', W - padR - 6, padT + 62);
   cx.fillStyle = '#8a8494';
-  cx.fillText('S ' + (isFinite(meters.lufsS) ? meters.lufsS.toFixed(1) : '—') +
-              '   I ' + (isFinite(meters.lufsI) ? meters.lufsI.toFixed(1) : '—') + ' LUFS',
+  cx.fillText('S ' + (isFinite(meters.lufsS) ? meters.lufsS.toFixed(1) : '-') +
+              '   I ' + (isFinite(meters.lufsI) ? meters.lufsI.toFixed(1) : '-') + ' LUFS',
               W - padR - 6, padT + 80);
   if (state().delta) {
     cx.textAlign = 'left'; cx.fillStyle = '#e05561'; cx.font = '15px Menlo,monospace';
-    cx.fillText('DELTA — hearing only what was removed', padL + 8, CH - 8);
+    cx.fillText('DELTA, hearing only what was removed', padL + 8, CH - 8);
   }
   if (state().place === 'ms') {
     cx.textAlign = 'right'; cx.fillStyle = '#c9a227'; cx.font = '14px Menlo,monospace';
@@ -3111,7 +3111,7 @@ function drawChart() {
    only way to know what it heard was to listen to it. This draws it. */
 var specCv = el('spec'), sx = specCv.getContext('2d');
 var TAP = new Float64Array(2048), SPEC = new Float64Array(512), SPEC_SM = new Float64Array(512);
-/* the second trace — what LEFT the engine, against what the detector heard */
+/* the second trace, what LEFT the engine, against what the detector heard */
 var TAP_O = new Float64Array(2048), SPEC_O = new Float64Array(512), SPEC_O_SM = new Float64Array(512);
 /* Which traces are drawn. Deliberately NOT a state field: it changes no
    audio, and a case file describes a sound rather than a window layout.
@@ -3186,7 +3186,7 @@ function drawSpectrum() {
         sx.fillStyle = g2; sx.fill();
       }
     };
-    /* Gold keeps the filled gradient it has always had — it is the older
+    /* Gold keeps the filled gradient it has always had, it is the older
        trace and the one people already read. Violet is drawn as a bare
        line on top of it, because two filled areas hide each other and the
        whole point is seeing one against the other. */
@@ -3295,7 +3295,7 @@ SLOTS.forEach(function (k) {
   if (b) b.addEventListener('click', function () { selectSlot(k); });
 });
 el('btnCopy').addEventListener('click', function () {
-  /* copies the CURRENT case over the comparison case — the direction the
+  /* copies the CURRENT case over the comparison case, the direction the
      button label states, and the direction that never destroys what you
      are presently listening to. The overwritten case is snapshotted onto
      ITS OWN stack first, so switching to it and pressing Exhume brings it
@@ -3335,15 +3335,15 @@ el('btnMatch').addEventListener('click', function () {
 
    ONE LOADER, AND IT IS `loadCase`. The instrument used to call
    sanitizeState here while tests/rigor_regression.js called loadCase on
-   the same entries — two paths, one tested. sanitizeState drops keys it
+   the same entries, two paths, one tested. sanitizeState drops keys it
    does not recognise, so the three presets still carrying the pre-ND
    `sc: { on, hp, lp }` block shipped with their sidechain filter SILENTLY
    OFF: "Vocal — Settling" lost the 120 Hz highpass it is named for, and
-   "Kick Ducks Bass" lost the 40–1000 Hz band that IS the preset. The
+   "Kick Ducks Bass" lost the 40 to 1000 Hz band that IS the preset. The
    baselines were computed through loadCase, so the hashes described a
    sound the instrument never made and the harness stayed green throughout.
    The entries are now written flat as well, so neither path has anything
-   to migrate — belt and braces, because this cost three presets.
+   to migrate, belt and braces, because this cost three presets.
    ============================================================ */
 function loadFactory(i) {
   var f = UIH.FACTORY[i];
@@ -3376,7 +3376,7 @@ function renderBrowser() {
     var t = document.createElement('span'); t.className = 'pt';
     t.textContent = (e.f.tags || []).join(' · ');
     b.appendChild(n); b.appendChild(t);
-    /* textContent throughout — a case name is a perfectly good place to
+    /* textContent throughout, a case name is a perfectly good place to
        hide a script tag, the same reasoning the diff overlay uses */
     b.addEventListener('click', function () { loadFactory(e.i); closeBrowser(); });
     li.appendChild(b); list.appendChild(li);
@@ -3389,7 +3389,7 @@ function buildBrowserTags() {
     (f.tags || []).forEach(function (t) { seen[t] = (seen[t] || 0) + 1; });
   });
   while (row.firstChild) row.removeChild(row.firstChild);
-  /* the vocabulary is DERIVED from the cases — a hand-kept tag list would
+  /* the vocabulary is DERIVED from the cases, a hand-kept tag list would
      be a second copy, and the second copy is the one that goes stale */
   ['all'].concat(Object.keys(seen).sort()).forEach(function (t) {
     var b = document.createElement('button');
@@ -3433,7 +3433,7 @@ el('btnOpen').addEventListener('click', function () { el('caseFile').click(); })
 /* ---- gain-reduction CSV (item 7) ----
    Exports the history buffer the chart is already drawing, so the file and
    the picture cannot disagree. The buffer holds HN frames at animation
-   rate, NOT audio rate — so the time column is derived from the actual
+   rate, NOT audio rate, so the time column is derived from the actual
    frame spacing rather than pretending each entry is one sample. */
 el('btnCsv').addEventListener('click', function () {
   if (!hist.length) { el('btnCsv').textContent = 'nothing yet';
@@ -3455,7 +3455,7 @@ el('btnCsv').addEventListener('click', function () {
    Its OWN overlay. The first version of this reused #help and wrote over
    its innerHTML, which showed the diff once and destroyed the keyboard
    reference permanently. Values are written with textContent, never
-   interpolated into HTML — a case file is user-supplied data and a case
+   interpolated into HTML, a case file is user-supplied data and a case
    name is a perfectly good place to hide a script tag. */
 el('btnDiff').addEventListener('click', function () {
   var d = UIH.diffCases(RIGOR.sanitizeState(cases[which]),
@@ -3546,7 +3546,7 @@ document.addEventListener('keydown', function (e) {
   if (e.key === ' ') { e.preventDefault(); playing ? stop() : play(); }
   else if (k === 'b') { pushUndo(false); state().bypass = !state().bypass; commit(false); syncStyleButtons(); }
   else if (k >= '1' && k <= '4') { pickStyle(RIGOR.STYLES[+k - 1]); }
-  /* A and S keep their old meanings exactly — four slots should not cost
+  /* A and S keep their old meanings exactly, four slots should not cost
      anybody the two shortcuts they already had. C and D are reached by
      stepping rather than by letter, because the obvious letters are taken:
      D is delta, and silently stealing it would be a worse trade. */
@@ -3556,7 +3556,7 @@ document.addEventListener('keydown', function (e) {
   else if (e.key === ']') { stepSlot(1); }
   else if (k === 'm') { pushUndo(false); state().autoMakeup = !state().autoMakeup; commit(true); }
   /* WAS `state().sc.listen`, a pre-ND field name that has thrown a
-     TypeError on every press since the lineage merge — `sc` is not an
+     TypeError on every press since the lineage merge, `sc` is not an
      object in this lineage, the fields are flat. Round 9 added a UI
      assertion that every CONTROL key resolves against defaultState(); the
      keyboard handler is a second place state is named and it was not

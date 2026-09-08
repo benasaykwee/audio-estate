@@ -11,9 +11,9 @@ RIGOR.loadCase(obj)      // migrate, then sanitise. Use this for anything extern
 RIGOR.sanitizeState(obj) // sanitise only. Internal, already-current state.
 ```
 
-**Always `loadCase` for anything that came from outside this session** — a file, a drop, a URL hash. `sanitizeState` alone will silently discard fields it does not recognise and hand back defaults, which is exactly what happened to one factory case after the lineage merge: it opened, looked wrong, and said nothing.
+**Always `loadCase` for anything that came from outside this session**: a file, a drop, a URL hash. `sanitizeState` alone will silently discard fields it does not recognise and hand back defaults, which is exactly what happened to one factory case after the lineage merge: it opened, looked wrong, and said nothing.
 
-The two internal paths — the undo stack and the A→B copy — deliberately use `sanitizeState`, because they are deserialising state this session serialised itself. Running the migration over already-current values would rescale them a second time.
+The two internal paths, the undo stack and the A→B copy, deliberately use `sanitizeState`, because they are deserialising state this session serialised itself. Running the migration over already-current values would rescale them a second time.
 
 ## Fields
 
@@ -21,9 +21,9 @@ Every numeric field is clamped on load. Every unknown field is dropped. Nothing 
 
 | Field | Range | Notes |
 |---|---|---|
-| `bypass` | bool | passes audio through, delayed by the reported latency — see `bypassSplit` |
+| `bypass` | bool | passes audio through, delayed by the reported latency, see `bypassSplit` |
 | `bypassSplit` | bool | **what bypass MEANS at 2+ bands.** `false` (default) = bypass is dry and bit-transparent; the audio never enters the crossover. `true` = bypass still splits and re-sums, so an A/B isolates the compression rather than the whole plugin. Inert at 1 band. |
-| `style` | `fresh` `settling` `spasm` `repose` | four genuinely distinct signal paths — see the note below |
+| `style` | `fresh` `settling` `spasm` `repose` | four genuinely distinct signal paths, see the note below |
 | `inGain` | −24 … 24 dB | |
 | `thresh` | −60 … 0 dB | 0 is legal, and is why the sanitiser uses `isFinite` rather than `\|\|` |
 | `ratio` | 1 … 1000 | **1000 means infinity** and becomes an exact zero `invR`, not 0.001 |
@@ -40,7 +40,7 @@ Every numeric field is clamped on load. Every unknown field is dropped. Nothing 
 | `look` | 0 … 20 ms | lookahead; reported to the host as latency |
 | `detect` | `auto` `peak` `rms` | `auto` follows the style |
 | `detOs` | bool | detect on the interpolated peak rather than the sample |
-| `detOsX` | **2, 4 or 8** | the interpolation factor. A SET, not a range — 3 and 16 are rejected, not clamped |
+| `detOsX` | **2, 4 or 8** | the interpolation factor. A SET, not a range, 3 and 16 are rejected, not clamped |
 | `scOn` `scHp` `scLp` `scListen` | bool, 10…1000, 1000…20000, bool | sidechain filter |
 | `link` | 0 … 100 % | |
 | `place` | `lr` `ms` | |
@@ -59,14 +59,14 @@ false: Fresh and Spasm shared a signal path and rendered bit-identically on
 identical settings, differing only in their defaults. Measuring them for a
 documentation table is what exposed it.
 
-It is true *now* — Spasm was given its own peak-follower decay, 2 ms against
-Fresh's 15 — but it became true by being fixed, not by having been right. A
+It is true *now*, Spasm was given its own peak-follower decay, 2 ms against
+Fresh's 15, but it became true by being fixed, not by having been right. A
 harness asserts the topology count, derived from the style table rather than
 written down, so the claim cannot drift from the code again.
 
 **And a style is a path AND a recipe, which is the half this file skipped.**
-Each style carries five defaults — `knee`, `attack`, `release`, `autoRel`,
-`ratio` — that are written into the case when you pick the style, and are
+Each style carries five defaults, `knee`, `attack`, `release`, `autoRel`,
+`ratio`, that are written into the case when you pick the style, and are
 freely overridable afterwards. Until 5 September 2026 that sentence was
 aspirational in both bodies: picking a style moved the name and the path and
 left the five where they were, so Spasm arrived with Fresh's 10 ms attack in
@@ -82,13 +82,13 @@ button writes into it.
 
 ## Two rules that are not obvious
 
-**The crossover pair is kept apart by pushing the LOWER one down.** If both are at the ceiling there is no room to raise the upper one, and the splitter's own separation rule then designs a filter section at 23,760 Hz — past `0.45·fs` at 48 k and past Nyquist below it. Found by the fuzzer; the sanitiser now lowers `xover[0]` to `20000/1.1` first.
+**The crossover pair is kept apart by pushing the LOWER one down.** If both are at the ceiling there is no room to raise the upper one, and the splitter's own separation rule then designs a filter section at 23,760 Hz, past `0.45·fs` at 48 k and past Nyquist below it. Found by the fuzzer; the sanitiser now lowers `xover[0]` to `20000/1.1` first.
 
 **Solo beats mute**, as on every console ever built. If any band is soloed, only soloed bands are audible and mute is ignored.
 
 ## Migration
 
-`migrateCase` translates pre-merge files by *shape*, not by a version number — the files that need migrating are exactly the ones written before anyone thought to put a version in them.
+`migrateCase` translates pre-merge files by *shape*, not by a version number, the files that need migrating are exactly the ones written before anyone thought to put a version in them.
 
 | Old | New |
 |---|---|
@@ -96,11 +96,11 @@ button writes into it.
 | `sc: { on, hp, lp, listen }` | `scOn` `scHp` `scLp` `scListen` |
 | `link`, `mix`, `curve` as 0…1 | ×100 |
 
-**The rescale is keyed on a structural marker, never on the value itself.** A file is treated as old only if it carries `lookahead` or an `sc` block — names that simply do not exist in the current shape.
+**The rescale is keyed on a structural marker, never on the value itself.** A file is treated as old only if it carries `lookahead` or an `sc` block, names that simply do not exist in the current shape.
 
-The first version of this sniffed the value instead: "is it 1 or less? then it must be the old 0–1 scale." That looks reasonable and is wrong. `link: 0.11` is a perfectly legal current value meaning 0.11%, and the sniff silently turned it into 11%. The round-trip audit caught it — a saved session would have reopened louder than it was closed.
+The first version of this sniffed the value instead: "is it 1 or less? then it must be the old 0 to 1 scale." That looks reasonable and is wrong. `link: 0.11` is a perfectly legal current value meaning 0.11%, and the sniff silently turned it into 11%. The round-trip audit caught it, a saved session would have reopened louder than it was closed.
 
-A file carrying neither marker is left exactly alone. The worst case is a very old file that happened to have no lookahead and no sidechain block, which keeps its percentages — and such a file is indistinguishable from a current one anyway, so leaving it be is the only safe choice.
+A file carrying neither marker is left exactly alone. The worst case is a very old file that happened to have no lookahead and no sidechain block, which keeps its percentages, and such a file is indistinguishable from a current one anyway, so leaving it be is the only safe choice.
 
 Migration is idempotent: loading twice does not rescale twice, which the harness asserts.
 
