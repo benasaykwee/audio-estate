@@ -156,8 +156,39 @@ function parseBaselines(out, label) {
 }
 
 /* --- running -------------------------------------------------------------- */
+
+/* TIMEOUT added 2026-09-08. Without it a harness that never exits stalls this
+   script forever, with no output and no clue: seen here as a 53 minute run
+   that printed nothing.
+
+   The cause was not the harness. casket_ui_test finishes its work, prints
+   "113 passed, 0 failed", and then hangs inside process.exit, blocked in
+   node::WorkerThreadsTaskRunner::Shutdown -> uv_thread_join, joining a worker
+   pool thread that never comes back. It is a Node teardown bug and the local
+   runtime is v26.5.0, while CI pins node 20, which is why CI has never seen
+   it and why the same harness takes five seconds standalone.
+
+   Five minutes is far above the slowest gate here (rate, about 110 s), so
+   this cannot fire on slow-but-working. It fires on stuck. */
+var RUN_TIMEOUT_MS = 5 * 60 * 1000;
+
 function run(cmd, cwd) {
-  return cp.execSync(cmd, { cwd: cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 1 << 26 });
+  try {
+    return cp.execSync(cmd, {
+      cwd: cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+      maxBuffer: 1 << 26, timeout: RUN_TIMEOUT_MS, killSignal: 'SIGKILL'
+    });
+  } catch (e) {
+    if (e && (e.killed || e.signal === 'SIGKILL') && e.status === null) {
+      throw new Error(
+        cmd + ': no exit after ' + (RUN_TIMEOUT_MS / 1000) + ' s, killed.\n' +
+        '    If its output ended with a passing summary, the tests are fine and\n' +
+        '    the process is stuck in shutdown. Check `node -v`: this is known on\n' +
+        '    v26 and absent on the node 20 CI pins. Running that one harness on\n' +
+        '    its own, or on node 20, will confirm it in seconds.');
+    }
+    throw e;
+  }
 }
 
 function say(s) { if (!LIST) process.stderr.write(s + '\n'); }
