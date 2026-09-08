@@ -201,15 +201,15 @@
     </div>
 
     <div class="fields">
-      <div class="f"><span>Patient</span><b>RIGOR v0.6</b></div>
+      <div class="f"><span>Patient</span><b>RIGOR v0.5</b></div>
       <div class="f"><span>Admitted</span><b class="mono">2026-08-15</b></div>
       <div class="f"><span>Ward</span><b>CLAUDE / RIGOR</b></div>
       <div class="f"><span>Attending</span><b>B. Asaykwee</b></div>
       <div class="f"><span>Prior admission</span><b>AUTOPSY v0.4</b></div>
-      <div class="f"><span>Condition</span><b style="color:var(--stampG)">Stable — bit-exact</b></div>
+      <div class="f"><span>Condition</span><b style="color:var(--stampG)">Stable — bit-exact · compiled · AU validated</b></div>
       <div class="f wide"><span>Presenting complaint</span><b>Second of three. AUTOPSY opened the body; RIGOR holds it still; the limiter closes the lid.</b></div>
-      <div class="f"><span>Chart revision</span><b class="mono">11 &middot; supersedes 10</b></div>
-      <div class="f wide"><span>Notable event this admission</span><b style="color:var(--stampR)">CRITICAL &mdash; a single &plusmn;Infinity sample LOCKED THE AUDIO THREAD. It reached the peak follower, then ND.linToDb, then NM.log10, which iterates and never converges on a non-finite argument. Every style, every block size, single band and multiband; only bypass survived. In a host that is a frozen DAW needing a force quit, and the entire suite was green throughout. ND.linToDb has always guarded the LOW end &mdash; 0, negative and denormal clamp to &minus;600 dB, which is why silence was never a problem &mdash; and nothing guarded the high end. RIGOR now guards its own input at three points. The substrate defect is in shared/ and is REFERRED OUT, unfixed, because RIGOR may not change shared code: AUTOPSY, CASKET and NECROPHONE are presumably exposed the same way. Parity closes at 50,718.</b></div>
+      <div class="f"><span>Chart revision</span><b class="mono">12 &middot; supersedes 11</b></div>
+      <div class="f wide"><span>Notable event this admission</span><b style="color:var(--stampR)">RESOLVED &mdash; PICKING A STYLE MOVED THE NAME AND NOTHING ELSE, in both the browser and the plugin. The five recipe defaults (knee, attack, release, auto-release, ratio) never reached the instrument, so Spasm arrived wearing Fresh&rsquo;s 6&nbsp;dB knee and 10&nbsp;ms attack in front of its own 2&nbsp;ms follower. Measured from the standing Fresh recipe: Spasm 4.71&nbsp;dB LOUD, Repose 2.74&nbsp;dB QUIET, worst sample error near &minus;17&nbsp;dBFS. It hid because the engine reads the signal PATH from the style, so a pick really did change the sound &mdash; just not into the style you picked. The suite never saw it because every test helper builds its state as defaultState() plus styleDefaults(name): <b>the harness had been measuring the styles WITH their recipes since the first round while neither instrument applied them.</b> All 35 regression hashes stayed put, proving the baselines were right and the instruments were the odd ones out. Fixed and pushed 2026-09-06 as <code>496aaa2</code>.</b></div>
     </div>
 
     <!-- ============ VITALS ============ -->
@@ -355,8 +355,35 @@
       was demonstrably live in the tree, which is recorded below because it is a hazard,
       not an anecdote.</p>
     <div class="ohead"><span>&check;</span><span>No.</span><span>Order</span><span>Init.</span></div>
-    <ul class="orders" id="list-solo9"></ul>
-    <div class="tally"><span>Findings</span><span><b id="c-solo9">0</b> / 10</span></div>
+    <ul class="orders" id="list-solo11"></ul>
+    <div class="tally"><span>Findings</span><span><b id="c-solo11">0</b> / 10</span></div>
+
+
+    <!-- ============ TWELFTH + THIRTEENTH ============ -->
+    <h2>Twelfth and Thirteenth Courses <em>Reconstructed &middot; this chart was not written up at the time</em>
+      <span class="stamp b">Record repaired</span></h2>
+    <p class="secnote"><b>Read this as a repaired gap, not as a contemporaneous note.</b> Two
+      full courses were carried out and never entered here, so the chart jumped from the
+      eleventh straight to a &ldquo;proposed&rdquo; list and read as though nothing had
+      happened since. The entries below are reconstructed from the commits and the ward
+      handoff rather than measured on the day, and they are marked as such because a
+      reconstruction that reads like an observation is exactly the drift this project keeps
+      paying for.</p>
+    <div class="ohead"><span>&check;</span><span>No.</span><span>Order</span><span>Init.</span></div>
+    <ul class="orders" id="list-solo12"></ul>
+    <div class="tally"><span>Reconstructed</span><span><b id="c-solo12">0</b> / 6</span></div>
+
+    <!-- ============ FOURTEENTH ============ -->
+    <h2>Fourteenth Course <em>&ldquo;the one bug still sitting where it was found&rdquo;</em>
+      <span class="stamp r">1 defect, in both bodies &middot; measured before treatment</span></h2>
+    <p class="secnote">A single order, chosen by the attending. The style buttons wrote the
+      patient&rsquo;s name and nothing else. Flagged on 24 August by censusing this ward for a
+      fault found in CASKET, restated on 5 September by the estate map, treated neither time.
+      The whole round is below, including the assertion of mine that passed against a mutant
+      it should have killed.</p>
+    <div class="ohead"><span>&check;</span><span>No.</span><span>Order</span><span>Init.</span></div>
+    <ul class="orders" id="list-solo14"></ul>
+    <div class="tally"><span>Orders carried out</span><span><b id="c-solo14">0</b> / 9</span></div>
 
     <!-- ============ NEXT TWENTY ============ -->
     <h2>Standing Orders — Proposed <em>Forty that can be carried out without the attending</em>
@@ -548,9 +575,12 @@ var LABS = [
   ['Topologies, measured', '4', 'distinct', 'n', 'Counted off the STYLE table. Was 3-not-4 until Spasm was given its own peak decay.']
 <!-- COUNTS:LABS END -->
 ,
-  ['Bugs found this round', '4', 'real', 'n', 'The substrate hang (wider than reported \u2014 it took legal FINITE arguments too); the bypass that reported a latency it did not apply; the same bypass leaving its delay line unfed, so LEAVING bypass dropped audio; multiband bypass not actually bypassing.'],
-  ['Bad assertions found', '3', '\u2014', 'h', 'All mine. Comparing a non-linear-phase crossover against a pure delay and calling the 1.16 error a bug; measuring sine peaks at 6 samples/cycle and reading the -1.25 dB sampling artefact as filter response; testing threshold-glide symmetry through the gain envelope, where attack and release are SUPPOSED to differ. Running tally: about eighteen against ten real bugs.'],
-  ['Siblings', 'READ ONLY', 'verified, not written', 'n', 'shared/ was edited for the first time with the attending\u2019s consent. AUTOPSY and CASKET were run, never modified: hashes unmoved, AUTOPSY\u2019s gate recompiled against the modified header still bit-exact. NECROPHONE turned out never to have been exposed.']
+  ['Bugs found this round', '1', 'real, and old', 'h', 'One, in both bodies: picking a style wrote the name and left the recipe behind. Flagged 2026-08-24 by censusing this ward for a fault found in CASKET, restated 2026-09-05 by the estate map, treated neither time. Spasm was arriving 4.71 dB loud.'],
+  ['Bad assertions found', '1', 'mine', 'h', 'The first version of the plugin lint checked that applyStyle READ the style table and that gestures existed, and passed cleanly against a mutant whose entire recipe loop had been deleted. Rewritten to demand what the loop writes. Running tally: about 24 bad assertions against 12 real bugs.'],
+  ['Mutants planted to prove the gate', '3', '3 killed', 'n', 'Editor writes the name alone; applyStyle drops its recipe loop; the loop runs one field short and silently loses ratio. Each run on a copy of the tree with a clean control first, because a probe that fails for the wrong reason looks exactly like one that works.'],
+  ['Regression hashes moved', '0', 'of 35', 'n', 'The proof that the baselines were right all along and both instruments were the odd ones out. The harness had been building every test state as defaultState() plus styleDefaults(name) since the first round.'],
+  ['Siblings', 'READ ONLY', 'verified, not written', 'n', 'AUTOPSY 70 and CASKET 217 re-run read-only and green. Nothing outside RIGOR/ was written except RIGOR_ARCHITECTURE.md, which is this ward\u2019s own document.'],
+  ['Pushed', '496aaa2', '2026-09-06', 'n', 'The browser half needs no build and is live on open. The plugin half is only real once CI compiles it; the syntax gate run here is an aarch64 Linux front-end result and cannot speak for the macOS runners.']
 ];
 var tb = document.getElementById('labs');
 LABS.forEach(function(r){
@@ -846,26 +876,28 @@ var NEXT = [
 ];
 
 var BEN = [
-  ['Answer the three parked design questions', '&sect;13 of the architecture: does Fresh cap at 30:1 and let the limiter own infinity? Does RIGOR get a spectrum analyser behind the sidechain filter? Do the styles ship as Fresh/Settling/Spasm/Repose, or as Clean/Opto/Punch/Bus with the morgue names as subtitles?'],
-  ['The listen test — now with delta', 'Open <code>rigor.html</code>, press play, cycle 1–4, then press <b>D</b>. Delta is the fastest way to hear what a setting is actually doing. The question no harness can answer: do the four styles <em>feel</em> different, or have I built four presets wearing topologies&rsquo; clothes?'],
-  ['Decide whether the CASKET seal wants revisiting', 'The lid is held and the clamp is back to catching only rounding, so nothing is broken now. But <em>lead</em> is the only style shipping with <code>seal: true</code>, and the seal is the one path where the safety argument runs through a decimation filter rather than straight algebra. Worth its own session, not a mid-session detour.'],
-  ['Push both repositories to GitHub', 'Neither plugin has ever been compiled by anything. Both were written compile-first because there is no JUCE in the sandbox. The first real AU/VST3 build happens on the CI runners, and it is the last unproven link in the chain.'],
-  ['Drop reference stems into the folder', 'A dry vocal, a drum bus, a bass DI, a rough mix. The ten factory cases were tuned against deterministic noise, which is all that was available; real material will move several of them.'],
-  ['Decide the distribution target', 'Free tool, Patreon perk, or something sold? Not a branding question — JUCE&rsquo;s GPL and commercial licences differ, and the answer changes what can legally be built downstream. Worth settling before the plugin scaffold hardens.']
+  ['<b>THE LISTEN TEST &mdash; and it is now a different test</b>', 'This has been on the chart since the second course and it is now the highest-value thing on it. Until 5 September, cycling <kbd>1</kbd>&ndash;<kbd>4</kbd> moved the topology and left the recipe behind, <b>so every impression anyone has ever formed of these four styles was formed on a blunted version of them.</b> The specific question the night attendant cannot answer: is Spasm&rsquo;s 2&nbsp;ms peak decay right, or is it now twitchy? That number was chosen without hearing it, and it could not be judged before this week because a 2&nbsp;ms follower behind a 10&nbsp;ms attack cannot show what it does. <code>docs/LISTENING_PROTOCOL.md</code>, one hour, six tests.'],
+  ['Answer the three parked design questions', '&sect;13 of the architecture, unchanged since the tenth course: does Fresh cap at 30:1 and let the limiter own infinity? Does RIGOR get a spectrum analyser behind the sidechain filter? Do the styles ship as Fresh/Settling/Spasm/Repose, or as Clean/Opto/Punch/Bus with the morgue names as subtitles? None of these blocks code; all three block the identity.'],
+  ['Item 21, saturation &mdash; an identity call, not a technical one', 'The last large open item of the proposed forty that nobody but the attending can decide. A compressor that colours is a different instrument from one that does not, and CASKET already owns the loud-and-dense end with its Iron arrangement. Deciding <em>no</em> is as useful an answer as deciding yes, and closes an item that has sat open for six rounds.'],
+  ['Drop reference stems into the folder', 'A dry vocal, a drum bus, a bass DI, a rough mix. Item 29 of the forty is blocked on nothing else. The fifteen factory cases were tuned against deterministic noise, which is all that was available, and real material will move several of them &mdash; more so now that picking a style actually applies its recipe.'],
+  ['Decide the distribution target', 'Free tool, Patreon perk, or something sold? Not a branding question: JUCE&rsquo;s GPL and commercial licences differ, and the answer changes what can legally be built downstream. Item 38, signed installers, is blocked on this and on an Apple developer key.'],
+  ['<b>CLOSED &mdash; push the repository and compile the plugin</b>', 'Carried out 2026-08-22. RIGOR built as AU and VST3 on CI, and <code>auval -v aufx Rgor Basy</code> returned AU VALIDATION SUCCEEDED. Kept on the chart rather than deleted, because for eight rounds this was the last unproven link in the chain and the record should show when it stopped being one. The style-recipe fix went up 2026-09-06 as <code>496aaa2</code>.']
 ];
 
+
 var PRO = [
-  ['Oversampling, done properly', 'Polyphase 2&times;/4&times; with real anti-imaging filters and latency accounting. Correctly absent here; the limiter cannot ship without it.'],
-  ['Multiband operation', 'Linkwitz-Riley crossovers into independent RIGOR instances. The largest single feature gap against the professional tier.'],
-  ['Full external sidechain routing', 'The bus exists and the core accepts it. What remains is the host-side routing, which every DAW does differently.'],
-  ['Mid/side and dual-mono processing', 'AUTOPSY already contains the exact M/S matrix, already parity-proven. Inheritance rather than invention.'],
-  ['Pixel-match the plugin face to the browser', 'The editor is now bespoke rather than generic, but the two faces are cousins, not twins. Closing that gap is a design job, not a DSP one.'],
-  ['A preset browser with tags and four-way compare', 'Ten factory cases and a two-slot A/B is where a personal tool stops and a product starts.'],
-  ['Loudness-matched A/B', 'Now that LUFS is measured, Case A and Case B can be level-matched automatically — which is the only honest way to compare two compressor settings by ear.'],
-  ['A performance pass with a published CPU budget', 'SIMD across the stereo pair, denormal handling, and a stated figure. Professionals need to know how many instances a session survives.'],
-  ['Signed and notarised installers — AU/VST3/AAX, macOS and Windows', 'Unglamorous, entirely non-negotiable. An unsigned plugin is one a stranger cannot install.'],
-  ['THE LIMITER — the third body', 'Inherits this detector wholesale, finally justifies oversampling, and closes the trilogy.']
+  ['<b>LANDED &mdash; multiband operation</b>', 'Written in the third course, not the distant future this list once put it in. Linkwitz-Riley crossovers, 1 to 3 bands, flat to 0.0007&nbsp;dB from 30&nbsp;Hz to 16&nbsp;kHz by sine sweep, and bit-identical to the single engine at one band so every pre-multiband baseline stayed blessed. <b>This entry read &ldquo;the largest single feature gap against the professional tier&rdquo; for eleven rounds after it stopped being true.</b>'],
+  ['<b>LANDED &mdash; mid/side placement</b>', 'Second course. Exact matrix, proven identical to L/R on mono material, and parity-gated. Inherited from AUTOPSY rather than invented, as this list predicted.'],
+  ['<b>LANDED &mdash; loudness-matched A/B, and four slots not two</b>', 'BS.1770 metering arrived in the second course and the level-matched compare in the sixth. The twelfth course took it further than this entry asked: A/B/C/D, with C and D holding the remaining two styles so stepping through them is a ready-made pass over all four topologies.'],
+  ['<b>LANDED &mdash; a preset browser with tags</b>', 'Twelfth course. Fifteen factory cases against a twenty-tag vocabulary derived rather than hand-kept, with search and filtering. It also found a real defect on arrival: three presets had been shipping with their sidechain filter silently off.'],
+  ['<b>LANDED &mdash; the limiter, the third body</b>', 'CASKET exists, is compiled, and has been heard in a room. The trilogy is closed: AUTOPSY opens the body, RIGOR holds it still, CASKET is the lid coming down. This entry can retire.'],
+  ['Oversampling of the audio path', 'Still correctly absent. RIGOR has no hard corners, and the limiter is the program that needs it &mdash; CASKET does it. What RIGOR gained instead is oversampled true-peak DETECTION, which is the part a compressor actually benefits from. Items 20 and 21 of the forty, and 20 is tied to the saturation decision.'],
+  ['Full external sidechain routing', 'The bus exists, the core accepts it, and the engine takes a real external input as of the ninth course. What remains is host-side routing, which every DAW does differently, so it is a per-host chore rather than a DSP one.'],
+  ['Pixel-match the plugin face to the browser', 'The editor is bespoke rather than generic, but the two faces are cousins, not twins, and twelve host parameters still have no control in the plugin window. That is a recorded decision rather than an oversight, and the lint fails if anything NEW lands without one.'],
+  ['A performance pass with a published CPU budget', 'Half done and honestly so. The JS bench is measured (1 band 70&times; realtime, 3 bands 16&times;, 3 bands with everything on 13&times;) and deliberately kept out of the engine, because a timer in the audio path both lies and destroys determinism. Missing: the same figure for the C++ twin, and a CI gate that compares it. CI runs the bench today and compares nothing.'],
+  ['Signed and notarised installers &mdash; AU/VST3/AAX, macOS and Windows', 'Unglamorous, entirely non-negotiable, and now the real gap rather than a hypothetical one, because there IS a binary to sign. Blocked on an Apple developer key and on the distribution decision. An unsigned plugin is one a stranger cannot install.']
 ];
+
 
 function render(id, data, cid){
   var ul = document.getElementById(id), n = 0;
@@ -940,7 +972,7 @@ var AUDIT = [
   ['<b>Five of the audit&rsquo;s own checks were wrong first</b>', 'The coverage tool used <code>[\.\b]</code> &mdash; inside a character class <code>\b</code> is BACKSPACE, not a word boundary &mdash; and reported five heavily-used exports as dead. My law-3 check matched each embed block <em>including</em> its terminating tag and then searched for terminating tags. The stress test first demanded a poisoned engine be IDENTICAL to one that never saw poison, then asserted a fitted 1e-9 floor; recovery means the difference DECAYS, and the bound has to come from the slowest legal path &mdash; auto-release runs a second follower at 8&times; the release, so <code>e^(&minus;5/8) = 0.535</code> is the least legal decay over five constants. Settling lands at 0.436. The scBand test asserted the wrong direction twice, because without a band sidechain the low band is compressing hard against its OWN steady tone. <b>Tally: about sixteen bad assertions of mine against eight real bugs.</b> New corollary: an assertion measured across a time window must account for the time constants of the thing it measures.']
 ];
 
-var SOLO9 = [
+var SOLO11 = [
   ['<b>THE SUBSTRATE HANG IS CLOSED &mdash; and it was never only about infinity</b>', 'The tenth course referred <code>NM.log</code>, <code>NM.log10</code> and <code>NM.exp</code> out: they iterate and never return on non-finite arguments, so <code>ND.linToDb(&plusmn;Inf)</code> hangs the audio thread. Now guarded, with the IEEE answers rather than merely a return. <b>The referral understated it.</b> <code>twoPow</code> loops <code>k = floor(x/LN2)</code> times, so a perfectly LEGAL FINITE argument of 1e308 asks it for 1.4e308 iterations &mdash; a hang with no infinity anywhere in sight. Found because the verification snapshot written to prove the fix inert <em>hung on its own first run</em>.'],
   ['<b>Proven inert rather than asserted inert</b>', 'Every guard is a COMPARISON; no arithmetic changed, so for any argument that was already legal the original op order runs untouched. Demonstrated instead of claimed: a snapshot of <b>30,075 arguments &times; 6 functions = 180,450 values</b> taken before the edit and compared bit-for-bit after, by raw 64-bit pattern rather than <code>===</code>, which cannot tell &minus;0 from 0 and calls NaN unequal to itself. All identical. The JS and C++ twins then agreed bit-for-bit on all twenty guard cases.'],
   ['<b>The blast radius, measured read-only across the siblings</b>', 'The attending&rsquo;s condition was fix-and-verify-RIGOR-only, so nothing outside was written &mdash; but running their existing suites costs nothing and is the whole safety net. <b>AUTOPSY: 70 core, 68 UI, hashes unmoved, and its parity gate recompiled against the modified header still reads 9,292 bit-exact. CASKET: 186 core, 76 UI, hashes unmoved.</b> And a correction to the audit&rsquo;s guess: <b>NECROPHONE was never exposed at all</b> &mdash; zero references to <code>shared/</code> and no hand-rolled transcendental of its own.'],
@@ -953,6 +985,27 @@ var SOLO9 = [
   ['<b>Two hazards recorded rather than tidied away</b>', 'First: <b>another session was live in this tree throughout.</b> It moved the entire audio suite into an <code>UNDERTAKING/</code> folder mid-edit and back again, ran RIGOR&rsquo;s own mutation tester, and wrote CASKET files &mdash; all while this round was working. Nothing was lost, because every edit was verified present after each move, but this is the fourth concurrency incident this project has logged and the tree must be re-checked, not assumed. Second: <b>my symmetry assertion was wrong before it was right.</b> It compared gain-reduction settling times and read 10 blocks down against 205 up, which looks exactly like an asymmetry and is nothing of the kind &mdash; lowering a threshold means MORE reduction, reached at the ATTACK rate, and raising it means less, reached at the RELEASE rate. Reading the smoothed threshold off the probe instead gives 30 and 30. <b>Tally: about eighteen bad assertions of mine against ten real bugs.</b> Suspect the assertion first.']
 ];
 
+var SOLO12 = [
+  ['<b>Twelfth course &mdash; the output spectrum and the worklet tap</b>', 'Items 6 and 8 of the proposed forty. The engine gained an output ring written at all THREE emit points including bypass, deliberately not folded into the meter, because the meter is not pushed while bypassed and bypass on/off is the one comparison an output spectrum exists to serve. The worklet posts both taps on the meters&rsquo; existing 2048-sample tick, arrays allocated once in the constructor and posted by reference, so nothing allocates on the audio thread.'],
+  ['<b>The <kbd>L</kbd> key had thrown a TypeError since the lineage merge</b>', '<code>rigor.html</code> read <code>state().sc.listen</code>, a pre-ND field name. The ninth course had already added &ldquo;every CONTROL key resolves against <code>defaultState()</code>&rdquo; after the same defect in the rack &mdash; but the keyboard handler is the second place state is named and was never covered. <b>A rule enforced in one of the two places it applies is decoration in the other.</b> The same sentence explains this round&rsquo;s bug too.'],
+  ['<b>Four case slots, and the preset browser that found a real defect</b>', 'A/B became A/B/C/D, with C and D taking the remaining two styles so stepping through them is a ready-made pass over all four topologies. The browser then exposed the find: the instrument loaded factory cases with <code>sanitizeState</code> while the regression harness loaded the same entries with <code>loadCase</code>. Three presets still carried a pre-ND <code>sc</code> block and shipped with their sidechain filter silently OFF. <b>The baselines had blessed a sound the instrument never made, and the harness was green throughout.</b> All 35 hashes stayed put after the fix, which proved the baselines right.'],
+  ['<b>Undo across automation, in both bodies</b>', 'The APVTS had been constructed with <code>nullptr</code> for its UndoManager, so nothing a host automated was ever undoable. Transaction boundaries now come from a 4&nbsp;Hz editor timer, so an automation ramp collapses into one step. In the browser, Copy and level-match were snapshotting the ACTIVE slot rather than the one they wrote &mdash; Copy was the single irreversible action in the app.'],
+  ['<b>Thirteenth course &mdash; the compile error, measured rather than inferred</b>', 'RIGOR was the only instrument in the estate with no compiled binary, held up by one error whose message GitHub had truncated away. The standing belief was that no compiler could see it here. That belief was wrong: JUCE 7.0.12 clones fine in the sandbox and the C++ front end runs. Compiling with <code>-fmax-errors=50</code> gave exactly one error, <code>juce_wchar</code> written without its namespace, at the reported column. <b>It was my own line, from the twelfth course.</b>'],
+  ['<b>RIGOR HAS A COMPILED BINARY &mdash; 2026-08-22</b>', 'Pushed as <code>d3ca88c</code>; both CI jobs green, and <code>auval -v aufx Rgor Basy</code> returned AU VALIDATION SUCCEEDED, including the &ldquo;render should fail&rdquo; case, meaning the plugin correctly refuses an illegal buffer. The real repair was to the belief: a lint invented to substitute for a compiler had its premise written into its own header. Two gates replaced it, a front-end syntax run and a rule forbidding bare <code>juce_</code> types, the second proven to catch the exact line that broke the build.']
+];
+
+var SOLO14 = [
+  ['<b>THE DEFECT: a style pick wrote the NAME and stopped, in both bodies</b>', '<code>styleDefaults()</code> has existed since the first phase. It was called by <code>defaultState()</code>, called by every test in the suite, and <b>called by nothing else, ever.</b> The five recipe fields &mdash; knee, attack, release, auto-release, ratio &mdash; never reached the instrument. Both the browser and the plugin editor moved the label and left the recipe wherever the last person had put it.'],
+  ['<b>Why it survived a census: it is the half-visible kind</b>', 'The engine reads <code>STYLE[name]</code> for the PATH &mdash; topology, detector, RMS window, peak decay &mdash; so clicking Spasm genuinely changed the topology and genuinely sounded different. That is exactly what a person checking would look for, and it is why this went unreported for the project&rsquo;s whole life. It did not sound like Spasm. It sounded like a change.'],
+  ['<b>Measured before treatment, which is what made the round worth taking</b>', 'A step with transients, threshold &minus;26, makeup off, coming from the standing Fresh recipe: <b>Spasm 4.71&nbsp;dB LOUD, Repose 2.74&nbsp;dB QUIET,</b> Settling 0.35&nbsp;dB off, worst sample error around &minus;17&nbsp;dBFS on material peaking near &minus;25. Spasm was arriving with Fresh&rsquo;s 10&nbsp;ms attack in front of its own 2&nbsp;ms follower, <b>so the punch that is the entire reason Spasm exists had never been heard by anyone who used a button.</b>'],
+  ['<b>Why 233 core tests could not see it &mdash; two paths, one tested, for the third time</b>', 'Every test helper in this project builds its state as <code>defaultState()</code> plus <code>styleDefaults(name)</code> and merges. <b>The harness has been measuring the styles WITH their recipes since the first round, while neither instrument applied them.</b> Same species as the twelfth course&rsquo;s factory presets and the tenth&rsquo;s duplicated sanitiser rule. <b>All 35 regression hashes stayed put</b>, which is the proof: the baselines were right the whole time and both instruments were the odd ones out.'],
+  ['<b>The browser: one <code>pickStyle</code>, used by the buttons AND the keys</b>', 'A new pure <code>UIH.applyStyle</code> mirroring CASKET&rsquo;s, and a single <code>pickStyle(s)</code> that both the style buttons and the 1&ndash;4 keys call. Two call sites naming the same rule is how a rule ends up half-applied, and this ward has paid for that twice. One unthrottled undo push per pick, so a recipe comes back whole rather than leaving you in a state you were never in.'],
+  ['<b>The plugin: <code>applyStyle</code> lives in the PROCESSOR, reading the engine&rsquo;s own table</b>', 'It is one undo transaction, the same reasoning <code>recallCase</code> already followed, and a headless caller deserves a whole style as much as a mouse does. The five values come from <code>rigor::styleCfg</code> &mdash; <b>the table the engine already reads its topology from, so there is no second copy of the recipe to drift.</b> The twin&rsquo;s <code>StyleCfg</code> already carried all five fields; nothing new had to be written down.'],
+  ['<b>MY TWENTY-FOURTH BAD ASSERTION, and it is the instructive part</b>', 'The first plugin lint asserted that <code>applyStyle</code> READ <code>styleCfg</code> and that gestures appeared in the body. <b>It passed cleanly against a mutant whose entire recipe loop had been replaced with <code>(void)v;</code></b> &mdash; the style parameter&rsquo;s own gestured write satisfied both clauses. Rewritten to extract the loop and demand what it writes. <b>It restated the SHAPE of the code instead of demanding the BEHAVIOUR, which is what all twenty-four have done.</b> Running tally: about 24 bad assertions against 12 real bugs.'],
+  ['<b>Proven to bite: three planted mutants, each with a clean control first</b>', '(1) the editor writes the choice alone &rarr; 2 UI failures, 1 lint failure. (2) <code>applyStyle</code> keeps the name and drops the recipe loop &rarr; 5 lint failures. (3) the loop runs <code>i &lt; 4</code> and silently drops <code>ratio</code> &rarr; 1 lint failure. Run on copies of the tree, never in it. Both harnesses derive the recipe field list from <code>styleDefaults()</code> rather than enumerating it, so a sixth field added to the table breaks the test if the instruments do not carry it.'],
+  ['<b>The listening protocol had been giving bad advice, and now says so</b>', 'Section 1 opens with a warning that any earlier impression of Spasm was of a blunted Spasm &mdash; the same precedent as the eleventh course&rsquo;s bypass-latency warning. <b>It also means the &ldquo;is 2&nbsp;ms right?&rdquo; question was never fairly askable:</b> a 2&nbsp;ms follower sitting behind a 10&nbsp;ms attack cannot show you what it does. That listen is now the single most useful thing the attending could do.']
+];
+
 render('list-solo',  SOLO,  'c-solo');
 render('list-solo2', SOLO2, 'c-solo2');
 render('list-solo3', SOLO3, 'c-solo3');
@@ -961,8 +1014,10 @@ render('list-solo5', SOLO5, 'c-solo5');
 render('list-solo6', SOLO6, 'c-solo6');
 render('list-solo7', SOLO7, 'c-solo7');
 render('list-solo8', SOLO8, 'c-solo8');
-render('list-solo9', SOLO9, 'c-solo9');
-render('list-solo9', SOLO9, 'c-solo9');
+render('list-solo9',  SOLO9,  'c-solo9');
+render('list-solo11', SOLO11, 'c-solo11');
+render('list-solo12', SOLO12, 'c-solo12');
+render('list-solo14', SOLO14, 'c-solo14');
 render('list-audit', AUDIT, 'c-audit');
 render('list-next',  NEXT,  'c-next');
 render('list-ben',   BEN,   'c-ben');
