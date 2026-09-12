@@ -610,7 +610,14 @@ jobs:
           done
           echo "signed and notarized. These bundles install with no Gatekeeper warning."
 
+      # STORAGE GUARD. The nightly (schedule) run still exercises the soak and
+      # the signing path in full — only its *upload* is skipped, because the
+      # bundle it produces is identical to the one the last push already
+      # stored. Keeping it daily at 90-day retention left 45 copies of the
+      # same build (532 MB) against a 0.5 GB account allowance.
       - uses: actions/upload-artifact@v5
+        if: github.event_name != 'schedule'
         with:
           name: casket-plugins
           path: build/Casket_artefacts/Release
+          retention-days: 7
