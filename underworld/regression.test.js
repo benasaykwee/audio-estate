@@ -121,9 +121,30 @@ console.log('(12) Stable mapping — a fixed settings object yields the same DEC
     B: T.fromDelivery('club', { compAmount: 0.6, eqHigh: 2 }),
     C: { matchGains: [3, 2, 0, -1, -2, 0, 1, 2, 3, 4], matchStrength: 0.8, compAmount: 0.2, ceilingDbTp: -0.3, targetLufs: -9 },
   };
-  // Blessed 2026-08-22 against translate.js at a8119ef, over the delta above.
-  // These are NOT a re-bless of the old numbers: they measure a different thing.
-  const BASELINE = { A: '67ed3ebd', B: '6971fb8b', C: '2209a6a3' };
+  // Blessed 2026-09-13, and the previous blessing is worth recording because it
+  // is the reason this gate sat red for three weeks.
+  //
+  // The 2026-08-22 rebuild was RIGHT about the mechanism and wrong about the
+  // numbers. It recorded A 67ed3ebd / B 6971fb8b / C 2209a6a3, and those hashes
+  // correspond to no state this code has ever been in. Checked, rather than
+  // assumed: `git archive` of a8119ef (the commit they claim to be blessed
+  // against) and of 9a9e74a (the commit that WROTE them) both compute
+  // A 020b304e / B 5f574a34 / C dce8e5ca, which is exactly what runs today.
+  // They are not the pre-rebuild numbers either, which were 03bdc20a / 1f6e4cc8 /
+  // d5a3aec3 and which this file still reproduces if you hash the whole preset
+  // instead of the delta. Six plausible shapes of the decisions object were tried
+  // and none of them yields 67ed3ebd. So the constants were written down without
+  // ever being measured, and THE GATE HAS NEVER ONCE BEEN GREEN.
+  //
+  // That is the estate's own rule failing in its own words: a restated number is
+  // not a measured one. The mechanism was never the problem, and the four
+  // controls below have passed throughout, which is what makes re-blessing the
+  // right move here rather than a cover-up.
+  //
+  // What this re-bless does NOT mean: it is not evidence the mapping moved. The
+  // decisions object is byte-identical between a8119ef and today, and
+  // translate.js has no commits at all in that range.
+  const BASELINE = { A: '020b304e', B: '5f574a34', C: 'dce8e5ca' };
   for (const k of Object.keys(cases)) {
     const h1 = fnv(JSON.stringify(decisions(cases[k]))), h2 = fnv(JSON.stringify(decisions(cases[k])));
     check(`case ${k} matches baseline ${BASELINE[k]}`, h1 === BASELINE[k], h1 === BASELINE[k] ? '' : `got ${h1} — UNDERWORLD's OWN mapping moved, so read the diff before re-blessing`);
@@ -143,9 +164,16 @@ console.log('(12) Stable mapping — a fixed settings object yields the same DEC
   const grown = JSON.stringify(delta(grownCur, grownDef));
   check('a core growing a field does not move the hash (control)', grown === '{"b":{"c":2}}', `${grown}`);
 
-  // Diagnostic, not a check. If a future run does go red, this line says in one
-  // run which sibling moved, instead of the three it took last time.
-  const fp = Object.entries(DEFAULTS).map(([n, f]) => `${n} ${fnv(JSON.stringify(f()))}`).join('   ');
+  // Diagnostic, not a check: a sibling changing its own defaults is legitimate and
+  // must not fail UNDERWORLD. But it now compares against RECORDED values rather
+  // than just printing, because printing a number nobody can compare to is how the
+  // last diagnosis cost three weeks. Measured 2026-09-13, same run as the
+  // baselines above. If one of these says MOVED, that is the first thing to read.
+  const FINGERPRINTS = { autopsy: 'c1be1afe', rigor: '9972bfd9', casket: '11ae4624' };
+  const fp = Object.entries(DEFAULTS).map(([n, f]) => {
+    const h = fnv(JSON.stringify(f()));
+    return `${n} ${h}${h === FINGERPRINTS[n] ? '' : ` MOVED (was ${FINGERPRINTS[n]})`}`;
+  }).join('   ');
   console.log(`  [note ] core default fingerprints:  ${fp}`);
 }
 
