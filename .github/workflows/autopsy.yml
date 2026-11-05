@@ -182,3 +182,4 @@ jobs:
             AUTOPSY/build/**/*.component
             AUTOPSY/build/**/*.vst3
           if-no-files-found: warn
+          retention-days: 7

@@ -223,3 +223,4 @@ jobs:
             RIGOR/build/**/*.component
             RIGOR/build/**/*.vst3
           if-no-files-found: warn
+          retention-days: 7
