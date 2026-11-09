@@ -197,6 +197,11 @@ jobs:
   plugin-macos:
     name: Build AU/VST3 (macOS)
     runs-on: macos-15
+    env:
+      # JUCE 7.0.12 calls an API Apple removed for targets of macOS 15 and up.
+      # With no target set the build defaults to the runner's own version.
+      # 14.0 keeps what macos-14 runners built.
+      MACOSX_DEPLOYMENT_TARGET: '14.0'
     needs: plugin-compile-check
     defaults:
       run:
