@@ -215,7 +215,7 @@ not the optimisation level, is what matters.
   That rules out the whole class of first-build failure (missing includes, wrong
   signatures, API drift). What it does **not** do is produce a loadable plugin: Audio
   Unit is a macOS format requiring Apple frameworks, and this sandbox is Linux aarch64.
-  The `.component` comes from the `macos-14` job in `.github/workflows/pallbearer.yml`,
+  The `.component` comes from the `macos-15` job in `.github/workflows/pallbearer.yml`,
   and only a host proves it actually runs.
 - **The attack layer does not survive a session save.** State carries a version stamp but
   not the audio, so a sampled or hybrid patch reloads silent. Saving a file path instead

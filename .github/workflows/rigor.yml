@@ -115,7 +115,7 @@ jobs:
 
   plugin-macos:
     name: Build AU/VST3 (macOS)
-    runs-on: macos-14
+    runs-on: macos-15
     needs: harnesses
     defaults:
       run:
