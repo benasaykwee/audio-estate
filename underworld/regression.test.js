@@ -121,25 +121,26 @@ console.log('(12) Stable mapping — a fixed settings object yields the same DEC
     B: T.fromDelivery('club', { compAmount: 0.6, eqHigh: 2 }),
     C: { matchGains: [3, 2, 0, -1, -2, 0, 1, 2, 3, 4], matchStrength: 0.8, compAmount: 0.2, ceilingDbTp: -0.3, targetLufs: -9 },
   };
-  // Blessed 2026-09-13, and the previous blessing is worth recording because it
-  // is the reason this gate sat red for three weeks.
+  // THESE HASHES ARE TIED TO THE NODE MAJOR VERSION. Blessed 2026-09-13 on
+  // Node 26, and .github/workflows/underworld.yml is pinned to match. If this
+  // gate goes red with no change to translate.js, check `node --version` here
+  // and in that workflow before reading anything else.
   //
-  // The 2026-08-22 rebuild was RIGHT about the mechanism and wrong about the
-  // numbers. It recorded A 67ed3ebd / B 6971fb8b / C 2209a6a3, and those hashes
-  // correspond to no state this code has ever been in. Checked, rather than
-  // assumed: `git archive` of a8119ef (the commit they claim to be blessed
-  // against) and of 9a9e74a (the commit that WROTE them) both compute
-  // A 020b304e / B 5f574a34 / C dce8e5ca, which is exactly what runs today.
-  // They are not the pre-rebuild numbers either, which were 03bdc20a / 1f6e4cc8 /
-  // d5a3aec3 and which this file still reproduces if you hash the whole preset
-  // instead of the delta. Six plausible shapes of the decisions object were tried
-  // and none of them yields 67ed3ebd. So the constants were written down without
-  // ever being measured, and THE GATE HAS NEVER ONCE BEEN GREEN.
+  // The same code on different Nodes gives different hashes:
+  //   Node 20.20.2 (CI)  A 67ed3ebd / B 6971fb8b / C 2209a6a3
+  //   Node 26.5.0 (Mac)  A 020b304e / B 5f574a34 / C dce8e5ca
+  // Evidence: CI run 32612444632 on 2026-08-23, Node 20.20.2, passed this file
+  // 22 of 22 against the first set. CI run 42042464745 on 2026-11-05, Node
+  // 20.20.2, failed exactly the three baseline checks against the second set,
+  // while the Mac passed them. Why Node moves the hash is not yet established.
   //
-  // That is the estate's own rule failing in its own words: a restated number is
-  // not a measured one. The mechanism was never the problem, and the four
-  // controls below have passed throughout, which is what makes re-blessing the
-  // right move here rather than a cover-up.
+  // CORRECTION. The 2026-09-13 note that used to sit here said the first set
+  // was "written down without ever being measured" and that this gate had
+  // "never once been green". Both were wrong. It was measured, on Node 20, and
+  // it was green in CI. Its `git archive` checks of a8119ef and 9a9e74a were
+  // run on the Mac's Node, so they could only ever reproduce the second set.
+  // Three weeks of finding nothing moved in the code was correct: the code
+  // had not moved, the Node had.
   //
   // What this re-bless does NOT mean: it is not evidence the mapping moved. The
   // decisions object is byte-identical between a8119ef and today, and

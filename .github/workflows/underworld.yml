@@ -18,7 +18,10 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          # Pinned to the Node the Mac runs. The byte-stable baselines in
+          # regression.test.js come out differently on Node 20 and Node 26, so
+          # this and the Mac have to move together. See the note above BASELINE.
+          node-version: '26'
       # the whole JS seam suite (200+ assertions, incl. the JS<->C++ parity harness which
       # compiles the C++ CLI itself)
       - name: run seam suite
