@@ -36,6 +36,27 @@
 # NECROPHONE's build.yml stays out.
 !/PALLBEARER/
 
+# CORONER, the sixth project and the only one that LISTENS rather than making
+# sound, joined 2026-11-05. Like the others it depends on ../shared/necromath,
+# so it only resolves if the whole estate travels together.
+#
+# ⚠ READ THIS BEFORE JUDGING ITS CI. Four of CORONER's six harnesses measure
+# against NECROPHONE: they lift its real encoder, decoder, parameter registry
+# and pitch detector out of its own source and run them unmodified. NECROPHONE
+# is NOT in this repository, for the reason stated above its workflow below, so
+# on a fresh clone those four have nothing to measure against.
+#
+# They SKIP rather than fail, and they skip LOUDLY — each prints a banner
+# naming exactly what is left unverified, because a silent skip reading as
+# green is worse than a red board. Measured on a fresh clone: 2 harnesses run
+# (193 checks), 4 announce themselves skipped, everything exits 0. With the
+# whole CLAUDE folder present, all six run and 300 checks pass, and THAT is
+# the run that counts before a release.
+#
+# So coroner.yml is admitted below, unlike NECROPHONE's build.yml, because it
+# is a job that can succeed honestly rather than one that can only fail.
+!/CORONER/
+
 # --- admit the estate's tooling --------------------------------------------
 # tools/counts.js derives every live number in the docs from the gates that
 # produce them; tools/counts.json is its cache and must be tracked, or CI
@@ -62,6 +83,11 @@
 !/.github/workflows/autopsy.yml
 !/.github/workflows/rigor.yml
 !/.github/workflows/pallbearer.yml
+# CORONER's own. Admitted on the same terms as the rest: its sources are in
+# this repository. The four gates that need NECROPHONE skip loudly instead of
+# failing, so this job reports honestly on what it CAN check rather than
+# failing on what it cannot reach. See the CORONER block above.
+!/.github/workflows/coroner.yml
 
 # ============================================================================
 # Now the ordinary exclusions, applied INSIDE the admitted directories.

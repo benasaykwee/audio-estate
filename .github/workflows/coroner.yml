@@ -1,0 +1,126 @@
+name: CORONER
+
+# LAYOUT NOTE, the same one pallbearer.yml carries and for the same reason.
+# This file belongs at the ESTATE ROOT, not inside CORONER/. GitHub only reads
+# workflows from <repo-root>/.github/workflows — a copy living at
+# CORONER/.github/workflows is silently ignored, which is the failure mode that
+# leaves a project with no CI and no error to notice.
+#
+# The checkout lands at the estate root, so every `run:` step needs to start
+# inside CORONER/. That is what defaults.run.working-directory does. It applies
+# to `run:` steps ONLY; inputs to `uses:` actions resolve from the repo root.
+#
+# ============================================================================
+# ⚠ WHAT THIS JOB CAN AND CANNOT CHECK. READ BEFORE TRUSTING A GREEN TICK.
+#
+# CORONER has six harnesses and FOUR OF THEM MEASURE AGAINST NECROPHONE. They
+# lift its real encoder, its real decoder, its real parameter registry and its
+# real pitch detector out of its own source and run them unmodified, which is
+# the right way to gate a seam and the reason they cannot run without it.
+#
+# NECROPHONE is not in this repository. The root .gitignore explains why, in
+# the comment above its own build.yml: its sources are scattered across the
+# CLAUDE root and NECROPHONE-repo/, so a workflow for it "would add a job that
+# could only ever fail."
+#
+# So those four SKIP here, loudly, each printing what it leaves unverified.
+# Measured on a simulated fresh clone:
+#
+#     coroner_test.js           173 checks   RUNS
+#     tests/pluck_position.js    20 checks   RUNS
+#     tests/pallbearer_link.js   18 checks   RUNS (PALLBEARER is in this repo)
+#     tests/necrophone_pack.js   38 checks   skipped — no necrophone.html
+#     tests/closed_loop.js       23 checks   skipped — no necrophone_core.js
+#     tests/param_contract.js    17 checks   skipped — no necrophone_core.js
+#     tests/root_detect.js       29 checks   skipped — no necrophone.html
+#
+# A green board here therefore means 211 of 318 checks passed, and the 107 it
+# did not reach are the CROSS-PROJECT ones: the pack codec's byte-exactness,
+# the parameter contract, the closed loop, and the detector comparison.
+#
+# THE FULL RUN HAPPENS WHERE THE WHOLE CLAUDE FOLDER IS, and that is the run
+# that counts before a release. This job gates the DSP; it does not gate the
+# seams. Anyone reading it as full coverage has been told otherwise, here and
+# in every skip banner.
+# ============================================================================
+
+on:
+  push:
+    paths: ['CORONER/**', 'shared/**', '.github/workflows/coroner.yml']
+  pull_request:
+    paths: ['CORONER/**', 'shared/**', '.github/workflows/coroner.yml']
+
+# Path-filtered like the rest of the estate. shared/** stays in the filter
+# because CORONER consumes shared/necromath directly — every sine, cosine and
+# log in its FFT goes through it, so a change there can move every feature it
+# measures. It deliberately does NOT consume shared/necrodyn: it measures
+# dynamics, it does not impose them.
+
+jobs:
+  harnesses:
+    name: JS harnesses
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: CORONER
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          # Pinned to 20, NOT the version the sandbox happens to run. The
+          # estate has been burned twice by a green that spoke for one runtime
+          # only: NECROPHONE's ui harness died on CI because Node 21+ ships a
+          # global `navigator` and Node 20 does not. A pin buys cross-version
+          # coverage; matching the dev machine buys nothing.
+          node-version: 20
+
+      - name: The examination (173 checks)
+        run: node coroner_test.js
+
+      - name: Pluck position (20 checks)
+        run: node tests/pluck_position.js
+
+      - name: PALLBEARER link (18 checks)
+        # PALLBEARER IS in this repository, so this one genuinely runs on CI.
+        # It lifts PALLBEARER's real loadPatchFromHash and b64urlDecode out of
+        # pallbearer.html and round-trips a live slip through them.
+        run: node tests/pallbearer_link.js
+
+      # ---- the four that need NECROPHONE; each skips loudly without it ----
+
+      - name: Pack codec vs NECROPHONE (skips if absent)
+        run: node tests/necrophone_pack.js
+
+      - name: Parameter contract vs NECROPHONE (skips if absent)
+        run: node tests/param_contract.js
+
+      - name: Closed loop through NECROPHONE (skips if absent)
+        run: node tests/closed_loop.js
+
+      - name: Root detector vs NECROPHONE (skips if absent)
+        run: node tests/root_detect.js
+
+      # ---- the embed, which needs nothing outside CORONER ----
+
+      - name: The HTML embed is byte-identical to the core
+        # coroner.html carries a verbatim copy of coroner_core.js and of
+        # shared/necromath.js so the page opens from a double-click with no
+        # server. This proves the copy is current. Delegated to the sync
+        # script rather than re-implemented here: NECROPHONE's release check
+        # learned that a naive regex extract is 161 bytes long and will
+        # false-alarm forever.
+        run: node coroner_sync.js --check
+
+      - name: Say plainly what this run did and did not cover
+        if: always()
+        run: |
+          echo "A green board above is 211 of CORONER's 318 checks."
+          echo ""
+          echo "NOT covered here, because NECROPHONE is not in this repository:"
+          echo "  · the corpse codec's byte-exactness against its real encoder"
+          echo "  · the parameter contract — ids, clamps, enum options"
+          echo "  · the closed loop — render an engine, feed it back, check routing"
+          echo "  · the root detector comparison against detectPitchHz"
+          echo ""
+          echo "Those four run where the whole CLAUDE folder is present."
+          echo "That is the run that counts before a release."

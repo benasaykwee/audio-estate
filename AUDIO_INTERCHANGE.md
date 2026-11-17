@@ -255,6 +255,124 @@ There is an external consumer: **Masterbox**, a separate mastering tool with an 
 ## 7. THE LOG
 *Every change that crossed a project boundary. Newest first. If you touch `shared/`, you add a line.*
 
+### 2026-11-05 — CORONER joins the repository, and takes the PALLBEARER link it has been owed since September
+
+**`shared/` untouched, no C++ twin exists, no parity check or blessed hash can
+have moved.** Changed: `/.gitignore` (two allowlist entries),
+`.github/workflows/coroner.yml` (new), and inside `CORONER/` only. **No
+NECROPHONE or PALLBEARER file was written** — verified rather than asserted:
+`necrophone_core.js` last changed 2026-08-23, `pallbearer_core.js` 2026-09-01,
+and the only `writeFileSync` anywhere in CORONER is `coroner_sync.js` writing
+`coroner.html`. Both projects were read as text or `require`d read-only.
+
+#### CORONER was untracked, and admitting it needed more than one allowlist line
+
+Another chat noticed CORONER had no workflow in the sidebar because the folder
+was never admitted. Adding `!/CORONER/` is right and was done. But the cheap
+version of that advice would have produced **the exact thing this allowlist was
+built to prevent.**
+
+Four of CORONER's gates measure against NECROPHONE: they lift its real encoder,
+decoder, parameter registry and pitch detector out of its own source and run
+them unmodified. NECROPHONE is not in this repository — and the comment above
+its own `build.yml` says why: a workflow whose sources are absent "would add a
+job that could only ever fail." Simulated on a fresh clone, CORONER had that
+shape precisely:
+
+```
+  coroner_test.js           exit 0   173 passed
+  tests/pluck_position.js   exit 0    20 passed
+  tests/necrophone_pack.js  exit 1   necrophone.html not found
+  tests/closed_loop.js      exit 1   necrophone_core.js not found
+  tests/param_contract.js   exit 1   necrophone_core.js not found
+  tests/root_detect.js      exit 1   necrophone.html not found
+```
+
+**So those four now SKIP rather than fail, and skip LOUDLY.** New
+`CORONER/tests/_requires.js` prints a banner naming exactly what is left
+unverified, says in words that it is *not* a pass, and exits 0 only after
+saying so. A silent skip would have been worse than a red board: it is the
+vacuous pass this project has now caught five separate times — a parameter
+range nothing approached, a stiffness gate passing because the fit was poor, a
+detune body that never reproduced its confound, a text parser reading 92 of 124
+parameters, and a closed loop measuring the default patch four times. Every one
+read green while checking nothing.
+
+`coroner.yml` is admitted on those terms and states its own coverage in a step
+that always runs: **211 of 318 checks on CI, 318 with the whole CLAUDE folder
+present, and that is the run that counts before a release.** It gates the DSP.
+It does not gate the seams, and it says so rather than letting a tick imply it.
+
+**Verified against the allowlist's own recipe.** `git status --porcelain -uall`
+lists 14 entries and nothing outside `CORONER/`, its workflow and `.gitignore`;
+548 KB; and the in-directory exclusions still bite inside the new folder —
+`.wav`, `*.__mut.*`, `*.__probe.*`, `.DS_Store`, `node_modules/` and `build/`
+all correctly ignored under `CORONER/`. `coroner.yml` parses and matches
+`pallbearer.yml`'s shape exactly: `ubuntu-latest`, Node pinned to **20** rather
+than the sandbox's 22, `working-directory: CORONER`, path-filtered on
+`CORONER/**` and `shared/**`.
+
+#### PALLBEARER's September work unblocked something, and it is now taken
+
+The entry below closed both items CORONER had named as blocking. Reading it
+changed what CORONER should do, in two different directions.
+
+**Taken: `pallbearerLink()`.** CORONER's README has always promised a click
+through to NECROPHONE *or PALLBEARER* with a patch waiting, and for months that
+was true of one name. PALLBEARER's `#p=` reader takes the same shape
+NECROPHONE's does, so one encoder now serves both and the test bed's PALLBEARER
+branch stopped being an apology — it used to print *"PALLBEARER has no
+patch-link format yet, so this copies the patch object."* New gate
+`tests/pallbearer_link.js` (18 checks) lifts PALLBEARER's REAL
+`loadPatchFromHash` and `b64urlDecode` out of `pallbearer.html` and round-trips
+a live slip: **all 8 parameters survive**, the `v:1` stamp it refuses an unknown
+value of is present, and the version-refusal branch is confirmed to exist.
+**This one genuinely runs on CI**, because PALLBEARER *is* in the repository.
+
+**⚠ NOT taken: `couple`. The reason has CHANGED rather than persisted.**
+PALLBEARER fixed the self-oscillation, gated it across all six tunings, and
+explicitly left the decision to emit with CORONER. The prerequisite is met and
+CORONER still does not emit it, because:
+
+> **CORONER has nothing to put in it.** `couple` is sympathetic resonance
+> between strings. CORONER measures stiffness and pluck position; neither maps
+> to it. Sympathetic coupling would show as energy appearing at *other*
+> strings' pitches as a note decays, which is measurable in principle and is
+> not built.
+
+Emitting a plausible number for an unmeasured parameter is exactly what CORONER
+refused to do with pluck position, and **the refusal does not get weaker
+because the receiving end got safer.** The gate stays and its comment now
+carries the new reason, so the next hand does not read a stale one. When there
+is a measurement, the gate comes out.
+
+#### One finding about the fork itself, worth having
+
+Swept across 105 combinations of pitch, pluck position and stiffness, **34
+route to PALLBEARER** — and every one of those measures its stiffness
+accurately, fit 0.89 to 1.00. The fork is **selective rather than unreliable**:
+`klass === 'plucked'` needs measured stiffness, stiffness needs surviving high
+partials, and a bass note is exactly where high partials die soonest. An
+earlier test body with a physically reasonable per-partial decay left the fit
+at 0.31, so the stiffness was refused, the verdict came back `synthetic`, and
+the body went to NECROPHONE.
+
+That is the behaviour CORONER wants — the bass instrument only receives bodies
+whose physicality was confirmed — but it means **a real bass with a dull,
+fast-decaying tone may well be routed to the synthesizer**, and anyone judging
+the fork by ear should know that before calling it wrong.
+
+#### Still not done, and flagged rather than assumed
+
+`tools/counts.js` still does not know CORONER exists, so its row in §1 remains
+hand-typed and will keep rotting — it has already moved 168 → 173 → 300 → 318.
+Teaching it is a change to a **shared tool** other chats maintain, which is a
+different thing from this project's own code, so it is left for Ben to assign
+rather than taken unilaterally. There is also one open PR on the repo
+(`ci/artifact-storage-guard`, touching four workflow files and
+`underworld/regression.test.js`); it does not touch `.gitignore` and adds no
+`coroner.yml`, so **nothing here collides with it.**
+
 ### 2026-09-01 — PALLBEARER closes both items §7.4/§7.5 of `_HANDOFF/CORONER_SEAM.md` named as blocking
 
 **`shared/` untouched. Only `PALLBEARER/` changed** — `pallbearer_core.js`,

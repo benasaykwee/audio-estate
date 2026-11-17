@@ -1,0 +1,1219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE INQUEST — CORONER, the standing report</title>
+<style>
+  :root{
+    --bg:#07060a; --panel:#0f0d14; --panel2:#15121c; --panel3:#1b1723;
+    --line:#2a2431; --line2:#3a3244;
+    --ink:#e8e2d4; --dim:#9a917f; --faint:#635b4c; --bone:#d8cfb8;
+    --gold:#c9a227; --gold2:#e3c15a;
+    --blood:#8e2232; --blood2:#c0405a;
+    --verd:#2d8a72; --verd2:#45b899;
+    --amethyst:#7d57a4; --amethyst2:#a37cd0;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --mono:ui-monospace,Menlo,Consolas,"SF Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.68 var(--serif); padding:0 0 90px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- masthead ---------- */
+  header{
+    border-bottom:1px solid var(--line);
+    background:
+      radial-gradient(1100px 380px at 50% -160px, rgba(125,87,164,.22), transparent 70%),
+      linear-gradient(180deg,#120f18,#07060a);
+    padding:60px 28px 46px; text-align:center; position:relative; overflow:hidden;
+  }
+  header:after{
+    content:""; position:absolute; left:0; right:0; bottom:0; height:1px;
+    background:linear-gradient(90deg,transparent,var(--gold),transparent); opacity:.55;
+  }
+  .rule-top{
+    font:400 11px/1 var(--serif); letter-spacing:.42em; color:var(--faint);
+    text-transform:uppercase; margin-bottom:26px;
+  }
+  h1{
+    margin:0; font-size:clamp(38px,8vw,74px); line-height:.98; font-weight:600;
+    letter-spacing:.14em; color:var(--bone); text-transform:uppercase;
+  }
+  .sub{
+    display:block; margin-top:20px; font-size:clamp(13px,2.2vw,16px);
+    letter-spacing:.2em; color:var(--gold); text-transform:uppercase; font-style:italic;
+  }
+  .stamp{
+    margin-top:30px; display:inline-flex; gap:26px; flex-wrap:wrap; justify-content:center;
+    font:400 11.5px/1 var(--mono); letter-spacing:.14em; color:var(--faint);
+  }
+  .stamp b{color:var(--gold); font-weight:400}
+
+  main{max-width:1080px; margin:0 auto; padding:0 28px}
+
+  /* ---------- contents ---------- */
+  nav.toc{
+    margin:44px 0 10px; border:1px solid var(--line); background:var(--panel);
+    padding:22px 26px; border-radius:3px;
+  }
+  nav.toc .lbl{
+    font:600 10.5px/1 var(--serif); letter-spacing:.3em; color:var(--faint);
+    text-transform:uppercase; margin-bottom:16px;
+  }
+  nav.toc ol{margin:0; padding:0; list-style:none; columns:2; column-gap:34px}
+  nav.toc li{margin:0 0 9px; break-inside:avoid}
+  nav.toc a{color:var(--dim); text-decoration:none; font-size:14.5px; display:block}
+  nav.toc a:hover{color:var(--gold)}
+  nav.toc a .n{color:var(--faint); font:400 11px/1 var(--mono); margin-right:10px}
+
+  /* ---------- sections ---------- */
+  section{margin:74px 0 0; scroll-margin-top:20px}
+  h2{
+    font-size:12px; letter-spacing:.3em; text-transform:uppercase; color:var(--gold);
+    margin:0 0 8px; font-weight:600;
+  }
+  h2 .num{color:var(--faint); margin-right:12px; font-family:var(--mono); letter-spacing:0}
+  .h2sub{
+    font-size:clamp(24px,4vw,34px); line-height:1.16; color:var(--bone);
+    margin:0 0 26px; font-weight:600; letter-spacing:.01em;
+  }
+  h3{
+    font-size:15px; letter-spacing:.13em; text-transform:uppercase; color:var(--bone);
+    margin:38px 0 14px; font-weight:600;
+  }
+  p{margin:0 0 17px; color:var(--ink)}
+  p.lede{font-size:19px; line-height:1.62; color:var(--bone)}
+  .dim{color:var(--dim)}
+  strong{color:var(--bone); font-weight:600}
+  em.q{color:var(--gold); font-style:italic}
+  code{font-family:var(--mono); font-size:.87em; color:var(--gold2); background:rgba(201,162,39,.09);
+       padding:1px 5px; border-radius:2px}
+
+  .card{border:1px solid var(--line); background:var(--panel); padding:26px 28px; border-radius:3px}
+  .card + .card{margin-top:16px}
+  .accent-gold{border-left:3px solid var(--gold)}
+  .accent-verd{border-left:3px solid var(--verd)}
+  .accent-blood{border-left:3px solid var(--blood)}
+  .accent-amethyst{border-left:3px solid var(--amethyst)}
+
+  .pull{
+    margin:34px 0; padding:26px 30px; border:1px solid var(--line2);
+    background:linear-gradient(180deg,var(--panel2),var(--panel));
+    font-size:19px; line-height:1.55; color:var(--bone); font-style:italic; border-radius:3px;
+  }
+  .pull .who{
+    display:block; margin-top:14px; font-size:11px; letter-spacing:.22em; font-style:normal;
+    color:var(--faint); text-transform:uppercase;
+  }
+
+  /* ---------- tables ---------- */
+  .tw{overflow-x:auto; margin:22px 0; border:1px solid var(--line); border-radius:3px; background:var(--panel)}
+  table{width:100%; border-collapse:collapse; font-size:14px; min-width:560px}
+  th{
+    text-align:left; padding:13px 16px; color:var(--gold); font-weight:600;
+    font-size:10.5px; letter-spacing:.18em; text-transform:uppercase;
+    border-bottom:1px solid var(--line2); background:var(--panel2); white-space:nowrap;
+  }
+  td{padding:12px 16px; border-bottom:1px solid #191521; vertical-align:top; color:var(--ink)}
+  tr:last-child td{border-bottom:none}
+  tbody tr:hover td{background:var(--panel2)}
+  td.n{font-family:var(--mono); font-size:12.5px; color:var(--bone); white-space:nowrap}
+  td .sm{display:block; color:var(--faint); font-size:12.5px; line-height:1.45; margin-top:3px}
+
+  .pill{
+    display:inline-block; padding:2px 9px; border-radius:2px; font:600 10px/1.6 var(--serif);
+    letter-spacing:.14em; text-transform:uppercase; white-space:nowrap;
+  }
+  .p-live{background:rgba(45,138,114,.18); color:var(--verd2); border:1px solid rgba(45,138,114,.45)}
+  .p-part{background:rgba(201,162,39,.14); color:var(--gold2); border:1px solid rgba(201,162,39,.4)}
+  .p-none{background:rgba(142,34,50,.16); color:var(--blood2); border:1px solid rgba(142,34,50,.45)}
+  .p-out{background:rgba(125,87,164,.16); color:var(--amethyst2); border:1px solid rgba(125,87,164,.45)}
+
+  /* ---------- figures ---------- */
+  figure{margin:30px 0; border:1px solid var(--line); background:var(--panel); border-radius:3px; overflow:hidden}
+  figcaption{
+    padding:14px 22px 18px; border-top:1px solid var(--line); background:var(--panel2);
+    font-size:13.5px; line-height:1.55; color:var(--dim);
+  }
+  figcaption b{color:var(--bone)}
+  .figtitle{
+    padding:18px 22px 4px; font-size:11px; letter-spacing:.22em; text-transform:uppercase;
+    color:var(--gold); font-weight:600;
+  }
+  .svgwrap{padding:10px 16px 20px; overflow-x:auto}
+  svg{display:block; max-width:100%; height:auto}
+  svg text{font-family:var(--serif)}
+
+  /* ---------- task lists ---------- */
+  ol.tasks{list-style:none; counter-reset:t; padding:0; margin:24px 0 0}
+  ol.tasks li{
+    counter-increment:t; position:relative; padding:18px 20px 18px 66px;
+    border:1px solid var(--line); background:var(--panel); margin-bottom:11px; border-radius:3px;
+  }
+  ol.tasks li:before{
+    content:counter(t,decimal-leading-zero); position:absolute; left:20px; top:17px;
+    font:600 15px/1 var(--mono); color:var(--gold); letter-spacing:.02em;
+  }
+  ol.tasks li .t{display:block; color:var(--bone); font-weight:600; font-size:16px; margin-bottom:5px}
+  ol.tasks li .d{display:block; color:var(--dim); font-size:14px; line-height:1.6}
+  ol.tasks li .tag{
+    display:inline-block; margin-top:9px; font:600 9.5px/1.7 var(--serif); letter-spacing:.16em;
+    text-transform:uppercase; color:var(--faint); border:1px solid var(--line2);
+    padding:1px 8px; border-radius:2px;
+  }
+  ol.tasks.ben li{border-left:3px solid var(--verd)}
+  ol.tasks.ben li:before{color:var(--verd2)}
+
+  .grouphead{
+    margin:34px 0 14px; font:600 10.5px/1 var(--serif); letter-spacing:.28em;
+    text-transform:uppercase; color:var(--faint); border-bottom:1px solid var(--line);
+    padding-bottom:10px;
+  }
+
+  /* ---------- dreams ---------- */
+  .dream{
+    border:1px solid var(--line2); border-radius:3px; margin-bottom:18px; overflow:hidden;
+    background:linear-gradient(180deg,var(--panel2),var(--panel));
+  }
+  .dream .dh{
+    padding:20px 26px 6px; display:flex; gap:14px; align-items:baseline; flex-wrap:wrap;
+  }
+  .dream .dn{font:600 11px/1 var(--mono); color:var(--amethyst2); letter-spacing:.18em}
+  .dream .dt{font-size:21px; color:var(--bone); font-weight:600; letter-spacing:.01em}
+  .dream .db{padding:0 26px 22px; color:var(--dim); font-size:15px; line-height:1.66}
+  .dream .db strong{color:var(--ink)}
+
+  footer{
+    margin-top:80px; padding-top:34px; border-top:1px solid var(--line);
+    text-align:center; color:var(--faint); font-size:12px; letter-spacing:.18em;
+    text-transform:uppercase;
+  }
+  footer .m{margin-top:12px; font-family:var(--mono); letter-spacing:.06em; text-transform:none; font-size:11.5px}
+
+  @media (max-width:640px){
+    nav.toc ol{columns:1}
+    .stamp{gap:14px; font-size:10.5px}
+    ol.tasks li{padding:16px 16px 16px 56px}
+    ol.tasks li:before{left:16px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="rule-top">The Estate &middot; Sixth Project &middot; Standing Report</div>
+  <h1>The Inquest</h1>
+  <span class="sub">CORONER &mdash; determines what the body was made of</span>
+  <div class="stamp">
+    <span>VERSION <b>0.1</b></span>
+    <span>FEATURE VECTOR <b>v4</b></span>
+    <span>CHECKS <b>300</b></span>
+    <span>HARNESSES <b>6</b></span>
+    <span>OPENED <b>2026-08-27</b></span>
+  </div>
+</header>
+
+<main>
+
+<nav class="toc">
+  <div class="lbl">Contents</div>
+  <ol>
+    <li><a href="#what"><span class="n">I</span>What the software is</a></li>
+    <li><a href="#layers"><span class="n">II</span>The three layers</a></li>
+    <li><a href="#measures"><span class="n">III</span>What it measures</a></li>
+    <li><a href="#build"><span class="n">IV</span>The build record</a></li>
+    <li><a href="#loop"><span class="n">IV&middot;b</span>The closed loop</a></li>
+    <li><a href="#honest"><span class="n">V</span>The honest calibration</a></li>
+    <li><a href="#estate"><span class="n">VI</span>Connectivity: the estate</a></li>
+    <li><a href="#record"><span class="n">VI&middot;b</span>The record as a surface</a></li>
+    <li><a href="#world"><span class="n">VII</span>Connectivity: the world</a></li>
+    <li><a href="#project"><span class="n">VIII</span>Projection</a></li>
+    <li><a href="#round1"><span class="n">VIII&middot;b</span>The first work round</a></li>
+    <li><a href="#ben"><span class="n">IX</span>Five tasks for Ben</a></li>
+    <li><a href="#solo"><span class="n">X</span>Twenty solo tasks</a></li>
+    <li><a href="#dreams"><span class="n">XI</span>Five dreams</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ I -->
+<section id="what">
+  <h2><span class="num">I</span>What the software is</h2>
+  <div class="h2sub">A machine that listens to a recording, says what kind of thing made the sound, and hands the body to the instrument best equipped to raise it again.</div>
+
+  <p class="lede">CORONER is the sixth member of the audio estate and the first that <em class="q">listens</em> instead of speaking. AUTOPSY shapes, RIGOR squeezes, CASKET seals, S&Eacute;ANCE dresses a voice, NECROPHONE and PALLBEARER make sound from nothing. CORONER takes sound apart.</p>
+
+  <p>You give it an audio file. It measures thirty-three properties of that file &mdash; how steadily the pitch is held, whether the partials stretch the way a stiff string's do, how much noise sits under the tone, how the energy arrived and whether anything is still putting energy in. From those measurements it reaches a verdict about what kind of source produced the sound. Then it writes a routing slip: which instrument in the estate should take this, which of its engines, and a starting patch built from the numbers it just measured.</p>
+
+  <p>Click the button on that slip and NECROPHONE opens with the patch already loaded. That handoff reuses NECROPHONE's own share-link format, so <strong>nothing in NECROPHONE had to change</strong> for CORONER to exist. It can also emit a <strong>pack</strong> with the sample inside it, which is the handoff that actually works &mdash; a URL cannot hold audio, and the patch is measured <em>from</em> audio.</p>
+
+  <div class="pull">
+    Every other program in this estate makes sound. This one takes sound apart, writes down what it found, and says where the body goes.
+    <span class="who">The one-sentence version</span>
+  </div>
+
+  <h3>What it is not</h3>
+  <p>It is not a transcription tool &mdash; it does not write out the notes. It is not a stem separator &mdash; it cannot pull a bass line out of a mix. It is not a sound-matching engine &mdash; it does not yet reproduce the sound you gave it, only characterise it and suggest a starting point. Each of those is a real thing it could become, and each has a place in the roadmap below. None of them is what it does today.</p>
+
+  <div class="card accent-blood">
+    <p style="margin:0"><strong>And it is version 0.1.</strong> The classifier has been proved against synthesized bodies whose nature is known by construction, and measured against thirteen real files. It has not been proved against a room, a microphone, or a mix bus &mdash; and each of those changes the very measurements it relies on. Sections IV&middot;b and V are the honest accounting of what that means, and they are the two most important sections in this report.</p>
+  </div>
+</section>
+
+<!-- ============================================================ II -->
+<section id="layers">
+  <h2><span class="num">II</span>The three layers</h2>
+  <div class="h2sub">The separation is the entire architectural argument.</div>
+
+  <p>CORONER is built in three layers that do not reach into each other. This is not tidiness &mdash; it is the answer to the question Ben actually asked, which was <em class="q">what has the most room to grow, and to use AI later?</em></p>
+
+  <p>The insight is that the choice was never <strong>machine learning instead of signal processing</strong>. Both approaches need the same thing first: a layer that turns audio into meaningful numbers. Build that layer well and it becomes the <strong>training input</strong> for a model later, rather than work thrown away.</p>
+
+  <figure>
+    <div class="figtitle">Figure 1 &mdash; The three layers, and the swap point</div>
+    <div class="svgwrap">
+      <svg viewBox="0 0 940 400" role="img" aria-label="Diagram of CORONER's three layers with a replaceable middle layer">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#c9a227"/>
+          </marker>
+          <marker id="arD" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#7d57a4"/>
+          </marker>
+        </defs>
+
+        <!-- audio in -->
+        <rect x="10" y="150" width="120" height="72" rx="3" fill="#15121c" stroke="#3a3244"/>
+        <text x="70" y="182" text-anchor="middle" fill="#d8cfb8" font-size="15">audio file</text>
+        <text x="70" y="202" text-anchor="middle" fill="#635b4c" font-size="11.5">wav · aiff · mp3</text>
+        <line x1="132" y1="186" x2="182" y2="186" stroke="#c9a227" stroke-width="1.6" marker-end="url(#ar)"/>
+
+        <!-- layer 1 -->
+        <rect x="186" y="118" width="196" height="136" rx="3" fill="#0f0d14" stroke="#c9a227" stroke-width="1.4"/>
+        <text x="284" y="146" text-anchor="middle" fill="#c9a227" font-size="10.5" letter-spacing="2.6">LAYER 1</text>
+        <text x="284" y="172" text-anchor="middle" fill="#d8cfb8" font-size="17">THE EXAMINATION</text>
+        <text x="284" y="196" text-anchor="middle" fill="#9a917f" font-size="12.5">pure measurement</text>
+        <text x="284" y="216" text-anchor="middle" fill="#9a917f" font-size="12.5">33 features · no opinions</text>
+        <text x="284" y="238" text-anchor="middle" fill="#635b4c" font-size="11.5">versioned, fixed-order vector</text>
+        <line x1="384" y1="186" x2="434" y2="186" stroke="#c9a227" stroke-width="1.6" marker-end="url(#ar)"/>
+
+        <!-- layer 2 : the swap point -->
+        <rect x="438" y="118" width="196" height="136" rx="3" fill="#15121c" stroke="#7d57a4" stroke-width="1.6" stroke-dasharray="6 4"/>
+        <text x="536" y="146" text-anchor="middle" fill="#a37cd0" font-size="10.5" letter-spacing="2.6">LAYER 2 · SWAPPABLE</text>
+        <text x="536" y="172" text-anchor="middle" fill="#d8cfb8" font-size="17">THE VERDICT</text>
+        <text x="536" y="196" text-anchor="middle" fill="#9a917f" font-size="12.5">an opinion about</text>
+        <text x="536" y="214" text-anchor="middle" fill="#9a917f" font-size="12.5">those measurements</text>
+        <text x="536" y="238" text-anchor="middle" fill="#635b4c" font-size="11.5">setVerdictEngine()</text>
+        <line x1="636" y1="186" x2="686" y2="186" stroke="#c9a227" stroke-width="1.6" marker-end="url(#ar)"/>
+
+        <!-- layer 3 -->
+        <rect x="690" y="118" width="196" height="136" rx="3" fill="#0f0d14" stroke="#2d8a72" stroke-width="1.4"/>
+        <text x="788" y="146" text-anchor="middle" fill="#45b899" font-size="10.5" letter-spacing="2.6">LAYER 3</text>
+        <text x="788" y="172" text-anchor="middle" fill="#d8cfb8" font-size="17">THE ROUTING SLIP</text>
+        <text x="788" y="196" text-anchor="middle" fill="#9a917f" font-size="12.5">target · engine · patch</text>
+        <text x="788" y="218" text-anchor="middle" fill="#9a917f" font-size="12.5">real parameter ids</text>
+        <text x="788" y="240" text-anchor="middle" fill="#635b4c" font-size="11.5">→ NECROPHONE / PALLBEARER</text>
+
+        <!-- today / tomorrow into layer 2 -->
+        <rect x="352" y="308" width="172" height="62" rx="3" fill="#0f0d14" stroke="#2a2431"/>
+        <text x="438" y="332" text-anchor="middle" fill="#d8cfb8" font-size="13.5">rule-based scorer</text>
+        <text x="438" y="352" text-anchor="middle" fill="#635b4c" font-size="11.5">today · transparent · shows working</text>
+
+        <rect x="552" y="308" width="196" height="62" rx="3" fill="#15121c" stroke="#7d57a4" stroke-dasharray="4 3"/>
+        <text x="650" y="332" text-anchor="middle" fill="#a37cd0" font-size="13.5">neural classifier</text>
+        <text x="650" y="352" text-anchor="middle" fill="#635b4c" font-size="11.5">later · same in, same out</text>
+
+        <path d="M470,306 L505,262" stroke="#7d57a4" stroke-width="1.4" fill="none" marker-end="url(#arD)"/>
+        <path d="M628,306 L575,262" stroke="#7d57a4" stroke-width="1.4" fill="none" stroke-dasharray="4 3" marker-end="url(#arD)"/>
+
+        <text x="470" y="392" text-anchor="middle" fill="#635b4c" font-size="11.5">layer 1 becomes its training input, not throwaway work</text>
+      </svg>
+    </div>
+    <figcaption><b>Only the middle box moves.</b> A neural verdict reads the same feature object and returns the same <code>{klass, confidence, evidence}</code> shape, so layer 1 keeps working and layer 3 never notices the swap. There is a test that proves the swap actually functions &mdash; a stub engine is installed, used, and released, and routing still works downstream of it. Anything that would make layer 2 hard to replace is a bug, not a shortcut.</figcaption>
+  </figure>
+
+  <p>CASKET's <code>chooseArrangement()</code>, written by a parallel session the same day, deliberately mirrors this same split &mdash; a thin replaceable function reading a features object. The pattern is now the estate's convention for anything that forms an opinion.</p>
+</section>
+
+<!-- ============================================================ III -->
+<section id="measures">
+  <h2><span class="num">III</span>What it measures</h2>
+  <div class="h2sub">Thirty-three features. Five of them carry most of the verdict.</div>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Feature</th><th>What it reads</th><th>Why it matters</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="n">f0jitter</td>
+          <td>Short-term pitch instability <em>within</em> notes, with vibrato and drift removed first.
+            <span class="sm">Reliable to about 30 cents; above that read it as "very unstable", not as a number.</span></td>
+          <td><strong>The strongest synthetic tell.</strong> An oscillator holds a pitch far more perfectly than a hand can.</td>
+        </tr>
+        <tr>
+          <td class="n">inharm<br>inharmFit</td>
+          <td>Stiffness, from <code>f&#8345; = n·f&#8320;·&radic;(1+Bn&sup2;)</code> &mdash; reported <em>with</em> the goodness of its own fit.
+            <span class="sm">Pitch and stiffness are solved together by least squares, because they cannot be solved in sequence.</span></td>
+          <td>Strings stretch; oscillators do not. The fit is required because unison detune imitates stiffness convincingly.</td>
+        </tr>
+        <tr>
+          <td class="n">noiseRatio</td>
+          <td>What is left after the harmonic series is removed.</td>
+          <td>Breath, bow and finger noise live here. Oscillators are suspiciously clean.</td>
+        </tr>
+        <tr>
+          <td class="n">attack<br>sustain<br>decayRate</td>
+          <td>How the energy arrived, and whether anything is still putting it in.</td>
+          <td>Separates struck from held &mdash; the single clearest division in the taxonomy.</td>
+        </tr>
+        <tr>
+          <td class="n">noteCount</td>
+          <td>How many separate held pitches were found.
+            <span class="sm">Every harmonic measurement comes from the longest of them, not from the whole file.</span></td>
+          <td>Added because real music is phrases, not single notes. See section IV.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>The other twenty-six</h3>
+  <p class="dim">Pitch confidence, vibrato rate and depth, harmonicity, odd/even balance, partial irregularity, spectral slope, brightness, timbral motion, rolloff, spectral flatness, flux, sub and air energy, tremolo rate and depth, onset density, crest factor, zero-crossing rate, voice estimate, duration, stereo width &mdash; each declared in a registry with its range, its unit, and a note saying what it means and where it lies.</p>
+
+  <div class="card accent-gold">
+    <p style="margin:0"><strong>Why a registry and not a plain object.</strong> A model needs to enumerate its own input vector, know each field's range, and fail loudly when the version it trained on stops matching the one it is handed. The vector's <em>order</em> is pinned by a test, because a reordered vector is read out of the wrong slots and fails silently &mdash; which is the worst way to fail.</p>
+  </div>
+</section>
+
+<!-- ============================================================ IV -->
+<section id="build">
+  <h2><span class="num">IV</span>The build record</h2>
+  <div class="h2sub">Where the faults came from, and what that says about testing audio software.</div>
+
+  <p>CORONER went from nothing to 168 checks in a single session. The interesting part is not the count &mdash; it is <strong>which method found which bug</strong>, because the three methods found completely different classes of fault and none of them could have found the others'.</p>
+
+  <figure>
+    <div class="figtitle">Figure 2 &mdash; Checks over the build, with what forced each jump</div>
+    <div class="svgwrap">
+      <svg viewBox="0 0 940 380" role="img" aria-label="Step chart of test count growing from 121 to 163 across the build">
+        <!-- grid -->
+        <g stroke="#1b1723" stroke-width="1">
+          <line x1="66" y1="300" x2="912" y2="300"/>
+          <line x1="66" y1="245" x2="912" y2="245"/>
+          <line x1="66" y1="190" x2="912" y2="190"/>
+          <line x1="66" y1="135" x2="912" y2="135"/>
+          <line x1="66" y1="80"  x2="912" y2="80"/>
+        </g>
+        <g fill="#635b4c" font-size="11" text-anchor="end">
+          <text x="56" y="304">120</text><text x="56" y="249">130</text>
+          <text x="56" y="194">140</text><text x="56" y="139">150</text>
+          <text x="56" y="84">160</text>
+        </g>
+
+        <!-- data: 121,125,128,136,144,151,155,156,160,163 -->
+        <!-- x: 96 -> 880 across 10 points, step ~87 -->
+        <polyline fill="none" stroke="#c9a227" stroke-width="2.4"
+          points="96,294 183,272 270,256 357,212 444,168 531,129 618,107 705,102 792,80 879,52"/>
+        <g fill="#c9a227">
+          <circle cx="96" cy="294" r="4.5"/><circle cx="183" cy="272" r="4.5"/>
+          <circle cx="270" cy="256" r="4.5"/><circle cx="357" cy="212" r="4.5"/>
+          <circle cx="444" cy="168" r="4.5"/><circle cx="531" cy="129" r="4.5"/>
+          <circle cx="618" cy="107" r="4.5"/><circle cx="705" cy="102" r="4.5"/>
+          <circle cx="792" cy="80" r="4.5"/><circle cx="879" cy="52" r="6.5" fill="#e3c15a"/>
+        </g>
+
+        <!-- phase bands -->
+        <rect x="80" y="330" width="200" height="22" fill="rgba(201,162,39,.14)" stroke="rgba(201,162,39,.4)"/>
+        <text x="180" y="345" text-anchor="middle" fill="#c9a227" font-size="10.5" letter-spacing="1.6">SYNTHESIZED HARNESS</text>
+        <rect x="288" y="330" width="200" height="22" fill="rgba(142,34,50,.16)" stroke="rgba(142,34,50,.45)"/>
+        <text x="388" y="345" text-anchor="middle" fill="#c0405a" font-size="10.5" letter-spacing="1.6">REAL AUDIO</text>
+        <rect x="496" y="330" width="416" height="22" fill="rgba(125,87,164,.16)" stroke="rgba(125,87,164,.45)"/>
+        <text x="704" y="345" text-anchor="middle" fill="#a37cd0" font-size="10.5" letter-spacing="1.6">MUTATION TESTING</text>
+
+        <!-- callouts -->
+        <g font-size="11" fill="#9a917f">
+          <text x="96" y="316" text-anchor="middle">121</text>
+          <text x="357" y="232" text-anchor="middle">136</text>
+          <text x="444" y="188" text-anchor="middle">144</text>
+          <text x="618" y="127" text-anchor="middle">155</text>
+          <text x="879" y="38" text-anchor="middle" fill="#e3c15a" font-size="13">168</text>
+        </g>
+        <g font-size="11.5" fill="#635b4c">
+          <text x="270" y="240" text-anchor="middle">first run: 5 failures</text>
+          <text x="452" y="150" text-anchor="middle">detune confound gated</text>
+          <text x="690" y="90" text-anchor="middle">phrases, glides, monotonicity, the ceiling</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>The line never moves without a reason. Every jump is a fault found and a named check written to keep it found.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="figtitle">Figure 3 &mdash; Faults by how they were discovered</div>
+    <div class="svgwrap">
+      <svg viewBox="0 0 940 300" role="img" aria-label="Bar chart of faults found by discovery method">
+        <!-- axis -->
+        <line x1="250" y1="36" x2="250" y2="256" stroke="#2a2431"/>
+
+        <!-- bar 1 : harness -->
+        <rect x="250" y="48" width="150" height="46" fill="rgba(201,162,39,.55)" stroke="#c9a227"/>
+        <text x="240" y="68" text-anchor="end" fill="#d8cfb8" font-size="14">Synthesized harness</text>
+        <text x="240" y="86" text-anchor="end" fill="#635b4c" font-size="11.5">as written</text>
+        <text x="414" y="76" fill="#c9a227" font-size="15">5</text>
+        <text x="440" y="76" fill="#635b4c" font-size="12">3 code · 2 in the tests themselves</text>
+
+        <!-- bar 2 : real audio -->
+        <rect x="250" y="118" width="150" height="46" fill="rgba(142,34,50,.55)" stroke="#8e2232"/>
+        <text x="240" y="138" text-anchor="end" fill="#d8cfb8" font-size="14">Real audio</text>
+        <text x="240" y="156" text-anchor="end" fill="#635b4c" font-size="11.5">13 files</text>
+        <text x="414" y="146" fill="#c0405a" font-size="15">5</text>
+        <text x="440" y="146" fill="#635b4c" font-size="12">all invisible to a single-note harness</text>
+
+        <!-- bar 3 : mutation -->
+        <rect x="250" y="188" width="90" height="46" fill="rgba(125,87,164,.55)" stroke="#7d57a4"/>
+        <text x="240" y="208" text-anchor="end" fill="#d8cfb8" font-size="14">Mutation testing</text>
+        <text x="240" y="226" text-anchor="end" fill="#635b4c" font-size="11.5">19 sabotages</text>
+        <text x="354" y="216" fill="#a37cd0" font-size="15">3</text>
+        <text x="380" y="216" fill="#635b4c" font-size="12">that even the real files had not exposed</text>
+
+        <text x="250" y="282" fill="#635b4c" font-size="12">Plus one found by the CLOSED LOOP, run by a parallel session. All 19 sabotages are caught.</text>
+      </svg>
+    </div>
+    <figcaption><b>Three methods, three disjoint classes of fault.</b> The harness caught arithmetic. Real audio caught wrong <em>assumptions</em>. Mutation testing caught places where the code was right but nothing was watching it &mdash; including a measurement that ran backwards.</figcaption>
+  </figure>
+
+  <h3>The five that real audio caught</h3>
+  <div class="card accent-blood">
+    <p><strong>1 &middot; Jitter measured the melody, not the note.</strong> 128 checks were green. Then eight real NECROPHONE renders reported pitch jitter of <strong>250 to 435 cents</strong>. Nothing was unstable &mdash; it was reading the tune. Since near-zero jitter is the strongest synthetic tell, and no piece of music can show near-zero jitter under that definition, <strong>the tell could never fire on real material at all</strong>. An oscillator pad came back "Blown or Reed".</p>
+    <p><strong>2 &middot; The harmonic analysis averaged a whole phrase</strong>, so partial tracking found nothing and stiffness came back at exactly 0.00 for every file &mdash; bells included.</p>
+    <p><strong>3 &middot; Unison detune imitates string stiffness.</strong> A pad made of nothing but oscillators fitted B=3.09e&#8722;4 and was routed to the <em>physical</em> engine on the strength of it.</p>
+    <p><strong>4 &middot; A vibrato smears its own evidence.</strong> The same body fitted 0.495 with vibrato against 0.999 held still, and a genuine stiffness measurement was thrown away.</p>
+    <p style="margin-bottom:0"><strong>5 &middot; Pitch detection reports a stiff string sharp</strong> &mdash; 112 Hz for a 110 Hz body. That is real physics, not a coding error, but it poisons every deviation measured against it. Fixed by solving pitch and stiffness <em>together</em>: squaring the stiff-string relation makes it a straight line, and one least-squares fit returns both. Result: <strong>109.95 Hz and B=8.04e&#8722;4</strong> against a true 110 and 8.00e&#8722;4.</p>
+  </div>
+
+  <div class="pull">
+    A harness of single held notes cannot see what real audio does. Every synthesized body was one steady note, and the most confident wrong answer in the machine was invisible to all of them.
+    <span class="who">The lesson, now logged for every project in the estate</span>
+  </div>
+
+  <h3>The three that only sabotage caught</h3>
+  <p>Mutation testing means deliberately breaking the code and confirming a named check fails. Seventeen sabotages were run. Four survived the first pass &mdash; each one a place where the code was correct but nothing was guarding it:</p>
+  <div class="card accent-amethyst">
+    <p><strong>A steady tone fragmenting into six notes.</strong> Both onset thresholds were <em>relative</em>, and both collapse toward zero on steady material. The absolute floor was missing &mdash; which is the exact lesson already quoted in the comment directly above the bug.</p>
+    <p><strong>A jitter figure that ran backwards.</strong> 12.3, then 7.1, then 0.8 cents as real instability rose, because the segmenter was chopping a wobbling note into the moments it happened to be still. <strong>A measurement that runs backwards is worse than no measurement, because it will be believed.</strong></p>
+    <p style="margin-bottom:0"><strong>A glide fusing into one note</strong>, once the rule that a pitch change must persist was added &mdash; arriving at the original whole-file bug by a completely different road.</p>
+  </div>
+</section>
+
+<!-- ============================================================ IV b -->
+<section id="loop">
+  <h2><span class="num">IV &middot; b</span>The closed loop</h2>
+  <div class="h2sub">Render an engine, feed the audio back in, see where it routes. Two of eight came home &mdash; and the strongest tell in the machine was running backwards.</div>
+
+  <p>While CORONER was being built, <strong>a parallel session ran an experiment nobody had thought to run</strong>: render each of NECROPHONE's four engines headlessly, hand the resulting audio straight back to CORONER, and check whether it routes each one home. It is an obvious test in hindsight and it found something on its first run.</p>
+
+  <p class="dim">One caveat travels with the number. <code>chooseEngine</code> maps <em>material to a suitable engine</em>, not <em>audio to its origin</em> &mdash; so a stable harmonic wavetable render genuinely does suit The Revenant, and "2 of 8" is one measurement nobody had taken rather than six bugs. But two of the results are wrong under any reading.</p>
+
+  <figure>
+    <div class="figtitle">Figure 4 &mdash; The stiffness tell, inverted</div>
+    <div class="svgwrap">
+      <svg viewBox="0 0 940 300" role="img" aria-label="Chart showing the grain cloud measuring higher stiffness than the string model">
+        <line x1="300" y1="40" x2="300" y2="250" stroke="#2a2431"/>
+        <text x="300" y="28" text-anchor="middle" fill="#635b4c" font-size="11">measured stiffness B (log scale)</text>
+
+        <!-- plausible band -->
+        <rect x="300" y="40" width="330" height="210" fill="rgba(45,138,114,.07)"/>
+        <text x="465" y="268" text-anchor="middle" fill="#45b899" font-size="11">what a real string can produce</text>
+        <line x1="630" y1="40" x2="630" y2="250" stroke="#c9a227" stroke-width="1.6" stroke-dasharray="5 4"/>
+        <text x="700" y="34" fill="#c9a227" font-size="11">2e-3 — the new ceiling</text>
+
+        <!-- rows -->
+        <g font-size="13.5">
+          <text x="290" y="76" text-anchor="end" fill="#c0405a">Dust &amp; Ashes</text>
+          <text x="290" y="92" text-anchor="end" fill="#635b4c" font-size="11">the grain cloud</text>
+          <rect x="300" y="62" width="580" height="22" fill="rgba(142,34,50,.5)" stroke="#8e2232"/>
+          <text x="890" y="78" fill="#c0405a" font-size="12.5">9.22e-3 · fit 0.999</text>
+
+          <text x="290" y="142" text-anchor="end" fill="#45b899">Bone &amp; Sinew</text>
+          <text x="290" y="158" text-anchor="end" fill="#635b4c" font-size="11">the string model</text>
+          <rect x="300" y="128" width="14" height="22" fill="rgba(45,138,114,.5)" stroke="#2d8a72"/>
+          <text x="326" y="144" fill="#45b899" font-size="12.5">2.23e-6 · fit 0.131</text>
+
+          <text x="290" y="200" text-anchor="end" fill="#9a917f">a real piano bass string</text>
+          <rect x="300" y="186" width="290" height="22" fill="rgba(201,162,39,.35)" stroke="#c9a227"/>
+          <text x="602" y="202" fill="#c9a227" font-size="12.5">~1e-3</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption><b>The grain cloud fits the stiff-string law better than any actual string in the test set</b> &mdash; R&sup2;=0.999, the best fit measured anywhere &mdash; at a magnitude nine times the stiffest piano string in existence. It was routed to the physical engine. Meanwhile Bone &amp; Sinew, the actual string model, measured essentially zero and was sent to the granular one.</figcaption>
+  </figure>
+
+  <div class="card accent-blood">
+    <p><strong>My R&sup2; guard was powerless by construction.</strong> It refuses <em>poor</em> fits &mdash; and this fit was superb. I had guarded the shape and forgotten to guard the magnitude. The declared maximum for the feature was 0.01, five times stiffer than any real string, so an impossible answer never looked out of place in its own range.</p>
+    <p style="margin-bottom:0"><strong>Fixed in this session:</strong> a plausibility ceiling at 2e&#8722;3, the declared range corrected, the feature vector bumped to v3, and two checks added that prove the ceiling refuses an impossible body <em>on its value while its fit is still excellent</em> &mdash; and still passes a plausible string. Checks 163 &rarr; 168.</p>
+  </div>
+
+  <div class="pull">
+    A goodness of fit only tells you the shape is right. It says nothing about whether the magnitude is possible. Both need guarding, and only one of them was.
+    <span class="who">The general lesson, worth more than the fix</span>
+  </div>
+
+  <h3>The second wrong result is not CORONER's fault</h3>
+  <p><strong>Bone &amp; Sinew has no dispersion at all.</strong> The physical engine has exactly three parameters and the only allpass filters in NECROPHONE's core are in the reverb. It is a delay line with damping &mdash; an <em>ideal flexible string</em>, with zero stiffness by construction. CORONER measured it correctly. It measured a model that is physically incomplete in the one way that defines a struck string, and <strong>no internal harness could ever have said so</strong>, because NECROPHONE's regression only proves it sounds like itself.</p>
+
+  <p>Worse, that wrong verdict came back with <strong>confidence 0.94</strong> &mdash; a confident wrong answer, which is the exact failure mode this codebase's own notes warn about for jitter.</p>
+
+  <h3>Three faults in the seam itself</h3>
+  <div class="card accent-gold">
+    <p><strong>The param contract is clean, better than expected.</strong> All 19 ids CORONER can emit exist in NECROPHONE's real registry, every clamp matches its declared range exactly, both enum writes are legal, and a live slip round-tripped through NECROPHONE's real hash decoder dropped nothing.</p>
+    <p><strong>But there are two copies of one rule with no gate between them.</strong> CORONER hardcodes NECROPHONE's ranges; NECROPHONE has no idea CORONER exists; and its loader silently drops any renamed id. CORONER's own comment anticipates this and suggests a release check compare them. There is no such check.</p>
+    <p style="margin-bottom:0"><strong>And <code>corpseRoot</code> travels without the corpse.</strong> The share format cannot carry audio, so NECROPHONE opens on its default built-in source &mdash; meaning a root offset measured from Ben's recording lands on a completely different sample. The granular route needs the audio most and gets it least: Dust &amp; Ashes arrives with an engine selected and nothing to grind.</p>
+  </div>
+</section>
+
+<!-- ============================================================ V -->
+<section id="honest">
+  <h2><span class="num">V</span>The honest calibration</h2>
+  <div class="h2sub">Ten files. The classes overlap. No threshold here separates them cleanly.</div>
+
+  <p>This is the section that matters most, because it is the one that says what CORONER cannot currently do.</p>
+
+  <figure>
+    <div class="figtitle">Figure 5 &mdash; Pitch jitter: known oscillators against real recordings</div>
+    <div class="svgwrap">
+      <svg viewBox="0 0 940 300" role="img" aria-label="Strip plot showing jitter values for synthetic renders and real recordings overlapping">
+        <!-- axis -->
+        <line x1="70" y1="200" x2="880" y2="200" stroke="#3a3244" stroke-width="1.2"/>
+        <g stroke="#2a2431">
+          <line x1="70" y1="196" x2="70" y2="206"/><line x1="232" y1="196" x2="232" y2="206"/>
+          <line x1="394" y1="196" x2="394" y2="206"/><line x1="556" y1="196" x2="556" y2="206"/>
+          <line x1="718" y1="196" x2="718" y2="206"/><line x1="880" y1="196" x2="880" y2="206"/>
+        </g>
+        <g fill="#635b4c" font-size="11.5" text-anchor="middle">
+          <text x="70" y="222">0</text><text x="232" y="222">5</text><text x="394" y="222">10</text>
+          <text x="556" y="222">15</text><text x="718" y="222">20</text><text x="880" y="222">25</text>
+        </g>
+        <text x="475" y="248" text-anchor="middle" fill="#9a917f" font-size="12.5">measured pitch jitter (cents)</text>
+
+        <!-- thresholds -->
+        <line x1="297" y1="60" x2="297" y2="200" stroke="#c9a227" stroke-width="1.3" stroke-dasharray="5 4"/>
+        <text x="297" y="52" text-anchor="middle" fill="#c9a227" font-size="11">7c · strong synthetic</text>
+        <line x1="524" y1="60" x2="524" y2="200" stroke="#c9a227" stroke-width="1.1" stroke-dasharray="3 4" opacity=".7"/>
+        <text x="524" y="52" text-anchor="middle" fill="#8a7530" font-size="11">14c · weak</text>
+
+        <!-- overlap band -->
+        <rect x="167" y="96" width="422" height="76" fill="rgba(142,34,50,.13)" stroke="rgba(142,34,50,.4)" stroke-dasharray="4 3"/>
+        <text x="378" y="90" text-anchor="middle" fill="#c0405a" font-size="11.5" letter-spacing="1.4">THE OVERLAP — WHERE NO THRESHOLD HELPS</text>
+
+        <!-- synthetic renders (known oscillators) : 0.9, 2.5, 3.5, 4.9, 7.6, 23.4 -->
+        <g fill="#c9a227">
+          <circle cx="99" cy="122" r="7"/><circle cx="151" cy="122" r="7"/>
+          <circle cx="183" cy="122" r="7"/><circle cx="229" cy="122" r="7"/>
+          <circle cx="316" cy="122" r="7"/><circle cx="828" cy="122" r="7"/>
+        </g>
+        <text x="60" y="127" text-anchor="end" fill="#c9a227" font-size="12.5">NECROPHONE</text>
+        <text x="60" y="143" text-anchor="end" fill="#635b4c" font-size="11">all oscillators</text>
+
+        <!-- real recordings : 3.2, 12.0 -->
+        <g fill="#45b899">
+          <circle cx="174" cy="160" r="7"/><circle cx="459" cy="160" r="7"/>
+        </g>
+        <text x="60" y="165" text-anchor="end" fill="#45b899" font-size="12.5">Ben's mic</text>
+        <text x="60" y="181" text-anchor="end" fill="#635b4c" font-size="11">real recordings</text>
+
+        <text x="828" y="146" text-anchor="middle" fill="#635b4c" font-size="11">just_reliquary</text>
+        <text x="459" y="184" text-anchor="middle" fill="#635b4c" font-size="11">Test1b</text>
+      </svg>
+    </div>
+    <figcaption><b>Eight renders that are oscillators by construction span 0.9 to 23.4 cents. Two real recordings read 3.2 and 12.0.</b> Those ranges sit on top of each other. The thresholds at 7 and 14 cents are a correction to an obviously wrong earlier bar of 4 &mdash; which no real synthesizer could clear &mdash; and they are <em>not</em> a calibration. Ten files is enough to fix a mistake and nowhere near enough to draw a boundary. On real material, treat the synthetic call as a hint.</figcaption>
+  </figure>
+
+  <p>The stiffness measurement is in much better shape, because it has a gap to sit in rather than an overlap:</p>
+
+  <figure>
+    <div class="figtitle">Figure 6 &mdash; Stiffness fit quality: a real gap, and a threshold placed in the middle of it</div>
+    <div class="svgwrap">
+      <svg viewBox="0 0 940 250" role="img" aria-label="Scale showing R-squared fit values clustering below 0.6 and above 0.849 with the threshold at 0.75">
+        <line x1="70" y1="150" x2="880" y2="150" stroke="#3a3244" stroke-width="1.2"/>
+        <g fill="#635b4c" font-size="11.5" text-anchor="middle">
+          <text x="70" y="172">0.0</text><text x="232" y="172">0.2</text><text x="394" y="172">0.4</text>
+          <text x="556" y="172">0.6</text><text x="718" y="172">0.8</text><text x="880" y="172">1.0</text>
+        </g>
+        <text x="475" y="198" text-anchor="middle" fill="#9a917f" font-size="12.5">R&sup2; of the stiff-string fit</text>
+
+        <!-- the gap -->
+        <rect x="556" y="66" width="132" height="70" fill="rgba(45,138,114,.10)" stroke="rgba(45,138,114,.35)" stroke-dasharray="4 3"/>
+        <text x="622" y="60" text-anchor="middle" fill="#45b899" font-size="11" letter-spacing="1.2">THE GAP</text>
+
+        <!-- threshold -->
+        <line x1="677" y1="56" x2="677" y2="150" stroke="#c9a227" stroke-width="1.6"/>
+        <text x="677" y="44" text-anchor="middle" fill="#c9a227" font-size="12">0.75</text>
+
+        <!-- not stiff -->
+        <g fill="#c0405a">
+          <circle cx="96" cy="104" r="6.5"/><circle cx="102" cy="104" r="6.5"/>
+          <circle cx="205" cy="104" r="6.5"/><circle cx="407" cy="104" r="6.5"/>
+          <circle cx="540" cy="104" r="6.5"/><circle cx="556" cy="104" r="6.5"/>
+        </g>
+        <text x="300" y="130" text-anchor="middle" fill="#c0405a" font-size="12">detuned oscillators · jittery bodies · everything not a string</text>
+
+        <!-- genuinely stiff -->
+        <g fill="#45b899">
+          <circle cx="758" cy="104" r="6.5"/><circle cx="879" cy="104" r="6.5"/><circle cx="871" cy="104" r="6.5"/>
+        </g>
+        <text x="810" y="130" text-anchor="middle" fill="#45b899" font-size="12">genuine strings</text>
+        <text x="758" y="88" text-anchor="middle" fill="#635b4c" font-size="10.5">0.849</text>
+        <text x="876" y="88" text-anchor="middle" fill="#635b4c" font-size="10.5">0.999 / 1.000</text>
+      </svg>
+    </div>
+    <figcaption><b>The first bar tried was 0.85 &mdash; a real number from the data, and still the wrong place for it.</b> It sat directly on top of the 0.849 case and rejected a genuine string by a thousandth. A threshold resting on a sample will move the next time anything is measured; one placed in the middle of a gap will not.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ VI -->
+<section id="estate">
+  <h2><span class="num">VI</span>Connectivity &mdash; the estate</h2>
+  <div class="h2sub">Six programs, one shared maths library, and one seam still missing half of itself.</div>
+
+  <figure>
+    <div class="figtitle">Figure 7 &mdash; Where a body goes</div>
+    <div class="svgwrap">
+      <svg viewBox="0 0 940 470" role="img" aria-label="Map of CORONER's connections to the other estate projects">
+        <defs>
+          <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#c9a227"/></marker>
+          <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#8e2232"/></marker>
+        </defs>
+
+        <!-- CORONER -->
+        <rect x="366" y="24" width="208" height="76" rx="3" fill="#15121c" stroke="#c9a227" stroke-width="1.8"/>
+        <text x="470" y="54" text-anchor="middle" fill="#e3c15a" font-size="20" letter-spacing="2">CORONER</text>
+        <text x="470" y="76" text-anchor="middle" fill="#635b4c" font-size="11.5">it has the ears</text>
+        <text x="470" y="90" text-anchor="middle" fill="#635b4c" font-size="11">31 features · v2 vector</text>
+
+        <!-- shared NM -->
+        <rect x="30" y="40" width="150" height="48" rx="3" fill="#0f0d14" stroke="#2a2431"/>
+        <text x="105" y="60" text-anchor="middle" fill="#d8cfb8" font-size="13.5">shared/ NM</text>
+        <text x="105" y="78" text-anchor="middle" fill="#635b4c" font-size="11">portable transcendentals</text>
+        <line x1="182" y1="64" x2="362" y2="64" stroke="#3a3244" stroke-width="1.2" stroke-dasharray="4 3"/>
+        <text x="272" y="56" text-anchor="middle" fill="#635b4c" font-size="10.5">consumes</text>
+
+        <!-- ND deliberately not -->
+        <rect x="760" y="40" width="150" height="48" rx="3" fill="#0f0d14" stroke="#2a2431" stroke-dasharray="4 3"/>
+        <text x="835" y="60" text-anchor="middle" fill="#635b4c" font-size="13.5">shared/ ND</text>
+        <text x="835" y="78" text-anchor="middle" fill="#4a4438" font-size="11">deliberately NOT used</text>
+        <line x1="578" y1="64" x2="756" y2="64" stroke="#241f2c" stroke-width="1.2" stroke-dasharray="2 5"/>
+
+        <!-- routing fork -->
+        <path d="M430,102 L300,168" stroke="#c9a227" stroke-width="1.8" fill="none" marker-end="url(#a2)"/>
+        <path d="M510,102 L640,168" stroke="#c9a227" stroke-width="1.8" fill="none" marker-end="url(#a2)"/>
+        <path d="M470,102 L470,300" stroke="#8e2232" stroke-width="1.6" fill="none" stroke-dasharray="6 5" marker-end="url(#a3)"/>
+
+        <!-- NECROPHONE -->
+        <rect x="150" y="176" width="264" height="132" rx="3" fill="#0f0d14" stroke="#7d57a4" stroke-width="1.4"/>
+        <text x="282" y="202" text-anchor="middle" fill="#a37cd0" font-size="17" letter-spacing="1.6">NECROPHONE</text>
+        <text x="282" y="220" text-anchor="middle" fill="#635b4c" font-size="11">engine chosen from the measurements</text>
+        <g font-size="12" fill="#9a917f">
+          <text x="170" y="246">The Revenant</text>       <text x="394" y="246" text-anchor="end" fill="#635b4c">stable · harmonic</text>
+          <text x="170" y="266">Chorus of Breath</text>   <text x="394" y="266" text-anchor="end" fill="#635b4c">timbre moving</text>
+          <text x="170" y="286">Dust &amp; Ashes</text>   <text x="394" y="286" text-anchor="end" fill="#635b4c">flat · textural</text>
+          <text x="170" y="303">Bone &amp; Sinew</text>   <text x="394" y="303" text-anchor="end" fill="#635b4c">stiff · decaying</text>
+        </g>
+        <text x="282" y="330" text-anchor="middle" fill="#45b899" font-size="11.5">LIVE — patch arrives via its own #p= share link</text>
+
+        <!-- PALLBEARER -->
+        <rect x="530" y="176" width="264" height="98" rx="3" fill="#0f0d14" stroke="#2d8a72" stroke-width="1.4"/>
+        <text x="662" y="202" text-anchor="middle" fill="#45b899" font-size="17" letter-spacing="1.6">PALLBEARER</text>
+        <text x="662" y="224" text-anchor="middle" fill="#9a917f" font-size="12">low — <tspan fill="#d8cfb8">and physical</tspan></text>
+        <text x="662" y="244" text-anchor="middle" fill="#635b4c" font-size="11">style · stiffness · decay · tone</text>
+        <text x="662" y="264" text-anchor="middle" fill="#c9a227" font-size="11.5">LIVE — patch object, no link format yet</text>
+
+        <!-- CASKET -->
+        <rect x="366" y="312" width="208" height="92" rx="3" fill="#0f0d14" stroke="#8e2232" stroke-width="1.4" stroke-dasharray="5 4"/>
+        <text x="470" y="338" text-anchor="middle" fill="#c0405a" font-size="17" letter-spacing="1.6">CASKET</text>
+        <text x="470" y="358" text-anchor="middle" fill="#9a917f" font-size="12">intake() is built and gated</text>
+        <text x="470" y="376" text-anchor="middle" fill="#9a917f" font-size="12">CORONER does not send yet</text>
+        <text x="470" y="396" text-anchor="middle" fill="#8e2232" font-size="11">HALF A SEAM, PROVED AT v3 — §9 of the Interchange</text>
+
+        <text x="470" y="440" text-anchor="middle" fill="#635b4c" font-size="12">AUTOPSY · RIGOR · S&Eacute;ANCE — no relationship to CORONER today; the chain is the Underworld's business</text>
+      </svg>
+    </div>
+    <figcaption><b>The receiving end of the CASKET seam was built before the sending end, deliberately</b> &mdash; by a parallel session, the same day. Specifying and gating the consumer first means the producer has something proved to aim at, rather than two halves being guessed at once. <b>That decision paid out within hours:</b> when CORONER's feature vector jumped to v3, the version clause CASKET had written before it was needed caught the mismatch, warned, and kept working &mdash; on the first occasion it was ever needed.</figcaption>
+  </figure>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Project</th><th>What it is</th><th>Relationship to CORONER</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td class="n">NECROPHONE</td><td>Four-engine synthesizer<span class="sm">analog · wavetable · granular · physical</span></td><td>Primary target. Receives engine choice plus a starting patch &mdash; and now, via a <code>pack-1.0</code> document, <strong>the sample itself</strong>, so the corpse root lands on the material it was measured from and Dust &amp; Ashes arrives with something to grind. Param contract measured clean and now <strong>gated</strong>: every id, range, clamp literal and enum option checked against the real registry.<span class="sm">The codec is a byte-exact port, held to the real encoder by 38 checks.</span></td><td><span class="pill p-live">Live</span></td></tr>
+        <tr><td class="n">PALLBEARER</td><td>Physically modelled bass</td><td>Target for low <em>and physical</em> material. Receives a patch object; no link format exists yet.</td><td><span class="pill p-part">Partial</span></td></tr>
+        <tr><td class="n">CASKET</td><td>True-peak brickwall limiter</td><td>Its <code>intake()</code> reads seven CORONER features. The version gap opened at v3, was <strong>warned and survived</strong>, and has since been <strong>closed deliberately</strong> &mdash; <code>INTAKE_FEATURE_VERSION</code> is now 3, bumped only after checking that none of the seven fields appears in either change list. Its harness is 80 checks and green. CORONER still does not send.<span class="sm">The half that exists is proved and aligned. The half that is missing is a fork in <code>route()</code>.</span></td><td><span class="pill p-part">Half a seam, aligned</span></td></tr>
+        <tr><td class="n">shared/ NM</td><td>Portable transcendentals</td><td>Consumed. Every sine, cosine and log in the FFT goes through it.</td><td><span class="pill p-live">Live</span></td></tr>
+        <tr><td class="n">shared/ ND</td><td>The dynamics DNA</td><td><strong>Deliberately not consumed.</strong> CORONER measures dynamics; it does not impose them.</td><td><span class="pill p-none">By design</span></td></tr>
+        <tr><td class="n">AUTOPSY<br>RIGOR<br>S&Eacute;ANCE</td><td>EQ · compressor · vocal strip</td><td>No relationship today. A report could one day propose EQ moves or a compressor setting.</td><td><span class="pill p-none">Not built</span></td></tr>
+        <tr><td class="n">The Underworld</td><td>Masterbox's brain</td><td>Not wired. LAW 0 is one-way; a listener sits awkwardly against that and needs thought.</td><td><span class="pill p-none">Not built</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card accent-gold">
+    <p style="margin:0"><strong>The one routing rule worth stating plainly.</strong> Low pitch alone does <em>not</em> send a body to PALLBEARER. PALLBEARER models a physical instrument and only that. A clean synthetic sub asks it for a sound it has no mechanism for, while NECROPHONE's Revenant produces it directly. So the question at the fork is not <em>is it low</em> but <em>is it physical</em> &mdash; and there is a test pinning both halves so it cannot drift into being an accident.</p>
+  </div>
+</section>
+
+<!-- ============================================================ VI b -->
+<section id="record">
+  <h2><span class="num">VI &middot; b</span>The record as a surface</h2>
+  <div class="h2sub">The shared contract between these six programs is prose, and prose is the least-tested surface in the estate. It went stale twice in one day.</div>
+
+  <p><code>AUDIO_INTERCHANGE.md</code> is where the rules that cross project boundaries live. Nothing enforces those rules except the tests, and the tests only fail <em>after</em> someone has already broken something &mdash; so the document is load-bearing in a way source files are not. It is also, by construction, the one part of the estate no harness reads.</p>
+
+  <p>Updating it for CORONER produced a small, complete demonstration of why that matters.</p>
+
+  <figure>
+    <div class="figtitle">Figure 8 &mdash; One day, three versions, and what each one broke</div>
+    <div class="svgwrap">
+      <svg viewBox="0 0 940 250" role="img" aria-label="Timeline of the feature vector moving through three versions in one day">
+        <line x1="90" y1="120" x2="880" y2="120" stroke="#3a3244" stroke-width="1.4"/>
+
+        <!-- v1 -->
+        <circle cx="150" cy="120" r="9" fill="#0f0d14" stroke="#c9a227" stroke-width="2"/>
+        <text x="150" y="98" text-anchor="middle" fill="#c9a227" font-size="14">v1</text>
+        <text x="150" y="152" text-anchor="middle" fill="#9a917f" font-size="12">whole-file</text>
+        <text x="150" y="170" text-anchor="middle" fill="#635b4c" font-size="11">measurements</text>
+
+        <!-- v2 -->
+        <circle cx="450" cy="120" r="9" fill="#0f0d14" stroke="#c9a227" stroke-width="2"/>
+        <text x="450" y="98" text-anchor="middle" fill="#c9a227" font-size="14">v2</text>
+        <text x="450" y="152" text-anchor="middle" fill="#9a917f" font-size="12">segmented into notes</text>
+        <text x="450" y="170" text-anchor="middle" fill="#635b4c" font-size="11">nine features changed meaning</text>
+        <text x="450" y="192" text-anchor="middle" fill="#45b899" font-size="11">CASKET's intake written here</text>
+
+        <!-- v3 -->
+        <circle cx="800" cy="120" r="10" fill="#e3c15a"/>
+        <text x="800" y="98" text-anchor="middle" fill="#e3c15a" font-size="14">v3</text>
+        <text x="800" y="152" text-anchor="middle" fill="#9a917f" font-size="12">stiffness ceiling</text>
+        <text x="800" y="170" text-anchor="middle" fill="#635b4c" font-size="11">range and value both changed</text>
+        <text x="800" y="192" text-anchor="middle" fill="#c0405a" font-size="11">falsified a claim written at v2</text>
+
+        <!-- the claim that went stale -->
+        <path d="M450,108 Q625,52 795,104" stroke="#8e2232" stroke-width="1.4" fill="none" stroke-dasharray="5 4"/>
+        <text x="622" y="44" text-anchor="middle" fill="#c0405a" font-size="11.5">&ldquo;the two sessions agree&rdquo; — true when written, wrong within hours</text>
+
+        <text x="485" y="228" text-anchor="middle" fill="#635b4c" font-size="12">a compatibility claim pinned to a version number goes stale the moment that number moves</text>
+      </svg>
+    </div>
+    <figcaption>The feature vector moved twice on the day the project was created. That is the reason there is no C++ twin yet &mdash; a parity gate proves two implementations agree, and it is not worth building one against a moving target.</figcaption>
+  </figure>
+
+  <h3>Two things went stale, and both were mine</h3>
+  <div class="card accent-blood">
+    <p><strong>A count nobody re-derives.</strong> The log entry announcing CORONER said it had 30 features. It has 31. Nothing checked, because nothing reads prose.</p>
+    <p style="margin-bottom:0"><strong>A claim pinned to a version.</strong> The same entry verified compatibility with CASKET at <code>FEATURE_VERSION 2</code> and closed with <em class="q">"the two sessions agree"</em>. That was true when written and false a few hours later, falsified by my own change &mdash; in a document whose own opening section already warns that its numbers go stale within a day.</p>
+  </div>
+
+  <p><strong>Both were corrected in place rather than rewritten away.</strong> The original claim is still there, with a note recording that it was true when written, what falsified it, and what survived. Erasing it would have removed the only evidence that the failure mode is real &mdash; and this estate's convention is that historical measurements stay historical.</p>
+
+  <div class="pull">
+    A restated number is not a measured one. The estate learned that about parity counts and built a generator; the same lesson had not yet reached its prose.
+    <span class="who">Why the 168 in the dependency table is marked as hand-typed</span>
+  </div>
+
+  <h3>What the version bump proved about the seam</h3>
+  <div class="card accent-verd">
+    <p>CORONER's jump to v3 was the first real test of a clause CASKET wrote before it was needed: <em>a different version is reported in warnings, never refused</em>. It was verified by running it rather than by reading it &mdash; a live v3 report handed to <code>intake()</code>.</p>
+    <p>The mismatch was <strong>detected and warned</strong>, all seven reads were present and in range, a valid state came back, and <strong>CASKET's harness stayed green</strong>. Nothing had to change on either side. That is the argument for specifying a consumer before a producer exists, demonstrated instead of asserted.</p>
+    <p style="margin-bottom:0"><strong>And then it was closed properly.</strong> The note asked that the next person to move <code>INTAKE_FEATURE_VERSION</code> do it deliberately rather than to silence the warning. Within the hour, the parallel session did exactly that &mdash; checking first that none of the seven fields appears in the v1&rarr;v2 or v2&rarr;v3 change lists and that all seven still declare the same ranges, then bumping to 3 and adding an assertion so the stamp is <em>derived</em> and cannot drift again. Their own comment puts it better than mine did: <em class="q">a version stamp catching up with a verified fact rather than being waved through</em>. Harness 79 &rarr; 80.</p>
+  </div>
+
+  <h3>One gap this opened</h3>
+  <p><code>tools/counts.js</code> compiles and runs each project's gates and rewrites the figures in the interchange, so those numbers are <em>derived</em> and cannot go stale. <strong>It does not know CORONER exists.</strong> So the 168 in the dependency table is hand-typed, and will rot exactly the way the estate already documented hand-typed numbers rotting. It is the first thing in group five of the work below.</p>
+
+  <h3>And then this section went stale while it was being written</h3>
+
+  <div class="card accent-amethyst">
+    <p>Everything above was true when it was drafted. Between drafting and publishing, the parallel session read the note, verified the seam, moved <code>INTAKE_FEATURE_VERSION</code> to 3, and grew its harness from 79 checks to 80. CORONER has since reached <strong>v4</strong>, so the gap has reopened by one &mdash; and the clause caught that too, on the first attempt again. <strong>Three separate numbers in this section were wrong within the hour</strong>, and the live demonstration of a version mismatch that the section is built around had already been resolved by the time anyone could read about it.</p>
+    <p style="margin-bottom:0">The same session also audited §6 of the Interchange &mdash; the list of open questions that touch more than one project &mdash; and found <strong>three of its five answers were wrong</strong>. Not wrong when written. Wrong <em>now</em>, because the work had moved on somewhere else and the list had not. As their entry puts it: a question that has quietly been answered somewhere else is the most expensive kind of stale text in a document, because it reads as work still to do.</p>
+  </div>
+
+  <div class="pull">
+    A report on how documentation goes stale, going stale between two paragraphs of itself, is not an embarrassment. It is the strongest evidence the argument has.
+    <span class="who">The only honest way to end this section</span>
+  </div>
+
+  <p>Which is why <strong>the last item on the work list is to generate this page from the code rather than write it</strong>. Every figure here that came from a harness run is a hand-typed number waiting to rot. The estate already learned this once about parity counts and built <code>counts.js</code> in response; the lesson has not yet reached the prose, and this page is currently part of the problem it describes.</p>
+
+  <p class="dim">Everything in this section was re-checked against the code immediately before publishing. That is the only reason the numbers in it are right, and it is not a method that scales.</p>
+</section>
+
+<!-- ============================================================ VII -->
+<section id="world">
+  <h2><span class="num">VII</span>Connectivity &mdash; the world outside</h2>
+  <div class="h2sub">What exists elsewhere, what it does better, and where it could plug in.</div>
+
+  <p>CORONER is not competing with the research world &mdash; it is doing something none of these tools do, which is <strong>routing into instruments you own</strong>. But several of them would slot cleanly into the architecture, and knowing where is most of the roadmap.</p>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Tool</th><th>What it does</th><th>How it relates</th><th>Fit</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="n">Demucs</td>
+          <td>Separates a mix into stems &mdash; drums, bass, vocals, other.</td>
+          <td><strong>The single biggest accuracy win available.</strong> Recognition on an isolated stem is dramatically easier than on a mix. Would sit <em>in front of</em> layer 1, unchanged.</td>
+          <td><span class="pill p-out">Front end</span></td>
+        </tr>
+        <tr>
+          <td class="n">CLAP</td>
+          <td>Contrastive language-audio pretraining &mdash; zero-shot tagging from a text phrase.</td>
+          <td>Could become a second opinion in layer 2, handling queries a fixed class list cannot ("brushed snare", "tape-saturated Rhodes").</td>
+          <td><span class="pill p-out">Layer 2</span></td>
+        </tr>
+        <tr>
+          <td class="n">Basic Pitch<br>MT3 · MuScriptor</td>
+          <td>Polyphonic transcription to MIDI. MuScriptor is a recent open-weight multi-instrument model.</td>
+          <td>Turns "what is it" into "what did it play". Would make the routing slip carry a performance, not just a patch.</td>
+          <td><span class="pill p-out">Layer 3</span></td>
+        </tr>
+        <tr>
+          <td class="n">DDSP</td>
+          <td>A differentiable additive-plus-subtractive synth; a small net predicts harmonic amplitudes and noise per frame.</td>
+          <td>The modern analysis-resynthesis route. Convincing on sustained harmonic sources, weak on transients and dense polyphony.</td>
+          <td><span class="pill p-out">Resynthesis</span></td>
+        </tr>
+        <tr>
+          <td class="n">Synplant Genopatch</td>
+          <td>Breeds synth patches toward a target sample with a genetic algorithm.</td>
+          <td>The commercial proof that "point at a sound, get a patch" works. Constrained by its host synth's architecture &mdash; a constraint CORONER does not share, because it owns its targets.</td>
+          <td><span class="pill p-out">Prior art</span></td>
+        </tr>
+        <tr>
+          <td class="n">Audio Spectrogram<br>Transformer matching</td>
+          <td>Research models trained on millions of rendered patches to invert audio back to synth parameters.</td>
+          <td><strong>The blueprint for the endgame.</strong> Requires a synth you can render from headlessly at scale &mdash; the expensive prerequisite everyone else hacks around, and the one thing this estate already has.</td>
+          <td><span class="pill p-out">The prize</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pull">
+    Everyone else building sound-matching has to beg, buy or reverse-engineer a synth they can render millions of patches from. You wrote yours.
+    <span class="who">Why the inverse-parameter model is the thing worth aiming at</span>
+  </div>
+</section>
+
+<!-- ============================================================ VIII -->
+<section id="project">
+  <h2><span class="num">VIII</span>Projection</h2>
+  <div class="h2sub">Four versions, and what each one unlocks.</div>
+
+  <figure>
+    <div class="figtitle">Figure 9 &mdash; Capability projection, with honest confidence</div>
+    <div class="svgwrap">
+      <svg viewBox="0 0 940 400" role="img" aria-label="Projection chart of CORONER capability across four versions">
+        <g stroke="#1b1723" stroke-width="1">
+          <line x1="90" y1="310" x2="900" y2="310"/><line x1="90" y1="248" x2="900" y2="248"/>
+          <line x1="90" y1="186" x2="900" y2="186"/><line x1="90" y1="124" x2="900" y2="124"/>
+          <line x1="90" y1="62" x2="900" y2="62"/>
+        </g>
+        <g fill="#635b4c" font-size="11" text-anchor="end">
+          <text x="80" y="314">isolated notes</text><text x="80" y="252">clean stems</text>
+          <text x="80" y="190">real mixes</text><text x="80" y="128">matched patches</text>
+          <text x="80" y="66">the sound itself</text>
+        </g>
+
+        <!-- confidence band -->
+        <path d="M150,306 L370,250 L620,182 L860,110 L860,168 L620,242 L370,296 L150,318 Z"
+              fill="rgba(125,87,164,.13)" stroke="none"/>
+        <!-- main line -->
+        <polyline fill="none" stroke="#c9a227" stroke-width="2.6" points="150,312 370,272 620,210 860,138"/>
+        <circle cx="150" cy="312" r="7" fill="#e3c15a"/>
+        <circle cx="370" cy="272" r="6" fill="#0f0d14" stroke="#c9a227" stroke-width="2"/>
+        <circle cx="620" cy="210" r="6" fill="#0f0d14" stroke="#c9a227" stroke-width="2"/>
+        <circle cx="860" cy="138" r="6" fill="#0f0d14" stroke="#7d57a4" stroke-width="2"/>
+
+        <!-- version labels -->
+        <g text-anchor="middle">
+          <text x="150" y="348" fill="#e3c15a" font-size="14">v0.1</text>
+          <text x="150" y="366" fill="#635b4c" font-size="11">today · rules</text>
+          <text x="150" y="380" fill="#635b4c" font-size="11">10-file calibration</text>
+
+          <text x="370" y="348" fill="#c9a227" font-size="14">v0.2</text>
+          <text x="370" y="366" fill="#635b4c" font-size="11">separation</text>
+          <text x="370" y="380" fill="#635b4c" font-size="11">+ labelled set</text>
+
+          <text x="620" y="348" fill="#c9a227" font-size="14">v0.3</text>
+          <text x="620" y="366" fill="#635b4c" font-size="11">neural verdict</text>
+          <text x="620" y="380" fill="#635b4c" font-size="11">layer 2 swapped</text>
+
+          <text x="860" y="348" fill="#a37cd0" font-size="14">v1.0</text>
+          <text x="860" y="366" fill="#635b4c" font-size="11">inverse model</text>
+          <text x="860" y="380" fill="#635b4c" font-size="11">true matching</text>
+        </g>
+
+        <text x="500" y="38" text-anchor="middle" fill="#635b4c" font-size="12">shaded band = honest uncertainty; it widens because nothing past v0.2 has been attempted</text>
+      </svg>
+    </div>
+    <figcaption>Only the leftmost point is measured. Everything to the right of it is a plan, and the band widens accordingly &mdash; a projection drawn as a confident line would be the same kind of lie as a threshold resting on one sample.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ VIII b -->
+<section id="round1">
+  <h2><span class="num">VIII &middot; b</span>The first work round</h2>
+  <div class="h2sub">Five tasks, three more confidently-wrong answers closed, and one measurement that was built and then deliberately not used.</div>
+
+  <p>The first five items from the work list below are done. The harness went from 173 checks in one file to <strong>300 across six</strong>. Two of the five found faults that nothing else had — which is the same pattern as the build itself, and the reason each of them became a permanent gate rather than a one-off run.</p>
+
+  <figure>
+    <div class="figtitle">Figure 10 &mdash; Six harnesses, and what each one is watching</div>
+    <div class="svgwrap">
+      <svg viewBox="0 0 940 300" role="img" aria-label="Bar chart of the six CORONER harnesses and their check counts">
+        <line x1="250" y1="30" x2="250" y2="266" stroke="#2a2431"/>
+        <g font-size="13.5">
+          <text x="240" y="52" text-anchor="end" fill="#d8cfb8">the examination</text>
+          <rect x="250" y="36" width="520" height="26" fill="rgba(201,162,39,.5)" stroke="#c9a227"/>
+          <text x="784" y="54" fill="#c9a227" font-size="14">173</text>
+
+          <text x="240" y="96" text-anchor="end" fill="#d8cfb8">the pack codec</text>
+          <rect x="250" y="80" width="114" height="26" fill="rgba(45,138,114,.5)" stroke="#2d8a72"/>
+          <text x="378" y="98" fill="#45b899" font-size="14">38</text>
+          <text x="410" y="98" fill="#635b4c" font-size="11.5">byte-exact against the real encoder</text>
+
+          <text x="240" y="140" text-anchor="end" fill="#d8cfb8">the closed loop</text>
+          <rect x="250" y="124" width="69" height="26" fill="rgba(142,34,50,.5)" stroke="#8e2232"/>
+          <text x="333" y="142" fill="#c0405a" font-size="14">23</text>
+          <text x="365" y="142" fill="#635b4c" font-size="11.5">found two faults on its first run</text>
+
+          <text x="240" y="184" text-anchor="end" fill="#d8cfb8">the param contract</text>
+          <rect x="250" y="168" width="51" height="26" fill="rgba(125,87,164,.5)" stroke="#7d57a4"/>
+          <text x="315" y="186" fill="#a37cd0" font-size="14">17</text>
+          <text x="347" y="186" fill="#635b4c" font-size="11.5">two copies of one rule, finally held together</text>
+
+          <text x="240" y="228" text-anchor="end" fill="#d8cfb8">the root detector</text>
+          <rect x="250" y="212" width="87" height="26" fill="rgba(201,162,39,.5)" stroke="#c9a227"/>
+          <text x="351" y="230" fill="#c9a227" font-size="14">29</text>
+          <text x="383" y="230" fill="#635b4c" font-size="11.5">measured against the incumbent, not asserted</text>
+
+          <text x="240" y="272" text-anchor="end" fill="#d8cfb8">pluck position</text>
+          <rect x="250" y="256" width="60" height="26" fill="rgba(45,138,114,.5)" stroke="#2d8a72"/>
+          <text x="324" y="274" fill="#45b899" font-size="14">20</text>
+          <text x="356" y="274" fill="#635b4c" font-size="11.5">built, and deliberately not connected</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>300 checks. The three smallest files are the ones that cross a project boundary, which is where this estate's faults have always lived.</figcaption>
+  </figure>
+
+  <h3>The pack carries the body</h3>
+  <p>The routing slip can now emit a <code>pack-1.0</code> document <strong>with the sample inside it</strong>. Both remaining seam faults close at once: the corpse root no longer travels without the corpse, and Dust &amp; Ashes no longer arrives with an engine selected and nothing to grind. It also opens in the DAW.</p>
+  <p class="dim">The codec is reproduced rather than imported, so CORONER stays portable — which is only safe because it is gated. The harness lifts NECROPHONE's real encoder and decoder out of the HTML and proves byte-for-byte agreement across sixteen cases, including the asymmetric i16 scale that is the most copied-wrong line in any audio codec. One check asserts that a <em>tidied</em> symmetric scale would disagree, so a future simplification cannot pass quietly.</p>
+
+  <h3>⚠ The closed loop found two more things on its first run</h3>
+
+  <div class="card accent-blood">
+    <p><strong><code>snap()</code> is not optional, and omitting it fails silently.</strong> Setting parameters writes <em>targets</em>; a voice is built from the smoothed <em>current</em> values, and those only advance inside a render. So a note triggered before the first render is built from defaults — whatever you set.</p>
+    <p>Measured: <strong>without it, all four NECROPHONE engines rendered byte-identically.</strong> Not approximately. The harness was measuring the default patch four times and labelling the results with four engine names, and every assertion passed.</p>
+    <p style="margin-bottom:0">This matters well beyond one test. Anything that renders NECROPHONE offline must call it — and <strong>the training-corpus renderer is the one that counts</strong>, where the mistake would poison a million samples and every one of them would look fine.</p>
+  </div>
+
+  <div class="card accent-blood" style="margin-top:16px">
+    <p><strong>A correct measurement was being thrown away by a denominator.</strong> Pitch confidence was voiced frames over <em>all</em> frames, silence included — which structurally punishes exactly the sounds that decay, because a fast-decaying note is mostly tail.</p>
+    <p style="margin-bottom:0">On a real string render the pitch was found and it was <em>right</em> — 195.7 Hz against a G3 at 195.998 — then fell below the confidence bar, dropped through to the unpitched branch, and came back as <strong>"Percussive" at 94%</strong>. That is the confidently-wrong verdict this report already flagged, and this was its cause. Silence is not a failure to find a pitch.</p>
+  </div>
+
+  <h3>A root detector, measured rather than claimed</h3>
+  <p>CORONER now exposes a detector built for NECROPHONE's job, and the harness lifts NECROPHONE's real one and runs both on bodies whose pitch is known by construction.</p>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th></th><th>Answered</th><th>Worst error</th><th>Clear wins</th></tr></thead>
+      <tbody>
+        <tr><td class="n">CORONER</td><td class="n">8 / 8</td><td class="n">3 cents</td><td class="n">5</td></tr>
+        <tr><td class="n">the incumbent</td><td class="n">7 / 8</td><td class="n">2391 cents</td><td class="n">0</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The stiff-string claim made earlier in this report is now confirmed to the cent: <strong>109.88 Hz against 111.95</strong> on a 110 Hz body — 1.9 cents versus 30.4.</p>
+
+  <div class="pull">
+    A chord does not make a pitch detector fail. It makes one succeed, at a frequency that is not there.
+    <span class="who">The phantom subharmonic</span>
+  </div>
+
+  <p>Handed three notes at once, CORONER returned <strong>53.9 Hz</strong> with full confidence, and the incumbent returned 55.1 — a period four times too long fits all three at once. Counting extra spectral peaks does not catch it: the voice estimate read <strong>1</strong>, because once you accept the subharmonic, every one of those notes <em>is</em> a harmonic of it. The tell turned out to be physical and simple — <em>is there any energy at the pitch it claims?</em> Real notes measure 0.26 to 1.00, including one with a deliberately weak fundamental. Phantoms measure 0.0003 and 0.0000.</p>
+
+  <p class="dim">Nothing in NECROPHONE was changed. This measures a candidate; whether to swap detectors is a separate decision with its own risk, and it is Ben's.</p>
+
+  <h3>And one measurement that was built, then deliberately not used</h3>
+
+  <div class="card accent-amethyst">
+    <p>Pluck position <em>is</em> recoverable from the comb of missing harmonics, and it now is. It is <strong>not</strong> written into the PALLBEARER patch, and that refusal is the finding rather than a shortfall.</p>
+    <p>Swept across positions and partial counts, the error is not a clean function of how much comb is visible. <strong>A comb at p shares half its nulls with one at p/2</strong>, so when only some nulls fall in range, two positions explain the same evidence and the fit picks whichever noise favours. One position fails at 12 partials; another fails at 32. That is an identifiability problem, not a tuning problem — a bar strict enough to fix one still lets the other through.</p>
+    <p style="margin-bottom:0">So the estimator was made <em>strict</em> rather than <em>correct</em>: it answers 6 of 9, and <strong>all 6 answers are within 0.03</strong>. Reporting a measurement and acting on one are different bars, and this clears only the first. PALLBEARER's importer cannot report — it returns a complete, plausible patch built from defaults and says nothing — so a value right two times in three would arrive, be accepted, and move the whole character of the sound in silence.</p>
+  </div>
+
+  <p>The earlier decision to decline was right. The only thing that changed is that the decline is now backed by a measurement instead of an instinct — <strong>which is the whole point of having built it.</strong></p>
+
+  <div class="card accent-gold" style="margin-top:16px">
+    <p style="margin:0"><strong>One guard rail worth naming.</strong> PALLBEARER's own seam document warns that string coupling can self-oscillate, and that the slip is safe today <em>by omission rather than by design</em> — predicting that a stiffness measurement is exactly what would tempt someone to add it. CORONER now measures stiffness <em>and</em> pluck position, which is precisely the pair that makes coupling look like the obvious third. A test now fails the moment anyone adds it. Fix the oscillation first, then emit it, in that order.</p>
+  </div>
+</section>
+
+<!-- ============================================================ IX -->
+<section id="ben">
+  <h2><span class="num">IX</span>Five tasks for Ben</h2>
+  <div class="h2sub">Things that need your ears, your judgement, or your permission.</div>
+
+  <ol class="tasks ben">
+    <li>
+      <span class="t">Build the labelled set &mdash; twenty to thirty of your own recordings</span>
+      <span class="d">This is the one thing that unblocks everything else, and only you can do it. Record or gather files where <em>you</em> know the answer: voice, piano, a plucked string, a synth pad, a drum, something from a finished mix. Run each through CORONER and note where it disagrees with you. Ten files gave me a threshold correction; thirty labelled files give a real boundary, and a few hundred make a trainable model possible.</span>
+      <span class="tag">Unblocks v0.2 and v0.3</span>
+    </li>
+    <li>
+      <span class="t">Do a listening session on the routed patch &mdash; and settle Bone &amp; Sinew</span>
+      <span class="d">Your ears have caught things in CASKET, S&Eacute;ANCE and NECROPHONE that no test could see. Two questions this time. First: point CORONER at a sample, take the patch it hands NECROPHONE, and judge whether the starting point is <em>useful</em> &mdash; a verdict can be right while the patch it generates is musically wrong, and no assertion I write will notice.
+      <br><br>Second, and more interesting: <strong>play Bone &amp; Sinew and tell me whether it sounds like a struck string to you.</strong> The closed loop found it has no dispersion whatsoever &mdash; it is an ideal flexible string, with zero stiffness by construction, showing less string evidence than a detuned sawtooth. Adding dispersion is an R14 item, and R14 re-records regression baselines that have held for a hundred items, so it does not start without your explicit yes.</span>
+      <span class="tag">Your ears · and one R14 go/no-go</span>
+    </li>
+    <li>
+      <span class="t">Decide the Python question</span>
+      <span class="d">Separation and any neural verdict mean Python, PyTorch and model weights on your Mac &mdash; and that breaks the estate's convention of portable, dependency-free cores with C++ twins. There is a clean answer available: keep CORONER's core pure and put the heavy machinery in an optional sidecar that only runs when asked. But it is your estate and your rule, so it is your call to make before I build toward it.</span>
+      <span class="tag">Architectural, needs your yes</span>
+    </li>
+    <li>
+      <span class="t">Approve the training-corpus render</span>
+      <span class="d">The inverse-parameter model needs hundreds of thousands of (parameters &rarr; audio) pairs rendered headlessly from NECROPHONE and PALLBEARER. That is a large compute job on your machine and a lot of disk. It is also the step that nobody else building this can take, because they do not own their synths. Say when, and how much disk I may use.</span>
+      <span class="tag">Gates the endgame</span>
+    </li>
+    <li>
+      <span class="t">Push CORONER, and let CI gate it</span>
+      <span class="d">Right now the harness only ever runs where I run it &mdash; on aarch64, on whatever Node version this sandbox has. The estate has already been bitten twice by that exact blindness: the <code>M_PI</code> break and the Node 20 <code>navigator</code> failure. Until CORONER's 168 checks have run on the x86-64 runners, none of the green in this report speaks for your machines.</span>
+      <span class="tag">One push</span>
+    </li>
+  </ol>
+</section>
+
+<!-- ============================================================ X -->
+<section id="solo">
+  <h2><span class="num">X</span>Twenty solo tasks</h2>
+  <div class="h2sub">Work I can do without you, in the order I would do it.</div>
+
+  <div class="grouphead">Done in the first round &mdash; see section VIII&middot;b</div>
+  <div class="card" style="padding:18px 22px;margin-bottom:26px">
+    <p style="margin:0;color:var(--dim);font-size:14.5px;line-height:1.7">
+      <span style="color:var(--verd2)">&#10003;</span> <strong>Send a pack, not a URL</strong> &mdash; the sample travels with the patch; both seam faults closed.<br>
+      <span style="color:var(--verd2)">&#10003;</span> <strong>Make the closed loop a permanent harness</strong> &mdash; found two more faults on its first run.<br>
+      <span style="color:var(--verd2)">&#10003;</span> <strong>Gate NECROPHONE's parameter ranges</strong> &mdash; every id, clamp and enum, checked against the real registry.<br>
+      <span style="color:var(--verd2)">&#10003;</span> <strong>A root detector</strong> &mdash; 8/8 within 3 cents, against an incumbent whose worst is 2391.<br>
+      <span style="color:var(--verd2)">&#10003;</span> <strong>Measure pluck position</strong> &mdash; built, gated, and deliberately not routed on.
+    </p>
+  </div>
+
+  <div class="grouphead">First &mdash; what the round left open</div>
+  <ol class="tasks">
+    <li><span class="t">Resolve the pluck-position ambiguity, or leave it reported</span>
+        <span class="d">A comb at p shares half its nulls with one at p/2, and no threshold separates them. Two honest routes: measure the DECAY of each partial as well as its amplitude, since a null in the excitation behaves differently from a node in the pickup; or accept that the feature is reported and never routed on. Do not connect it to PALLBEARER until one of those is settled &mdash; its importer cannot report, so a wrong value arrives in silence.</span></li>
+    <li><span class="t">Fix PALLBEARER's string-coupling oscillation, then emit <code>couple</code></span>
+        <span class="d">In that order. The slip is safe today by omission, and CORONER now measures exactly the pair of things that makes coupling look like the obvious next parameter. A test holds the line, but a test is a reminder rather than a fix.</span></li>
+    <li><span class="t">Teach the closed loop to reproduce the original inverted-stiffness condition</span>
+        <span class="d">The grain-cloud assertion currently passes because the fit is poor, not because the plausibility ceiling fires &mdash; the render settings that produced B=9.22e-3 at R&sup2;=0.999 could not be reproduced. Until they are, that gate is holding a door that is already shut. The ceiling's real gate is in the main harness; this one should be honest or made real.</span></li>
+    <li><span class="t">Give PALLBEARER a hash reader</span>
+        <span class="d">Its seam document is blunt about this: the promise of clicking through to either instrument is true for one of the two names. PALLBEARER has no <code>#p=</code> reader at all, and its importer is already the right shape for one &mdash; delta-from-defaults is exactly what a merge-over-defaults sanitiser wants.</span></li>
+    <li><span class="t">Add a spectrogram and pitch-track view to the test bed</span>
+        <span class="d">Right now the report is numbers. Seeing the segmentation drawn over the pitch track is how a bad note split gets caught in one glance instead of one debugging session &mdash; and segmentation is now four interacting rules deep.</span></li>
+  </ol>
+
+  <div class="grouphead">Second &mdash; finish the plumbing</div>
+  <ol class="tasks" start="6">
+    <li><span class="t">Give PALLBEARER a share-link format</span>
+        <span class="d">NECROPHONE opens with a patch; PALLBEARER hands you JSON to paste. It should have the same one-click handoff, built the same way &mdash; in PALLBEARER, so CORONER stays portable.</span></li>
+    <li><span class="t">Send to CASKET and close the seam</span>
+        <span class="d">Its <code>intake()</code> is built, gated, and has now survived <em>two</em> version bumps it was not written for &mdash; warning and continuing each time while its own 80-check harness stayed green. <strong>Only the sending half is missing.</strong> Add a mastering fork to <code>route()</code>, respect the rules about what a report may never set, and write the log entry. This remains the shortest path from "half a seam" to a whole one anywhere on this list.</span></li>
+    <li><span class="t">Add a spectrogram and pitch-track view to the test bed</span>
+        <span class="d">Right now the report is numbers. Seeing the segmentation drawn over the pitch track is how <em>you</em> would catch a bad note split in one glance, and how I would debug one in ten seconds instead of ten minutes.</span></li>
+    <li><span class="t">Write a regression baseline harness</span>
+        <span class="d">Byte-stable feature vectors for a fixed set of bodies, blessed on purpose. Every other project here has them; CORONER has determinism but nothing pinning it across edits.</span></li>
+    <li><span class="t">Audit every other declared range for the same fault</span>
+        <span class="d">The stiffness ceiling failed because its declared maximum admitted values no string can produce, so an impossible answer looked ordinary. Thirty-one features have declared ranges and <em>none</em> of the others has been checked against physical possibility. This is a one-evening audit that plausibly finds a second one.</span></li>
+  </ol>
+
+  <div class="grouphead">Third &mdash; make the measurements harder to fool</div>
+  <ol class="tasks" start="11">
+    <li><span class="t">Put the bodies through a room, a microphone and a preamp</span>
+        <span class="d">Convolve the synthesized bodies with impulse responses of increasing size, then add hiss, gentle saturation and proximity bass, and measure how far each feature drifts at every step. This turns "it has not met a room" from an admission into a <em>quantity</em>. <code>noiseRatio</code> in particular has never met a noise floor it did not put there itself.</span></li>
+    <li><span class="t">Put them through a mix bus &mdash; the estate's own</span>
+        <span class="d">Run bodies through RIGOR and CASKET and measure how much the envelope features move. Attack, sustain and decay are what the routing slip reads, and compression rewrites all three. This is a test only this estate can write, because it owns both ends of it.</span></li>
+    <li><span class="t">Give every feature a confidence, not just the verdict</span>
+        <span class="d"><code>inharmFit</code> proved how much a measurement's own reliability is worth &mdash; it is the only reason the detune confound is caught at all. Every feature should carry one, and the verdict should weight by them rather than trusting all thirty-three equally.</span></li>
+    <li><span class="t">Handle polyphony honestly</span>
+        <span class="d">The voice estimate is a coarse peak count that says so in its own note. Multi-f0 estimation would let the report say "there are three things here" instead of quietly analysing the loudest and presenting it as the answer.</span></li>
+  </ol>
+
+  <div class="grouphead">Fourth &mdash; the machinery for a model</div>
+  <ol class="tasks" start="15">
+    <li><span class="t">Build the corpus renderer</span>
+        <span class="d">Headless batch rendering from NECROPHONE and PALLBEARER: random patches in, audio and parameter vectors out, deterministic and resumable. Two warnings already known and load-bearing &mdash; <strong>the granular engine is not reproducible</strong> (only the spectral one is), and a corpus of single held notes would reproduce at scale the exact blindness that eight real files exposed in an afternoon.</span></li>
+    <li><span class="t">Run that corpus through layer 1 and version the result</span>
+        <span class="d">Every rendered pair through the examination, stored as a dataset with the <code>FEATURE_VERSION</code> stamped into it. That stamp is the entire reason the feature registry exists, and it has already moved twice in one day.</span></li>
+    <li><span class="t">Train a classifier for layer 2, and log every disagreement</span>
+        <span class="d">A shallow net over the normalised vector, trained where labels are free, installed through <code>setVerdictEngine()</code> and compared against the rules on Ben's labelled set. Keep whichever wins; keep the rules as the fallback either way. And record every case where the two disagree &mdash; <strong>that log is worth more than either classifier</strong>, because it is a map of exactly where the problem is hard.</span></li>
+    <li><span class="t">Train the inverse-parameter model, one engine at a time</span>
+        <span class="d">Start with The Revenant &mdash; fewest parameters, most predictable spectrum. Audio in, parameters out, scored by rendering the prediction and measuring the distance back. Do not touch the granular engine until the analogue one is convincing, and note that granular's irreproducibility makes it the hardest target in the estate rather than merely the last.</span></li>
+  </ol>
+
+  <div class="grouphead">Fifth &mdash; make it a real member of the estate</div>
+  <ol class="tasks" start="19">
+    <li><span class="t">Write the C++ twin and its parity gate</span>
+        <span class="d">Once the feature set stops moving &mdash; and it has moved twice today &mdash; CORONER earns a twin like every other project here, with a gate proving the two agree bit for bit. The FFT will be the interesting part; LAW 1 and LAW 2 both bite hardest there, and PALLBEARER's warning applies: a parity fixture must be at least as portable as the thing it tests.</span></li>
+    <li><span class="t">Make the numbers derived, then build the release check and wire CI</span>
+        <span class="d">Start with <code>tools/counts.js</code>, which compiles and runs every project's gates and rewrites the figures in the Interchange so they cannot go stale &mdash; <strong>it does not know CORONER exists</strong>, so its 168 is hand-typed and will rot exactly as the estate already documented hand-typed numbers rotting. Then one command proving the embed is current, the docs agree with the code, the declared feature count matches the registry, and every gate still bites &mdash; that count was already wrong once in this session, and so was a compatibility claim. Then Linux, macOS and Windows, on a Node version that is <em>not</em> the sandbox's, because the estate has been burned twice by a green that only spoke for one architecture and one runtime. Finally, regenerate this page from the code rather than by hand: a report that can go stale is a report that will.</span></li>
+  </ol>
+</section>
+
+<!-- ============================================================ XI -->
+<section id="dreams">
+  <h2><span class="num">XI</span>Five dreams</h2>
+  <div class="h2sub">Thinking past the roadmap entirely.</div>
+
+  <div class="dream">
+    <div class="dh"><span class="dn">DREAM I</span><span class="dt">The Resurrection Engine, completed</span></div>
+    <div class="db">NECROPHONE's founding promise is <strong>"feed it the dead, it will make them sing"</strong>. Today you feed it a corpse and turn knobs until it sings. The dream is that you feed it a corpse and it <em>already knows</em> &mdash; CORONER listens to the sample, the inverse model reads it back into parameters, and the instrument arrives at a sound that is recognisably the thing you gave it, ready to be played in a key it never knew, with a decay it never had. Not a sampler playing back a recording. An instrument that has <em>learned</em> a dead sound and can now perform it.</div>
+  </div>
+
+  <div class="dream">
+    <div class="dh"><span class="dn">DREAM II</span><span class="dt">The archive that plays itself</span></div>
+    <div class="db">Point CORONER at everything you have ever recorded &mdash; every rehearsal, every voice memo, every show tape, the whole shelf. It listens to all of it and builds <strong>a searchable map of your own sound</strong>: every plucked thing, every unstable note, every texture, indexed by what it actually <em>is</em> rather than by filename and date. Then you ask it for something &mdash; "that scraping sound from the 2019 tapes" &mdash; and it finds it, and hands it to NECROPHONE as a patch. Twenty years of accumulated noise becomes a playable library.</div>
+  </div>
+
+  <div class="dream">
+    <div class="dh"><span class="dn">DREAM III</span><span class="dt">A machine that scores a room</span></div>
+    <div class="db">CORONER already measures a room's fingerprint as an obstacle &mdash; reverb smearing attack, raising the noise floor. Invert that. Put a microphone in a theatre and let it listen to the space itself: what the room does to a voice, where it rings, how long it holds. Then it writes you the reverb, the EQ curve and the arrangement that will sit in <em>that</em> room. A show that arrives already tuned to the building it is playing in, before load-in.</div>
+  </div>
+
+  <div class="dream">
+    <div class="dh"><span class="dn">DREAM IV</span><span class="dt">The instrument that listens back</span></div>
+    <div class="db">Right now the flow is one direction: audio in, patch out, done. The dream closes the loop. You play something; CORONER hears not just <em>what</em> but <em>how</em> &mdash; the jitter, the vibrato, the way your attacks land. And the instrument shifts to meet you: the synth's drift matching your unsteadiness, its envelope matching your touch, PALLBEARER's fingering brain choosing strings the way your hand actually moves. An instrument that has taken your measure and plays like <em>you</em> rather than like a preset.</div>
+  </div>
+
+  <div class="dream">
+    <div class="dh"><span class="dn">DREAM V</span><span class="dt">The honest machine, published</span></div>
+    <div class="db">The most unusual thing in this codebase is not the DSP. It is that the code <strong>argues with itself in the comments</strong> &mdash; every wrong turn kept, every threshold explaining what data it rests on and how thin that data is, a measurement that ran backwards recorded rather than quietly fixed. Almost nothing shipped in audio software does this, and it is genuinely useful to anyone else building a classifier. The dream is that CORONER goes out into the world not as a product but as <em>a worked example of how to be honest about a measurement you are not sure of</em> &mdash; and that the thing people take from it is the method, not the code.</div>
+  </div>
+</section>
+
+<footer>
+  The Inquest &middot; CORONER v0.1 &middot; Sixth of the Estate
+  <div class="m">168 checks &middot; 19 sabotages caught &middot; feature vector v3 &middot; 2026-08-27</div>
+</footer>
+
+</main>
+</body>
+</html>
