@@ -16,6 +16,11 @@ on:
     paths: ['PALLBEARER/**', 'shared/**', '.github/workflows/pallbearer.yml']
   pull_request:
     paths: ['PALLBEARER/**', 'shared/**', '.github/workflows/pallbearer.yml']
+  # ADDED 2026-11-16. A run on demand, from the Actions tab or `gh workflow run`.
+  # The path filter above means this workflow can go months without running,
+  # and it did: GitHub retired macos-14 on Nov 9 and this plugin build was not
+  # exercised on macos-15 until this trigger existed. Use it after any runner change.
+  workflow_dispatch:
 
 # ADDED 2026-08-18. Every trilogy workflow used to trigger on every push with
 # no filter, so a CASKET-only commit still paid for AUTOPSY's, RIGOR's and
