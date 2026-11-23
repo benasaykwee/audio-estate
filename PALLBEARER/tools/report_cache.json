@@ -1,34 +1,34 @@
 {
-  "when": "2026-08-17 16:25",
+  "when": "2026-11-23 22:53",
   "gates": {
     "harness": {
       "ok": true,
-      "passed": 188,
+      "passed": 221,
       "failed": 0,
-      "tuning": "0.184"
+      "tuning": "0.117"
     },
     "plugin": {
       "ok": true,
-      "passed": 38,
+      "passed": 47,
       "failed": 0
     },
     "regression": {
       "ok": true,
-      "baselines": 11
+      "baselines": 22
     },
     "fuzz": {
       "ok": true,
       "cases": 94241,
-      "peak": "1.058419"
+      "peak": "0.941684"
     },
     "parity": {
       "ok": true,
-      "checks": 13335,
+      "checks": 14275,
       "compiled": true
     },
     "law1": {
-      "failed": 8693,
-      "worstUlp": 14301684
+      "failed": 9601,
+      "worstUlp": 2063436
     },
     "handoff": {
       "ok": true,
@@ -40,39 +40,39 @@
       "rows": [
         {
           "name": "reference_1_string",
-          "ms": 5.4,
+          "ms": 5.3,
           "ratio": 1,
-          "realtime": 740
+          "realtime": 751
         },
         {
           "name": "four_strings",
-          "ms": 5.6,
-          "ratio": 1.04,
-          "realtime": 714
+          "ms": 5.4,
+          "ratio": 1.01,
+          "realtime": 745
         },
         {
           "name": "body_on",
-          "ms": 6.8,
-          "ratio": 1.27,
-          "realtime": 584
+          "ms": 6.7,
+          "ratio": 1.26,
+          "realtime": 596
         },
         {
           "name": "coupling_on",
-          "ms": 13.8,
-          "ratio": 2.56,
-          "realtime": 289
+          "ms": 13.4,
+          "ratio": 2.51,
+          "realtime": 299
         },
         {
           "name": "everything_on",
-          "ms": 16,
-          "ratio": 2.95,
-          "realtime": 251
+          "ms": 18.5,
+          "ratio": 3.48,
+          "realtime": 216
         },
         {
           "name": "six_string_full",
-          "ms": 21.5,
-          "ratio": 3.98,
-          "realtime": 186
+          "ms": 24.6,
+          "ratio": 4.62,
+          "realtime": 162
         }
       ]
     },

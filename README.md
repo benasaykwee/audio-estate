@@ -51,9 +51,9 @@ requires it to be correctly rounded, so the two already agree.
 ## The gates
 
 Every project that makes sound holds its C++ twin bit-exact against its JavaScript.
-<!--c:estate.parity-->108,282<!--/c--> parity checks across the four gates,
-plus <!--c:estate.assertions-->1,998<!--/c--> assertions and
-<!--c:estate.baselines-->67<!--/c--> byte-stable render baselines. The assertion
+<!--c:estate.parity-->109,222<!--/c--> parity checks across the four gates,
+plus <!--c:estate.assertions-->2,020<!--/c--> assertions and
+<!--c:estate.baselines-->78<!--/c--> byte-stable render baselines. The assertion
 total includes CORONER, which listens, has no twin yet, and so adds nothing to
 the other two.
 
@@ -68,7 +68,7 @@ date below is when the figure last *changed*, not when someone last looked.
 | AUTOPSY | <!--c:autopsy.parity-->9,292<!--/c--> | <!--c:autopsy.measured-->2026-08-16<!--/c--> |
 | RIGOR | <!--c:rigor.parity-->62,642<!--/c--> | <!--c:rigor.measured-->2026-09-08<!--/c--> |
 | CASKET | <!--c:casket.parity-->23,013<!--/c--> | <!--c:casket.measured-->2026-08-27<!--/c--> |
-| PALLBEARER | <!--c:pallbearer.parity-->13,335<!--/c--> | <!--c:pallbearer.measured-->2026-11-23<!--/c--> |
+| PALLBEARER | <!--c:pallbearer.parity-->14,275<!--/c--> | <!--c:pallbearer.measured-->2026-11-23<!--/c--> |
 
 <!-- THE DATE COLUMN USED TO LIE, quietly and in one direction. Every row
      carried the bare `measured` key, which counts.js defines as the OLDEST

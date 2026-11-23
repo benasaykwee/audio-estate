@@ -44,7 +44,7 @@ emits, and never compare vectors across versions; see §9.3.*
 | AUTOPSY | **shared** | own copies (sealed) | yes | **<!--c:autopsy.parity-->9,292<!--/c-->** |
 | RIGOR | **shared** | **shared** | yes | **<!--c:rigor.parity-->62,642<!--/c-->** |
 | CASKET | **shared** | **shared** | yes | **<!--c:casket.parity-->23,013<!--/c-->** |
-| PALLBEARER | **shared** | — *(no dynamics stage, deliberately)* | yes | **<!--c:pallbearer.parity-->13,335<!--/c-->** |
+| PALLBEARER | **shared** | — *(no dynamics stage, deliberately)* | yes | **<!--c:pallbearer.parity-->14,275<!--/c-->** |
 | CORONER | **shared** | none *(measures dynamics, does not impose them)* | **no** | none *(harness only: <!--c:coroner.assertions-->318<!--/c--> checks across <!--c:coroner.harnesses-->7<!--/c--> files)* |
 
 *CORONER's row is the only one with no twin and no parity figure, and that is a
@@ -258,6 +258,32 @@ There is an external consumer: **Masterbox**, a separate mastering tool with an 
 
 ## 7. THE LOG
 *Every change that crossed a project boundary. Newest first. If you touch `shared/`, you add a line.*
+
+### 2026-11-23: PALLBEARER's drive stage is oversampled, and LAW 1's warning about taps is now load-bearing there
+
+**PALLBEARER only. `shared/` untouched, so no other project's parity check or blessed
+hash can have moved.** Changed: `pallbearer_core.js`, `PallbearerCore.h`, the embed in
+`pallbearer.html`, `pallbearer_test.js` (section XXV), `tests/parity_emit.js`,
+`tests/core_parity.cpp`, the regenerated `tests/parity_expected.h`, and
+`tests/regression_baseline.json`.
+
+The drive curve now runs at twice the sample rate between two polyphase IIR half-band
+filters: twelve allpass sections of multiply-then-add per sample. LAW 1 names this
+arithmetic as the first thing a compiler fuses, and it is measured here rather than
+quoted: the parity gate is bit-exact at -O0, -O2 and -O3 with the flag, and without it
+**9,601 of 14,275 checks fail, worst 2,063,436 ulp** (this Mac's arm64, 2026-11-23; the
+arm64 CI job is the standing control). The stage is in the gate twice, alone and inside a phrase that
+turns drive on, off and on again.
+
+**A trap for whoever changes a default-on stage next.** Drive defaults to 0.12, so all
+eleven of PALLBEARER's regression phrases passed through the stage and every hash had to
+move. "Only the baselines that use the feature should move" was therefore unfalsifiable:
+there was no baseline that did not use it. The fix was made BEFORE the change, in a commit
+of its own: a twin of every phrase with drive at 0, blessed on the old core. Those eleven
+did not move; the original eleven all did. If a stage is on by default, record its
+bypassed twins first, or the bless that follows proves nothing.
+
+The aliasing measurement, the cost and what is left for an ear are in PALLBEARER's README.
 
 ### 2026-11-22: CASKET's two resampler entries are gated at last, blessed from the runner
 

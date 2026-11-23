@@ -107,11 +107,11 @@
     "pallbearer": {
       "harnesses": {
         "pallbearer_test": {
-          "value": 203,
-          "measured": "2026-09-01"
+          "value": 221,
+          "measured": "2026-11-23"
         },
         "pallbearer_plugin_test": {
-          "value": 43,
+          "value": 47,
           "measured": "2026-11-23"
         },
         "underworld_handoff": {
@@ -119,9 +119,9 @@
           "measured": "2026-08-17"
         }
       },
-      "parity": 13335,
-      "baselines": 11,
-      "assertions": 271,
+      "parity": 14275,
+      "baselines": 22,
+      "assertions": 293,
       "harnessCount": 3,
       "measured": "2026-11-23"
     },
@@ -164,8 +164,8 @@
     }
   },
   "estate": {
-    "parity": 108282,
-    "assertions": 1998,
-    "baselines": 67
+    "parity": 109222,
+    "assertions": 2020,
+    "baselines": 78
   }
 }

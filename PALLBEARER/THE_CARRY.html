@@ -46,14 +46,14 @@ footer{margin-top:56px;padding-top:22px;border-top:1px solid var(--line);text-al
 <div class="kicker">pallbearer · physically modelled bass · fifth of the estate</div>
 <h1>THE CARRY</h1>
 <div class="tag">Six carry the box. Four carry the song.</div>
-<div class="stamp">Measured 2026-08-17 16:25 · core v0.3</div>
+<div class="stamp">Measured 2026-11-23 22:53 · core v0.3</div>
 </header>
 <div class="verdict green">✚ every gate green — fit to carry ✚</div>
 <div class="vitals">
-<div class="vital"><b>13,335</b><span>Parity checks<br>bit-exact</span></div>
-<div class="vital"><b>0.184</b><span>Cents worst<br>tuning error</span></div>
+<div class="vital"><b>14,275</b><span>Parity checks<br>bit-exact</span></div>
+<div class="vital"><b>0.117</b><span>Cents worst<br>tuning error</span></div>
 <div class="vital"><b>94,241</b><span>Fuzz cases<br>clean</span></div>
-<div class="vital"><b>251</b><span>Assertions<br>green</span></div>
+<div class="vital"><b>293</b><span>Assertions<br>green</span></div>
 <div class="vital"><b>37</b><span>Parameters</span></div>
 <div class="vital"><b>0</b><span>Samples in<br>the string</span></div>
 </div>
@@ -62,29 +62,29 @@ footer{margin-top:56px;padding-top:22px;border-top:1px solid var(--line);text-al
 <table>
 <thead><tr><th>Gate</th><th>State</th><th>What it measured</th></tr></thead>
 <tbody>
-<tr><td>Harness</td><td class="ok">✓ green</td><td class="num">188 passed, 0 failed</td></tr>
-<tr><td>Parity — JS vs C++</td><td class="ok">✓ green</td><td class="num">13,335 checks, bit-exact</td></tr>
-<tr><td>Plugin parameter parity</td><td class="ok">✓ green</td><td class="num">38 passed, 0 failed</td></tr>
-<tr><td>Regression baselines</td><td class="ok">✓ green</td><td class="num">11 phrases byte-stable</td></tr>
-<tr><td>Fuzz</td><td class="ok">✓ green</td><td class="num">94,241 hostile cases · worst peak 1.058419</td></tr>
+<tr><td>Harness</td><td class="ok">✓ green</td><td class="num">221 passed, 0 failed</td></tr>
+<tr><td>Parity — JS vs C++</td><td class="ok">✓ green</td><td class="num">14,275 checks, bit-exact</td></tr>
+<tr><td>Plugin parameter parity</td><td class="ok">✓ green</td><td class="num">47 passed, 0 failed</td></tr>
+<tr><td>Regression baselines</td><td class="ok">✓ green</td><td class="num">22 phrases byte-stable</td></tr>
+<tr><td>Fuzz</td><td class="ok">✓ green</td><td class="num">94,241 hostile cases · worst peak 0.941684</td></tr>
 <tr><td>Underworld handoff</td><td class="ok">✓ green</td><td class="num">25 passed, 0 failed</td></tr>
 <tr><td>CPU cost gate</td><td class="ok">✓ green</td><td class="num">6 cases within tolerance</td></tr>
 <tr><td>Embed byte-identical</td><td class="ok">✓ green</td><td class="num">NM + core verbatim in the HTML</td></tr>
 </tbody>
 </table>
-<div class="card blood"><p><b style="color:var(--gold-hi);font-weight:400">LAW 1, measured on this project.</b> Compiled without <code>-ffp-contract=off</code>, <b>8,693 of 13,335</b> parity checks fail and the worst error reaches <b>14,301,684 ulp</b>. A waveguide feeds its own output back through a fractional-delay allpass, four dispersion stages and a damping pole every sample, so one fused rounding does not stay small.</p></div>
+<div class="card blood"><p><b style="color:var(--gold-hi);font-weight:400">LAW 1, measured on this project.</b> Compiled without <code>-ffp-contract=off</code>, <b>9,601 of 14,275</b> parity checks fail and the worst error reaches <b>2,063,436 ulp</b>. A waveguide feeds its own output back through a fractional-delay allpass, four dispersion stages and a damping pole every sample, so one fused rounding does not stay small.</p></div>
 </section>
 <section>
 <h2>What it costs</h2>
 <table>
 <thead><tr><th>Case</th><th>Relative cost</th><th>vs ref</th><th>Speed</th></tr></thead>
 <tbody>
-<tr><td>reference 1 string</td><td style="width:52%"><div class="bar"><i style="width:14.3%"></i></div></td><td class="num">1.00×</td><td class="num">740× RT</td></tr>
-<tr><td>four strings</td><td style="width:52%"><div class="bar"><i style="width:14.9%"></i></div></td><td class="num">1.04×</td><td class="num">714× RT</td></tr>
-<tr><td>body on</td><td style="width:52%"><div class="bar"><i style="width:18.1%"></i></div></td><td class="num">1.27×</td><td class="num">584× RT</td></tr>
-<tr><td>coupling on</td><td style="width:52%"><div class="bar"><i style="width:36.6%"></i></div></td><td class="num">2.56×</td><td class="num">289× RT</td></tr>
-<tr><td>everything on</td><td style="width:52%"><div class="bar"><i style="width:42.1%"></i></div></td><td class="num">2.95×</td><td class="num">251× RT</td></tr>
-<tr><td>six string full</td><td style="width:52%"><div class="bar"><i style="width:56.9%"></i></div></td><td class="num">3.98×</td><td class="num">186× RT</td></tr>
+<tr><td>reference 1 string</td><td style="width:52%"><div class="bar"><i style="width:14.3%"></i></div></td><td class="num">1.00×</td><td class="num">751× RT</td></tr>
+<tr><td>four strings</td><td style="width:52%"><div class="bar"><i style="width:14.4%"></i></div></td><td class="num">1.01×</td><td class="num">745× RT</td></tr>
+<tr><td>body on</td><td style="width:52%"><div class="bar"><i style="width:18.0%"></i></div></td><td class="num">1.26×</td><td class="num">596× RT</td></tr>
+<tr><td>coupling on</td><td style="width:52%"><div class="bar"><i style="width:35.9%"></i></div></td><td class="num">2.51×</td><td class="num">299× RT</td></tr>
+<tr><td>everything on</td><td style="width:52%"><div class="bar"><i style="width:49.7%"></i></div></td><td class="num">3.48×</td><td class="num">216× RT</td></tr>
+<tr><td>six string full</td><td style="width:52%"><div class="bar"><i style="width:66.0%"></i></div></td><td class="num">4.62×</td><td class="num">162× RT</td></tr>
 </tbody>
 </table>
 <div class="card sa"><p>Coupling is the expensive feature and it is worth knowing why: with it on, every string runs its delay line every sample, played or not, because a sympathetic string that is not being computed cannot resonate. That is the cost of the feature being real rather than an envelope trick.</p><p style="color:var(--mute);font-size:14px">The gate compares ratios rather than milliseconds, takes the minimum of seven runs rather than the median, and allows 50% drift. That is a coarse net by design — it catches a doubling, not a 20% slip. On a shared machine, a tighter number would only produce a gate that cries wolf.</p></div>
@@ -94,14 +94,14 @@ footer{margin-top:56px;padding-top:22px;border-top:1px solid var(--line);text-al
 <div class="card">
 <ul>
 <li><b>The plugin has never been compiled.</b> There is no JUCE here; <code>PallbearerCore.h</code> is syntax-checked and parity-proven, and <code>PluginProcessor</code> is written to the estate's pattern, but the first real build happens on a CI runner. Expect the usual first-compile friction.</li>
-<li><b>The attack layer does not survive a session save.</b> The state carries a version stamp but not the audio, so a sampled or hybrid patch reloads silent. Saving a file path instead would break the moment the file moved, which is worse.</li>
+<li><b>The plugin has no way to load an attack layer.</b> A layer survives a session save and a save during a note is inaudible, but the editor has no file button, so nothing puts one there.</li>
 <li><b>Mono out.</b> Both channels are identical.</li>
-<li><b>The drive stage aliases</b> at high settings and wants oversampling — and the Interchange warns that oversampler taps are the first thing the compiler wants to fuse.</li>
+<li><b>The oversampled drive wants an ear.</b> As of 2026-11-23 the drive curve runs at twice the sample rate and the harness measures its aliasing 20 dB lower. Nobody has listened to it yet. The README has the numbers.</li>
 <li><b>No bespoke editor.</b> Generic sliders plus a neck diagram, deliberately: writing a rich JUCE editor without a compiler is how a session gets spent for nothing.</li>
 </ul>
 </div>
 </section>
-<footer><div style="letter-spacing:.28em;text-transform:uppercase;color:var(--gold-lo);font-size:11px;font-family:ui-sans-serif,system-ui,sans-serif">✚ 107,838 checks ✚</div>
+<footer><div style="letter-spacing:.28em;text-transform:uppercase;color:var(--gold-lo);font-size:11px;font-family:ui-sans-serif,system-ui,sans-serif">✚ 108,831 checks ✚</div>
 <p style="margin-top:12px">Generated by <code>tools/build_report.js</code>. Every figure above was measured by running the gate, not typed.<br>If a harness were red this page would say so in the headline.</p></footer>
 </div>
 </body>

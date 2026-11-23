@@ -46,9 +46,9 @@ bass read as *played* is not the string model, it is the decision about which st
 | `pallbearer_sync.js` | Writes that copy. `--check` verifies it and exits 1 on drift. |
 | `pallbearer-juce/` | The plugin: CMake, `Parameters.h`, processor, editor. First build happens on CI. |
 | `pallbearer_test.js` | The harness. **188 checks, 22 sections.** |
-| `tests/parity_emit.js` · `tests/core_parity.cpp` | The parity gate. **<!--c:pallbearer.parity-->13,335<!--/c--> checks, bit-exact.** |
+| `tests/parity_emit.js` · `tests/core_parity.cpp` | The parity gate. **<!--c:pallbearer.parity-->14,275<!--/c--> checks, bit-exact.** |
 | `tests/pallbearer_plugin_test.js` | **38 checks** that the DAW parameter list matches the core. |
-| `tests/pallbearer_regression.js` | **11 byte-stable baselines.** |
+| `tests/pallbearer_regression.js` | **<!--c:pallbearer.baselines-->22<!--/c--> byte-stable baselines:** eleven phrases, and a twin of each with drive at 0. |
 | `tests/pallbearer_fuzz.js` | **94,241 hostile cases.** |
 | `tests/pallbearer_cpu.js` | Cost gate. Ratios, minimum-of-seven, 50% tolerance. |
 | `tests/underworld_handoff.js` | **25 checks** through the real mastering chain. |
@@ -208,6 +208,72 @@ not the optimisation level, is what matters.
 
 ---
 
+## The drive stage, oversampled (2026-11-23)
+
+This file said for months that the drive stage aliases and wants oversampling. It did,
+and it is. The curve is `x/(1+|x|)`, a soft clip, and a clip makes harmonics without
+limit; at the sample rate, everything above half of it folds back as tones that belong
+to no note.
+
+**What changed.** The curve, and only the curve, runs at twice the sample rate, between
+two polyphase IIR half-band filters (six allpass coefficients, flat to 0.45 of the
+sample rate, about 80 dB of rejection past 0.55). The transfer curve itself is untouched:
+same gain in, same `x/(1+|x|)`, same make-up out. The same arithmetic in the same order
+is in `PallbearerCore.h`, and the parity gate holds the stage alone and a phrase that
+turns drive on, off and on again mid-note.
+
+**Measured, by section XXV of `pallbearer_test.js`, which prints these on every run.**
+A high note driven hard: the top C of a six-string as a steady harmonic series, fifteen
+partials to 7.9 kHz, peak 0.8, placed so that every harmonic the curve makes lands on a
+multiple of one FFT bin and every alias lands somewhere else. Aliasing is the energy on
+the non-harmonic bins, in dB under the harmonic energy.
+
+| drive | below 20 kHz, before | after | to Nyquist, before | after |
+|---|---|---|---|---|
+| 1.00 | -44.4 dB | **-64.8 dB** | -41.9 dB | **-57.9 dB** |
+| 0.50 | -50.9 dB | **-72.5 dB** | -48.1 dB | **-64.2 dB** |
+| 0.12 (the default) | -61.1 dB | **-83.5 dB** | -58.1 dB | **-74.4 dB** |
+
+"Before" is the bare curve at the sample rate, which is the stage as it stood. This
+is the stage measured ALONE on a synthetic note, not the whole instrument: a real
+string is inharmonic and decaying, so its aliases cannot be told from its partials
+by bin. The to-Nyquist figure is the smaller one because what is left sits between
+20 and 24 kHz, in the filter's transition band.
+
+**Why 2x and not 4x.** 4x was measured in a prototype, not shipped: about -83 dB below
+20 kHz at full drive against -65 dB for 2x, for roughly five times the cost of the
+stage. For a bass whose tone control defaults to 3.8 kHz, 2x was taken. If the ear
+disagrees, 4x is a second pair of filters around this one.
+
+**What it was not allowed to change, and the proof.**
+- *A patch that does not use drive renders the same bytes.* At drive 0.001 and below the
+  stage is not run at all, as before. Drive defaults to 0.12, so every one of the eleven
+  regression phrases passes through the stage and none could show this; each now has a
+  twin with drive at 0, blessed on the old core in a commit of its own, and none of the
+  eleven twins moved when the stage changed. All eleven originals moved, as they must.
+- *The curve.* A held input settles on exactly the old curve's value, to 7e-16.
+- *The harmonics it is meant to make.* The same energy in total (0.0007 dB). Per harmonic,
+  the strong ones hold to 0.25 dB and the rest to 0.56 dB. That residue is real: the up
+  filter is not linear-phase, so the partials reach the curve with their phases turned a
+  few degrees, and the curve answers a slightly different wave. It is probably inaudible.
+  It is a change in the drive's voice all the same, and it is the thing to listen for.
+
+**Latency.** None is reported, and the plugin has no latency hook in use. The filters
+delay the driven signal by 2.4 samples at 100 Hz and 3.0 at 10 kHz (measured, same
+section), which is 0.05 ms, and only while drive is on. A linear-phase FIR would have
+kept the phases still and cost a fixed latency the plugin would then have to report to
+the host, switching with the drive knob; that trade was judged worse for an instrument.
+
+**Cost.** On this Mac, `tests/pallbearer_cpu.js`: the cases with drive off did not move;
+`everything_on` went from 271x to 215x realtime and `six_string_full` from 189x to 163x.
+The gate still passes, and that is not reassurance: its baseline was recorded on
+2026-08-17 on a slower machine with ratios far above this Mac's, so it has room to hide
+exactly this. **`cpu_baseline.json` was NOT re-blessed**, because a bless from this Mac
+would rewrite every ratio from the wrong machine. It wants re-blessing wherever it was
+recorded, and it is not a step in `.github/workflows/pallbearer.yml` at all.
+
+---
+
 ## Still in the ground
 
 - **The plugin has been COMPILED but never BUILT.** Both translation units compile to
@@ -241,6 +307,9 @@ not the optimisation level, is what matters.
 - **No bespoke editor.** Generic sliders plus a neck diagram, deliberately — writing a
   rich JUCE editor without a compiler is how a session gets spent for nothing.
 - **Mono out.** Both channels are identical.
-- **The drive stage aliases** at high settings; it wants oversampling, and the
-  Interchange warns that oversampler taps are the first thing the compiler wants to fuse.
+- **The oversampled drive wants Ben's ear.** See "The drive stage, oversampled" above.
+  The numbers say the aliasing fell by 20 dB; nobody has listened to it. The transfer
+  curve was not touched and nothing was tuned by ear, because there was no ear.
+- **The core still calls itself 0.3** although every patch that uses drive now renders
+  different bytes. Whether that is 0.4 is a call for Ben, not for a gate.
 - **No patch library.** Nine presets live in the HTML as a literal.

@@ -203,12 +203,11 @@ g.law1.worstUlp.toLocaleString('en-US') + ' ulp</b>. A waveguide feeds its own o
 '<li><b>The plugin has never been compiled.</b> There is no JUCE here; <code>PallbearerCore.h</code> is ' +
 'syntax-checked and parity-proven, and <code>PluginProcessor</code> is written to the estate\'s pattern, but ' +
 'the first real build happens on a CI runner. Expect the usual first-compile friction.</li>\n' +
-'<li><b>The attack layer does not survive a session save.</b> The state carries a version stamp but not the ' +
-'audio, so a sampled or hybrid patch reloads silent. Saving a file path instead would break the moment the ' +
-'file moved, which is worse.</li>\n' +
+'<li><b>The plugin has no way to load an attack layer.</b> A layer survives a session save and a save ' +
+'during a note is inaudible, but the editor has no file button, so nothing puts one there.</li>\n' +
 '<li><b>Mono out.</b> Both channels are identical.</li>\n' +
-'<li><b>The drive stage aliases</b> at high settings and wants oversampling — and the Interchange warns that ' +
-'oversampler taps are the first thing the compiler wants to fuse.</li>\n' +
+'<li><b>The oversampled drive wants an ear.</b> As of 2026-11-23 the drive curve runs at twice the sample ' +
+'rate and the harness measures its aliasing 20 dB lower. Nobody has listened to it yet. The README has the numbers.</li>\n' +
 '<li><b>No bespoke editor.</b> Generic sliders plus a neck diagram, deliberately: writing a rich JUCE editor ' +
 'without a compiler is how a session gets spent for nothing.</li>\n' +
 '</ul>\n</div>\n</section>\n' +
