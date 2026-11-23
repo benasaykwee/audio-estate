@@ -39,6 +39,21 @@ var CASES = [
   { name: 'hybrid_path',    seed: 0x33, notes: [33, 38], patch: { strGain: 1, atkGain: 0.7 }, layer: true }
 ];
 
+/* THE DRY TWINS (2026-11-23). Drive defaults to 0.12, so every phrase above
+   passes through the drive stage and NONE of them can say what a change to
+   that stage did to a patch that does not use it. Each phrase therefore has
+   a twin with drive at 0, where the stage is bypassed outright. They were
+   blessed on the core as it stood BEFORE the drive stage was oversampled,
+   in a commit of their own, so the history shows them not moving when the
+   stage changed: a change to the drive stage that moves a dry twin has
+   leaked out of the stage. */
+CASES = CASES.concat(CASES.map(function (c) {
+  var patch = {};
+  Object.keys(c.patch).forEach(function (k) { patch[k] = c.patch[k]; });
+  patch.drive = 0;
+  return { name: c.name + '_dry', seed: c.seed, notes: c.notes, patch: patch, layer: c.layer };
+}));
+
 /* Portable fixture, same rule as the parity gate: no transcendental. */
 function makeLayer(sr, secs, seed) {
   var n = Math.floor(secs * sr), d = new Float64Array(n);

@@ -1,7 +1,7 @@
 {
   "version": "0.3",
   "sr": 48000,
-  "recorded": "2026-09-01",
+  "recorded": "2026-11-23",
   "hashes": {
     "default_walk": "f423c26b",
     "precision": "87cc72a0",
@@ -13,6 +13,17 @@
     "humanize_max": "cdf05e74",
     "extremes": "6e8d7d7a",
     "sampled_path": "a2b1c426",
-    "hybrid_path": "beaf7cc3"
+    "hybrid_path": "beaf7cc3",
+    "default_walk_dry": "c0289718",
+    "precision_dry": "bb011765",
+    "slap_dry": "bb820c87",
+    "upright_dry": "ed50570d",
+    "ghost_and_palm_dry": "0642a53b",
+    "harmonics_dry": "7dd8e726",
+    "five_string_dry": "3660a8dd",
+    "humanize_max_dry": "a4d90533",
+    "extremes_dry": "c0176133",
+    "sampled_path_dry": "96129b21",
+    "hybrid_path_dry": "c510bc6b"
   }
 }
