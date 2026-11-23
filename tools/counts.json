@@ -1,5 +1,5 @@
 {
-  "changed": "2026-09-08",
+  "changed": "2026-11-23",
   "projects": {
     "autopsy": {
       "harnesses": {
@@ -124,11 +124,48 @@
       "assertions": 266,
       "harnessCount": 3,
       "measured": "2026-09-01"
+    },
+    "coroner": {
+      "harnesses": {
+        "coroner_test": {
+          "value": 173,
+          "measured": "2026-11-23"
+        },
+        "pluck_position": {
+          "value": 20,
+          "measured": "2026-11-23"
+        },
+        "pallbearer_link": {
+          "value": 18,
+          "measured": "2026-11-23"
+        },
+        "necrophone_pack": {
+          "value": 38,
+          "measured": "2026-11-23"
+        },
+        "param_contract": {
+          "value": 17,
+          "measured": "2026-11-23"
+        },
+        "closed_loop": {
+          "value": 23,
+          "measured": "2026-11-23"
+        },
+        "root_detect": {
+          "value": 29,
+          "measured": "2026-11-23"
+        }
+      },
+      "parity": null,
+      "baselines": null,
+      "assertions": 318,
+      "harnessCount": 7,
+      "measured": "2026-11-23"
     }
   },
   "estate": {
     "parity": 108282,
-    "assertions": 1675,
+    "assertions": 1993,
     "baselines": 67
   }
 }

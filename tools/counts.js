@@ -116,6 +116,34 @@ var SPEC = {
       { file: 'tests/casket_album.js', slow: true },
       { file: 'tests/casket_rate.js', slow: true }
     ]
+  },
+  /* CORONER added 2026-11-22. It is the one project with no parity gate and
+     no render baselines, because it has no twin and renders nothing: a gate
+     that proves two implementations agree needs two implementations. Both
+     fields are therefore null, and a null means "this project has none",
+     never "count it as nought". The `parity` and `baselines` keys are simply
+     not offered for it, so no document can quote a zero that means nothing.
+
+     `external: true` marks the four harnesses that measure against
+     NECROPHONE, which is not in this repository. On a fresh clone (CI) they
+     skip with a loud banner rather than fail; see CORONER/tests/_requires.js.
+     A skipped run measured nothing, so it may not publish a number: the
+     cached value stands, with the date it was last really measured, exactly
+     the way a slow harness's does. Locally, with the whole CLAUDE folder
+     present, they run for real and refresh the cache. */
+  coroner: {
+    dir: 'CORONER',
+    parity: null,
+    regression: null,
+    harnesses: [
+      { file: 'coroner_test.js' },
+      { file: 'tests/pluck_position.js' },
+      { file: 'tests/pallbearer_link.js' },
+      { file: 'tests/necrophone_pack.js', external: true },
+      { file: 'tests/param_contract.js', external: true },
+      { file: 'tests/closed_loop.js', external: true },
+      { file: 'tests/root_detect.js', external: true }
+    ]
   }
 };
 /* casket_coverage.js is deliberately NOT in the list above. It is a --strict
@@ -227,14 +255,18 @@ function collect() {
        -ffp-contract=off, because LAW 1 is not suspended for a reporting
        script — a count produced by a build that breaks the law is a count
        for a different program. */
-    var bin = path.join(tmp, name + '_parity');
-    run('g++ -std=c++17 -O2 -ffp-contract=off -o ' + JSON.stringify(bin) + ' ' + JSON.stringify(s.parity), dir);
-    p.parity = parseParity(run(JSON.stringify(bin), dir), name + ' parity');
-    say('   parity      ' + p.parity.toLocaleString('en-US'));
+    if (s.parity) {
+      var bin = path.join(tmp, name + '_parity');
+      run('g++ -std=c++17 -O2 -ffp-contract=off -o ' + JSON.stringify(bin) + ' ' + JSON.stringify(s.parity), dir);
+      p.parity = parseParity(run(JSON.stringify(bin), dir), name + ' parity');
+      say('   parity      ' + p.parity.toLocaleString('en-US'));
+    } else { p.parity = null; say('   parity      none (no twin)'); }
 
     /* byte-stable render baselines */
-    p.baselines = parseBaselines(run('node ' + JSON.stringify(s.regression), dir), name + ' regression');
-    say('   baselines   ' + p.baselines);
+    if (s.regression) {
+      p.baselines = parseBaselines(run('node ' + JSON.stringify(s.regression), dir), name + ' regression');
+      say('   baselines   ' + p.baselines);
+    } else { p.baselines = null; say('   baselines   none'); }
 
     /* the asserting harnesses.
 
@@ -252,7 +284,16 @@ function collect() {
       var prior = was && was.harnesses && was.harnesses[key];
       var value;
       if (h.slow && !FULL && prior) { value = prior.value; cached++; }
-      else { value = parseAssertions(run('node ' + JSON.stringify(h.file), dir), key); live++; }
+      else {
+        var o = run('node ' + JSON.stringify(h.file), dir);
+        if (h.external && /SKIPPED \u2014 /.test(o)) {
+          /* the dependency is absent, so nothing was measured; see SPEC */
+          if (!prior) throw new Error(key + ': SKIPPED (dependency absent) and never measured. ' +
+            'Run once in a tree holding the whole CLAUDE folder.');
+          value = prior.value; cached++;
+          say('   ' + key + ' skipped, dependency absent; cached ' + value + ' from ' + prior.measured);
+        } else { value = parseAssertions(o, key); live++; }
+      }
       p.harnesses[key] = {
         value: value,
         measured: (prior && prior.value === value) ? prior.measured : today
@@ -274,9 +315,9 @@ function collect() {
   /* estate totals */
   var ps = Object.keys(out.projects).map(function (k) { return out.projects[k]; });
   out.estate = {
-    parity: ps.reduce(function (a, p) { return a + p.parity; }, 0),
+    parity: ps.reduce(function (a, p) { return a + (p.parity || 0); }, 0),
     assertions: ps.reduce(function (a, p) { return a + p.assertions; }, 0),
-    baselines: ps.reduce(function (a, p) { return a + p.baselines; }, 0)
+    baselines: ps.reduce(function (a, p) { return a + (p.baselines || 0); }, 0)
   };
   /* newest project change — the last time anything here actually moved */
   out.changed = ps.map(function (p) { return p.measured; }).sort().pop() || today;
@@ -296,15 +337,16 @@ function values(c) {
   Object.keys(c.projects).forEach(function (name) {
     var p = c.projects[name];
     v[name + '.measured'] = p.measured || c.changed;
-    v[name + '.parity'] = comma(p.parity);
+    /* a project with no gate offers no parity key at all (CORONER) */
+    if (p.parity != null) v[name + '.parity'] = comma(p.parity);
     v[name + '.assertions'] = comma(p.assertions);
-    v[name + '.baselines'] = String(p.baselines);
+    if (p.baselines != null) v[name + '.baselines'] = String(p.baselines);
     v[name + '.harnesses'] = String(p.harnessCount);
     /* the suite total EXCLUDES parity on purpose. "534 assertions plus 14
        baselines" is a claim about the harnesses; folding 22,861 parity checks
        into it would make one big number that answers no question anybody
        asked. */
-    v[name + '.suite'] = comma(p.assertions + p.baselines);
+    v[name + '.suite'] = comma(p.assertions + (p.baselines || 0));
   });
   v['estate.parity'] = comma(c.estate.parity);
   v['estate.assertions'] = comma(c.estate.assertions);

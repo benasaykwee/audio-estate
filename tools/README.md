@@ -36,8 +36,15 @@ as the parity gate's *emit, then prove it did not move*.
 
 ### The keys
 
-`<project>` is `autopsy`, `rigor` or `casket`. There is also an `estate.*` set
-that sums all three, and a bare `measured`.
+`<project>` is `autopsy`, `rigor`, `casket`, `pallbearer` or `coroner`. There is
+also an `estate.*` set that sums them all, and a bare `measured`.
+
+`coroner` has no `parity` or `baselines` key: it has no twin and renders nothing,
+so there is no figure to offer, and a zero would be a claim. Four of its
+harnesses are marked `external` because they measure against NECROPHONE, which
+is not in this repository. When one of them prints its SKIPPED banner (a fresh
+clone, CI) the cached value from `counts.json` stands, with its date, the same
+way a slow harness's does. Only a run in the whole CLAUDE folder refreshes it.
 
 | key | is |
 |---|---|

@@ -50,10 +50,12 @@ requires it to be correctly rounded, so the two already agree.
 
 ## The gates
 
-Every project holds its C++ twin bit-exact against its JavaScript.
+Every project that makes sound holds its C++ twin bit-exact against its JavaScript.
 <!--c:estate.parity-->108,282<!--/c--> parity checks across the four gates,
-plus <!--c:estate.assertions-->1,675<!--/c--> assertions and
-<!--c:estate.baselines-->67<!--/c--> byte-stable render baselines.
+plus <!--c:estate.assertions-->1,993<!--/c--> assertions and
+<!--c:estate.baselines-->67<!--/c--> byte-stable render baselines. The assertion
+total includes CORONER, which listens, has no twin yet, and so adds nothing to
+the other two.
 
 **Those numbers are generated, not typed.** `tools/counts.js` compiles and runs
 every gate, rewrites the figures between the markers in these documents, and CI

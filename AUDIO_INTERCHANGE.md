@@ -45,17 +45,21 @@ emits, and never compare vectors across versions; see §9.3.*
 | RIGOR | **shared** | **shared** | yes | **<!--c:rigor.parity-->62,642<!--/c-->** |
 | CASKET | **shared** | **shared** | yes | **<!--c:casket.parity-->23,013<!--/c-->** |
 | PALLBEARER | **shared** | — *(no dynamics stage, deliberately)* | yes | **<!--c:pallbearer.parity-->13,335<!--/c-->** |
-| CORONER | **shared** | — *(measures dynamics, does not impose them)* | **no** | — *(harness only: 300 checks across six files)* |
+| CORONER | **shared** | none *(measures dynamics, does not impose them)* | **no** | none *(harness only: <!--c:coroner.assertions-->318<!--/c--> checks across <!--c:coroner.harnesses-->7<!--/c--> files)* |
 
 *CORONER's row is the only one with no twin and no parity figure, and that is a
 statement of fact rather than a gap to be tidied away. A parity gate proves two
 implementations agree; there is only one implementation. It earns a twin when
 the feature set stops moving — and `FEATURE_VERSION` went **1 → 2 → 3 → 4 on the
-day the project was created**, so that moment is not close. **This row is NOT
-derived**: `tools/counts.js` does not know about CORONER, so the figure is
-hand-typed and will go stale exactly the way §1 says hand-typed numbers do — it
-already has, twice, within hours (168 → 173 → 300). Measure the harnesses, do not
-quote this.*
+day the project was created**, so that moment is not close. **This row is DERIVED
+as of 2026-11-22.** It used to be hand-typed, and went stale exactly the way §1
+says hand-typed numbers do: 168, then 173, then 300, within hours, while the
+harnesses themselves added up to 318. `tools/counts.js` now runs CORONER's
+harnesses and rewrites the figure. Four of them measure against NECROPHONE, which
+is not in this repository; on a fresh clone they skip with a loud banner, and the
+generator keeps their last real measurement from `tools/counts.json` rather than
+publishing a count from a run that checked nothing. The parity column stays a
+dash, and the generator offers no parity key for CORONER at all.*
 
 *PALLBEARER joined 2026-08-16, got its twin the same day, and is **now DERIVED like the
 other three** — `tools/counts.js` compiles its gate at `-O2 -ffp-contract=off`, runs it,
