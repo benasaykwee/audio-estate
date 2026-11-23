@@ -262,8 +262,12 @@ SUBJECTS.forEach(function (s) {
      new ms/trig ones — those are different quantities and silently reusing
      the key would produce a confident, meaningless percentage. The old keys
      have been removed from casket_cpu_baseline.json for the same reason.
-     These two will report as new until somebody blesses them from a real
-     runner, and the gate does not fail on a new entry. */
+     BLESSED 2026-11-22 from a real runner: the median of eight green CI
+     cpu-job runs on ubuntu-latest, entered by hand into the baseline rather
+     than with --bless, because --bless would also overwrite the fifteen
+     runner-blessed entries with whatever machine it ran on. Both are gated
+     now, at the same tolerance as everything else; see `resamplersBlessed`
+     in casket_cpu_baseline.json for the spread they were taken from. */
   if (trig > 0) {
     [['resample 44.1 → 96 (vs trig)', function () { C.resample(tL, tR, 44100, 96000); }],
      ['resample 96 → 44.1 (vs trig)', function () { C.resample(tL, tR, 96000, 44100); }]

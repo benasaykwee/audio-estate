@@ -17,6 +17,9 @@
     "matchReference": 12.843,
     "batchRender ×3": 2.975,
     "batchRender ×3 gapless": 3.495,
-    "albumMaster ×3 (6 passes)": 32.476
-  }
+    "albumMaster ×3 (6 passes)": 32.476,
+    "resample 44.1 → 96 (vs trig)": 15.78,
+    "resample 96 → 44.1 (vs trig)": 7.52
+  },
+  "resamplersBlessed": "2026-11-22, from the CI cpu job on ubuntu-latest (x86-64), not from a local machine: the median of eight green runs between Nov 16 and Nov 22 (44.1 to 96: 15.21 to 17.12, median 15.78; 96 to 44.1: 7.24 to 8.45, median 7.52). The worst of those runs sits 9% and 12% above the median, well inside the 30% tolerance. Recorded in AUDIO_INTERCHANGE.md section 7."
 }

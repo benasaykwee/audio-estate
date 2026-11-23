@@ -259,6 +259,23 @@ There is an external consumer: **Masterbox**, a separate mastering tool with an 
 ## 7. THE LOG
 *Every change that crossed a project boundary. Newest first. If you touch `shared/`, you add a line.*
 
+### 2026-11-22: CASKET's two resampler entries are gated at last, blessed from the runner
+
+Owed since the Aug 22 entry below: the resamplers were moved onto the `NM.sin`/`NM.cos`
+calibration and renamed, which was correct, and then reported as "new" on every run for
+three months, which meant a 40% slowdown in the one place a Node upgrade had already
+produced one would have passed in silence.
+
+They are blessed now, by hand, from the CI cpu job's own output on `ubuntu-latest`: the
+median of eight green runs between Nov 16 and Nov 22, **15.78** for 44.1 to 96 kHz and
+**7.52** for 96 to 44.1. `--bless` was deliberately not used, because it rewrites every
+entry from whatever machine runs it, and the other fifteen were blessed on the runner.
+The spread is recorded in the baseline itself (`resamplersBlessed`): the worst run sits 9%
+and 12% above the median, inside the 30% tolerance. This Mac (arm64) reads 17.0 to 17.5
+and 8.1 to 8.5, also inside it. Control: a baseline of 10.0 for the first entry turned the
+gate red at +92%, so the entries are compared and not merely listed. `casket_test.js` 217
+passed, `casket_coverage.js --strict` clean, estate lint green.
+
 ### 2026-11-05 — CORONER joins the repository, and takes the PALLBEARER link it has been owed since September
 
 **`shared/` untouched, no C++ twin exists, no parity check or blessed hash can
