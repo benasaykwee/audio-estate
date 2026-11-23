@@ -14,6 +14,14 @@
    silent, which is the README's "reloads silent", reproduced rather than
    described.
 
+   SECTION V (2026-11-23): a save DURING a note. processBlock only ever
+   tries the layer lock. This test is the host that holds it at the worst
+   moment, deterministically, through PallbearerTestAccess (a friend of the
+   processor that nothing in the plugin uses). The note must render
+   bit-identical to one nobody interrupted. Against the code before the fix
+   this section fails: the first contended block ended the sampled attack
+   for good.
+
    BUILD (no host, no listening; about two minutes the first time):
      cmake -S PALLBEARER/pallbearer-juce -B <dir> -DPALLBEARER_TESTS=ON \
            -DFETCHCONTENT_SOURCE_DIR_JUCE=<a JUCE 7.0.12 checkout>
@@ -23,7 +31,16 @@
 #include "../pallbearer-juce/Source/PluginProcessor.h"
 #include <cmath>
 #include <cstdio>
+#include <functional>
 #include <vector>
+
+/* The test's hand on the processor's private lock and its keep list. */
+struct PallbearerTestAccess {
+    static void lock(PallbearerAudioProcessor& p)   { p.layerLock.enter(); }
+    static void unlock(PallbearerAudioProcessor& p) { p.layerLock.exit(); }
+    static int kept(PallbearerAudioProcessor& p)    { return (int)p.layerKeep.size(); }
+    static long audioRefs(PallbearerAudioProcessor& p) { return p.layerAudio ? p.layerAudio.use_count() : 0; }
+};
 
 static int pass = 0, fail = 0;
 static void ok(const char* name, bool cond, const juce::String& detail = {})
@@ -55,7 +72,12 @@ static std::vector<double> makeLayer(int n, double sr)
     return d;
 }
 
-static std::vector<float> playNote(PallbearerAudioProcessor& p, int blocks)
+/* `contended(b)` true: block b is rendered while somebody else holds the
+   layer lock, so processBlock's try fails. `between(b)` runs after block b,
+   on this thread, the way a host calls into a plugin between callbacks. */
+static std::vector<float> playNote(PallbearerAudioProcessor& p, int blocks,
+                                   const std::function<bool(int)>& contended = {},
+                                   const std::function<void(int)>& between = {})
 {
     const int bs = 256;
     juce::AudioBuffer<float> buf(2, bs);
@@ -63,7 +85,11 @@ static std::vector<float> playNote(PallbearerAudioProcessor& p, int blocks)
     for (int b = 0; b < blocks; ++b) {
         juce::MidiBuffer midi;
         if (b == 0) midi.addEvent(juce::MidiMessage::noteOn(1, 40, (juce::uint8)110), 0);
+        const bool held = contended && contended(b);
+        if (held) PallbearerTestAccess::lock(p);
         p.processBlock(buf, midi);
+        if (held) PallbearerTestAccess::unlock(p);
+        if (between) between(b);
         const float* L = buf.getReadPointer(0);
         out.insert(out.end(), L, L + bs);
     }
@@ -157,6 +183,79 @@ int main()
         e2.setStateInformation(bad.getData(), (int)bad.getSize());
         ok("a corrupt stored layer is refused, not played", !e2.hasAttackLayer());
         ok("and the rest of that session still loads", e2.apvts.getRawParameterValue("strGain")->load() == 0.0f);
+    }
+
+    std::printf("\n-- V . a save during a note changes nothing that is heard\n");
+    {
+        auto fresh = [&](PallbearerAudioProcessor& p) {
+            p.prepareToPlay(SR, 256);
+            p.setAttackLayer(data, LAYER_SR, ROOT);
+            setParam(p, "strGain", 0.0f);
+            setParam(p, "atkGain", 0.8f);
+        };
+        PallbearerAudioProcessor q0; fresh(q0);
+        const auto ref = playNote(q0, 120);
+        ok("the uninterrupted note is not silent", rms(ref) > 1e-4, juce::String(rms(ref), 6));
+        /* the attack is still sounding in the blocks about to be contended,
+           or this section would prove nothing */
+        double mid = 0; for (int i = 256 * 3; i < 256 * 9; ++i) mid += (double)ref[(size_t)i] * ref[(size_t)i];
+        ok("the attack is still sounding where the lock will be held", mid > 1e-6, juce::String(mid, 6));
+
+        PallbearerAudioProcessor q1; fresh(q1);
+        const auto r1 = playNote(q1, 120, [](int b) { return b >= 3 && b < 9; });
+        ok("blocks rendered while the lock is HELD ELSEWHERE are bit-identical", r1 == ref);
+
+        PallbearerAudioProcessor q2; fresh(q2);
+        int saves = 0; size_t savedBytes = 0;
+        const auto r2 = playNote(q2, 120, {}, [&](int b) {
+            if (b % 2 == 0 && b < 40) { juce::MemoryBlock m; q2.getStateInformation(m); ++saves; savedBytes = m.getSize(); }
+        });
+        ok("twenty real saves between blocks of the note are bit-identical", r2 == ref,
+           juce::String(saves) + " saves, " + juce::String((int)savedBytes) + " bytes each");
+        ok("and a save made mid-note is the same session as one made at rest", savedBytes == saved.getSize());
+
+        /* contended from the very first block: prepareToPlay has already put
+           the layer in the audio thread's hand, so even that note has it */
+        PallbearerAudioProcessor q3;
+        q3.setAttackLayer(data, LAYER_SR, ROOT);
+        setParam(q3, "strGain", 0.0f);
+        setParam(q3, "atkGain", 0.8f);
+        q3.prepareToPlay(SR, 256);
+        const auto r3 = playNote(q3, 120, [](int) { return true; });
+        ok("a session loaded before playback plays its layer even if the lock is NEVER free", r3 == ref);
+
+        /* the one case a try-lock cannot rescue, stated rather than hidden:
+           a layer loaded while audio is running reaches the audio thread at
+           the first block whose try succeeds, and not before */
+        PallbearerAudioProcessor q4; fresh(q4);
+        const auto r4 = playNote(q4, 120, [](int b) { return b == 0; });
+        ok("(known limit) a layer loaded DURING playback is not heard until one try succeeds",
+           rms(r4) < rms(ref) * 0.01, juce::String(rms(r4), 6));
+    }
+
+    std::printf("\n-- VI . the audio thread never frees a layer\n");
+    {
+        PallbearerAudioProcessor r;
+        r.prepareToPlay(SR, 256);
+        juce::AudioBuffer<float> buf(2, 256);
+        auto block = [&] { juce::MidiBuffer m; r.processBlock(buf, m); };
+        const auto other = makeLayer(4000, LAYER_SR);
+
+        r.setAttackLayer(data, LAYER_SR, ROOT);
+        block();                                         // the audio thread now plays layer 1
+        ok("a loaded layer is kept alive off the audio thread", PallbearerTestAccess::kept(r) == 1);
+        r.setAttackLayer(other, LAYER_SR, ROOT);          // layer 1 replaced while still being played
+        ok("a replaced layer the audio thread still plays is NOT freed", PallbearerTestAccess::kept(r) == 2);
+        block();                                         // the audio thread lets go of layer 1
+        ok("when the audio thread moves on, it was not the last holder",
+           PallbearerTestAccess::kept(r) == 2 && PallbearerTestAccess::audioRefs(r) >= 2,
+           juce::String((int)PallbearerTestAccess::audioRefs(r)) + " holders of the one it plays");
+        r.setAttackLayer({}, LAYER_SR, ROOT);             // cleared: layer 1 can go, layer 2 is still played
+        ok("the next load frees the abandoned layer, on the calling thread", PallbearerTestAccess::kept(r) == 1);
+        ok("clearing reports no layer at once", !r.hasAttackLayer());
+        block();
+        r.setAttackLayer({}, LAYER_SR, ROOT);
+        ok("and once nothing plays the last one, nothing is kept", PallbearerTestAccess::kept(r) == 0);
     }
 
     std::printf("\n%d passed, %d failed\n", pass, fail);

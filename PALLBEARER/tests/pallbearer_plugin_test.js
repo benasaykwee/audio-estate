@@ -144,8 +144,27 @@ ok('a future state version is refused, not half-loaded', /if \(v > 2\) return;/.
    CI can see, the same contract read from the source. */
 var CODEP = PROC.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
 ok('the session SAVES the attack layer as audio',
-   /state\.appendChild\(t,/.test(CODEP) && /juce::MemoryBlock\(layerData\.data\(\)/.test(CODEP),
+   /state\.appendChild\(t,/.test(CODEP) && /juce::MemoryBlock\(saving->data\.data\(\)/.test(CODEP),
    'samples, not a file path');
+/* A SAVE DURING A NOTE (2026-11-23). The proof is section V of
+   tests/state_roundtrip.cpp, which holds the lock across real blocks. These
+   read the same contract from the text: the save takes a reference and not
+   the lock, the audio thread only ever tries, and a failed try can no longer
+   reach the core as "no layer". */
+var bodyOf = function (name) {
+  var a = CODEP.indexOf('PallbearerAudioProcessor::' + name + '(');
+  var b = CODEP.indexOf('\n}\n', a);
+  return a < 0 ? '' : CODEP.slice(a, b);
+};
+ok('saving holds a reference to the layer, never the lock',
+   /currentLayer\(\)/.test(bodyOf('getStateInformation')) && !/layerLock/.test(bodyOf('getStateInformation')));
+ok('the audio thread only TRIES the layer lock',
+   /ScopedTryLockType/.test(bodyOf('processBlock')) && !/ScopedLockType/.test(bodyOf('processBlock')));
+ok('a failed try cannot hand the core a null layer',
+   /core->setAttackLayer\(layerAudio \? &layerAudio->view : nullptr\)/.test(bodyOf('processBlock')) &&
+   !/isLocked\(\)[^;]*nullptr/.test(bodyOf('processBlock')));
+ok('every stored layer is also kept off the audio thread (it never frees one)',
+   /keep\.push_back\(fresh\)/.test(bodyOf('setAttackLayer')) && /use_count\(\) == 1/.test(bodyOf('setAttackLayer')));
 ok('the session RESTORES it',
    /getChildWithName\(kLayerTag\)/.test(CODEP.slice(CODEP.indexOf('::setStateInformation'))) &&
    /setAttackLayer\(std::move\(restored\)/.test(CODEP));

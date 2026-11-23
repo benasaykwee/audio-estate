@@ -30,6 +30,10 @@ void PallbearerAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBl
     core = std::make_unique<PallbearerCore>(sampleRate);
     scratchL.assign((size_t)juce::jmax(1, samplesPerBlock), 0.0);
     scratchR.assign((size_t)juce::jmax(1, samplesPerBlock), 0.0);
+    /* Nothing is rendering while this runs, so the lock can be waited for.
+       A layer loaded before playback starts is in the audio thread's hand
+       from the first block, whoever holds the lock then. */
+    layerAudio = currentLayer();
     lastTuningIdx = lastBodyF = lastBodyQ = lastWood = -1.f;
     lastCoilF = lastCoilQ = lastTone = -1.f;
     pushParameters();
@@ -138,11 +142,17 @@ void PallbearerAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
        a whole-block approximation would quantise every note to the block
        boundary, which at 512 samples is 10 ms of slop and audible on
        anything fast. */
-    /* Held for the whole render: see `layerLock` in the header. The core is
-       handed the layer every block because prepareToPlay rebuilds the core
-       and a pointer set once would not survive it. */
-    const juce::SpinLock::ScopedTryLockType layerHeld(layerLock);
-    core->setAttackLayer(layerHeld.isLocked() && layer.length > 0 ? &layer : nullptr);
+    /* The layer. See `layerLock` in the header: the lock is tried, never
+       waited for, and a failed try changes nothing that is heard, because
+       the audio thread goes on with the reference it already holds. The swap
+       is a pointer copy and frees nothing (layerKeep holds every store). The
+       core is handed the layer every block because prepareToPlay rebuilds
+       the core and a pointer set once would not survive it. */
+    {
+        const juce::SpinLock::ScopedTryLockType layerHeld(layerLock);
+        if (layerHeld.isLocked() && layerAudio != layerShared) layerAudio = layerShared;
+    }
+    core->setAttackLayer(layerAudio ? &layerAudio->view : nullptr);
 
     int pos = 0;
     for (const auto meta : midi) {
@@ -195,18 +205,18 @@ void PallbearerAudioProcessor::getStateInformation(juce::MemoryBlock& dest)
     auto state = apvts.copyState();
     state.removeChild(state.getChildWithName(kLayerTag), nullptr);   // never two
     int version = 1;
-    {
-        const juce::SpinLock::ScopedLockType held(layerLock);
-        if (layer.length > 0) {
-            juce::ValueTree t(kLayerTag);
-            t.setProperty("sr", layer.sr, nullptr);
-            t.setProperty("root", layer.root, nullptr);
-            t.setProperty("length", layer.length, nullptr);
-            t.setProperty("data", juce::var(juce::MemoryBlock(layerData.data(),
-                                                              layerData.size() * sizeof(double))), nullptr);
-            state.appendChild(t, nullptr);
-            version = 2;
-        }
+    /* A reference, not a copy: the lock is held for one pointer and the
+       samples are read after it is let go, which is safe because a stored
+       layer is never written to again. A save during a note is inaudible. */
+    if (const LayerRef saving = currentLayer()) {
+        juce::ValueTree t(kLayerTag);
+        t.setProperty("sr", saving->view.sr, nullptr);
+        t.setProperty("root", saving->view.root, nullptr);
+        t.setProperty("length", saving->view.length, nullptr);
+        t.setProperty("data", juce::var(juce::MemoryBlock(saving->data.data(),
+                                                          saving->data.size() * sizeof(double))), nullptr);
+        state.appendChild(t, nullptr);
+        version = 2;
     }
     state.setProperty("pallbearerVersion", version, nullptr);
     state.setProperty("coreVersion", juce::String(pallbearer::VERSION), nullptr);
@@ -268,30 +278,63 @@ static bool layerIsPlayable(const std::vector<double>& d, double sr, double root
     return true;
 }
 
+PallbearerAudioProcessor::LayerRef PallbearerAudioProcessor::currentLayer() const
+{
+    const juce::SpinLock::ScopedLockType held(layerLock);
+    return layerShared;
+}
+
 bool PallbearerAudioProcessor::setAttackLayer(std::vector<double> data, double sr, double root)
 {
     if (!data.empty() && !layerIsPlayable(data, sr, root)) return false;
+
+    /* Built in full before the lock is touched: the allocation, the move
+       and the view all happen here, on the calling thread, unobserved. */
+    LayerRef fresh;
+    if (!data.empty()) {
+        auto store = std::make_shared<LayerStore>();
+        store->data = std::move(data);
+        store->view.data = store->data.data();
+        store->view.length = (int)store->data.size();
+        store->view.sr = sr;
+        store->view.root = root;
+        fresh = std::move(store);
+    }
+
+    /* Room for both lists is made before the lock, so nothing allocates
+       while it is held. Only this function writes layerKeep and it is
+       message thread only, so reading its size here is reading our own. */
+    std::vector<LayerRef> dead, keep;
+    dead.reserve(layerKeep.size());
+    keep.reserve(layerKeep.size() + 1);
     {
         const juce::SpinLock::ScopedLockType held(layerLock);
-        layerData.swap(data);
-        layer.data = layerData.empty() ? nullptr : layerData.data();
-        layer.length = (int)layerData.size();
-        layer.sr = layerData.empty() ? 48000.0 : sr;
-        layer.root = layerData.empty() ? 33.0 : root;
+        layerShared = fresh;
+        /* A store only layerKeep still holds can go. One the audio thread is
+           still playing has a second holder and stays until the next call;
+           the audio thread only repoints under this lock, so the count read
+           here cannot be about to rise. A saver letting go late only makes
+           the count read high, which keeps a store one call longer. */
+        for (auto& k : layerKeep) {
+            if (k.use_count() == 1) dead.push_back(std::move(k));
+            else                    keep.push_back(std::move(k));
+        }
+        if (fresh) keep.push_back(fresh);
+        layerKeep.swap(keep);
     }
-    return true;                        // the old samples free here, outside the lock
+    return true;                        // `dead` frees here, outside the lock, off the audio thread
 }
 
 bool PallbearerAudioProcessor::hasAttackLayer() const
 {
-    const juce::SpinLock::ScopedLockType held(layerLock);
-    return layer.length > 0;
+    return currentLayer() != nullptr;
 }
 
 void PallbearerAudioProcessor::copyAttackLayer(std::vector<double>& data, double& sr, double& root) const
 {
-    const juce::SpinLock::ScopedLockType held(layerLock);
-    data = layerData; sr = layer.sr; root = layer.root;
+    const LayerRef l = currentLayer();
+    if (l) { data = l->data; sr = l->view.sr; root = l->view.root; }
+    else   { data.clear(); sr = 48000.0; root = 33.0; }
 }
 
 juce::AudioProcessorEditor* PallbearerAudioProcessor::createEditor()

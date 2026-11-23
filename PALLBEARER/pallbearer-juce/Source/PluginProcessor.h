@@ -58,7 +58,7 @@ public:
        changes nothing if the layer is not one the core can play. */
     bool setAttackLayer(std::vector<double> data, double sr, double root);
     bool hasAttackLayer() const;
-    /* a copy, under the lock: for tests and for an editor to draw */
+    /* a copy, made outside the lock: for tests and for an editor to draw */
     void copyAttackLayer(std::vector<double>& data, double& sr, double& root) const;
 
     /* Bounds a stored layer must meet before it is played or restored. The
@@ -86,14 +86,39 @@ private:
        float rounding step in the middle of a parity-proven signal path. */
     std::vector<double> scratchL, scratchR;
 
-    /* The layer's storage. `layer` points into `layerData`; both change only
-       under `layerLock`, which processBlock holds (by try-lock) for the whole
-       render, so the audio thread never reads a vector being replaced. If the
-       message thread holds the lock at that moment, that one block renders
-       without the layer rather than waiting. */
-    std::vector<double> layerData;
-    pallbearer::AttackLayer layer;
+    /* The layer's storage. A LayerStore is IMMUTABLE once built: nobody ever
+       writes to one after setAttackLayer has made it, so any thread holding a
+       reference may read it with no lock at all. `layerLock` guards only the
+       POINTERS, and is held for a pointer copy, never for a copy of samples.
+
+       `layerShared` is the layer the session has. The audio thread keeps its
+       own reference, `layerAudio`, refreshed by try-lock at the top of each
+       block; when the try fails (a host saving the session, an editor
+       drawing) it keeps playing the layer it already has. Until 2026-11-23
+       a failed try handed the core no layer for that block, and the core
+       ends a sampled attack for good the moment it sees none, so a save
+       during a note cut the attack off. A save must never be audible.
+
+       NOTHING IS FREED ON THE AUDIO THREAD. Every store is also held in
+       `layerKeep`, which only the message thread edits, so the audio
+       thread's reference is never the last one and dropping it is a
+       decrement, not a free. setAttackLayer prunes `layerKeep` of stores
+       nobody else holds, under the lock (where the audio thread cannot be
+       changing its reference), and frees them after letting go of it. */
+    struct LayerStore {
+        std::vector<double> data;
+        pallbearer::AttackLayer view;
+    };
+    using LayerRef = std::shared_ptr<const LayerStore>;
+    LayerRef layerShared;                   // guarded by layerLock
+    LayerRef layerAudio;                    // audio thread only; repointed under layerLock
+    std::vector<LayerRef> layerKeep;        // guarded by layerLock; edited off the audio thread
     mutable juce::SpinLock layerLock;
+    LayerRef currentLayer() const;          // a reference, taken under the lock
+
+    /* tests/state_roundtrip.cpp holds the lock on purpose, to be the host
+       that saves at the worst moment. Nothing in the plugin uses this. */
+    friend struct PallbearerTestAccess;
 
     void pushParameters();
     void handleMidi(const juce::MidiMessage& m);
