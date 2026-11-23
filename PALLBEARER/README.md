@@ -241,8 +241,8 @@ by bin. The to-Nyquist figure is the smaller one because what is left sits betwe
 20 and 24 kHz, in the filter's transition band.
 
 **Why 2x and not 4x.** 4x was measured in a prototype, not shipped: about -83 dB below
-20 kHz at full drive against -65 dB for 2x, for roughly five times the cost of the
-stage. For a bass whose tone control defaults to 3.8 kHz, 2x was taken. If the ear
+20 kHz at full drive against -65 dB for 2x, for roughly six times the cost of the
+stage (a scratch prototype in JS, timed once; a ratio, not a benchmark). For a bass whose tone control defaults to 3.8 kHz, 2x was taken. If the ear
 disagrees, 4x is a second pair of filters around this one.
 
 **What it was not allowed to change, and the proof.**
@@ -260,15 +260,15 @@ disagrees, 4x is a second pair of filters around this one.
 
 **Latency.** None is reported, and the plugin has no latency hook in use. The filters
 delay the driven signal by 2.4 samples at 100 Hz and 3.0 at 10 kHz (measured, same
-section), which is 0.05 ms, and only while drive is on. A linear-phase FIR would have
+section), which is about 0.05 to 0.06 ms at 48 kHz, and only while drive is on. A linear-phase FIR would have
 kept the phases still and cost a fixed latency the plugin would then have to report to
 the host, switching with the drive knob; that trade was judged worse for an instrument.
 
 **Cost.** On this Mac, `tests/pallbearer_cpu.js`: the cases with drive off did not move;
 `everything_on` went from 271x to 215x realtime and `six_string_full` from 189x to 163x.
 The gate still passes, and that is not reassurance: its baseline was recorded on
-2026-08-17 on a slower machine with ratios far above this Mac's, so it has room to hide
-exactly this. **`cpu_baseline.json` was NOT re-blessed**, because a bless from this Mac
+2026-08-17 on a different machine, whose ratios sit far above this Mac's, so it has room
+to hide exactly this. **`cpu_baseline.json` was NOT re-blessed**, because a bless from this Mac
 would rewrite every ratio from the wrong machine. It wants re-blessing wherever it was
 recorded, and it is not a step in `.github/workflows/pallbearer.yml` at all.
 
