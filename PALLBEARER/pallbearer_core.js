@@ -775,6 +775,89 @@ var PB = (function () {
   Body.prototype.reset = function () { this.air.reset(); this.w1.reset(); this.w2.reset(); };
 
   // ------------------------------------------------------------------
+  // 6b. THE DRIVE STAGE, oversampled (2026-11-23)
+  // ------------------------------------------------------------------
+  /* The drive curve is x/(1+|x|), a soft clip, and a clip makes harmonics
+     without limit. Run at the sample rate, everything it makes above half
+     that rate folds back down as tones that belong to no note. Measured in
+     section XXV of the harness: a hard-driven high note carried its aliases
+     only 44 dB under the note, below 20 kHz.
+
+     So the curve, and ONLY the curve, runs at twice the rate. One half-band
+     filter makes the two samples, the curve shapes each, a second half-band
+     filter takes them back to one. The transfer curve itself is untouched:
+     the same gain in, the same x/(1+|x|), the same make-up out.
+
+     THE FILTER is a polyphase IIR half-band: two short chains of allpass
+     sections, one per phase, each section  y = c*(x - y1) + x1  at the base
+     rate. Six coefficients, transition band 0.05 of the doubled rate, so it
+     is flat to 0.45 of the sample rate (21.6 kHz at 48 k) and rejects by
+     about 80 dB beyond 0.55. The design is the elliptic one from Valenzuela
+     and Constantinides (1983), in the closed form Laurent de Soras published
+     with HIIR; the harness recomputes these six numbers from that formula
+     and holds them equal, so they are derived there and only quoted here.
+
+     WHY IIR AND NOT A LINEAR-PHASE FIR. A FIR would add a fixed latency of
+     its own length, which an instrument would then have to report to the
+     host, and only while drive is on. This adds no reportable latency: its
+     delay is about three samples at the bottom of the range (measured in the
+     harness) and it bends phase near the top, where a bass has nothing.
+
+     PARITY (LAW 1). Each section is one multiply and two adds, written in
+     the same order in PallbearerCore.h. This is exactly the arithmetic a
+     compiler wants to fuse; -ffp-contract=off is what stops it.
+
+     BYPASS. At drive <= 0.001 the stage is not run at all, as before, so a
+     patch that does not use drive renders the bytes it always did. The
+     regression harness holds that with a dry twin of every phrase. */
+  var OS_C0 = 0.060297390957124372;
+  var OS_C1 = 0.21597144456092948;
+  var OS_C2 = 0.41259072036105632;
+  var OS_C3 = 0.60435862646583627;
+  var OS_C4 = 0.77271565374292339;
+  var OS_C5 = 0.92388613865329061;
+  var OS_COEFS = [OS_C0, OS_C1, OS_C2, OS_C3, OS_C4, OS_C5];
+
+  /* The curve as it has always been, on a sample that already carries the
+     drive gain. Its own function so the harness can run it bare, at the
+     base rate, and measure what oversampling it is worth. */
+  function driveCurve(x) { return x / (1 + Math.abs(x)); }
+
+  function DriveOS() { this.reset(); }
+  DriveOS.prototype.reset = function () {
+    this.ux0 = 0; this.uy0 = 0; this.ux1 = 0; this.uy1 = 0; this.ux2 = 0; this.uy2 = 0;
+    this.ux3 = 0; this.uy3 = 0; this.ux4 = 0; this.uy4 = 0; this.ux5 = 0; this.uy5 = 0;
+    this.dx0 = 0; this.dy0 = 0; this.dx1 = 0; this.dy1 = 0; this.dx2 = 0; this.dy2 = 0;
+    this.dx3 = 0; this.dy3 = 0; this.dx4 = 0; this.dy4 = 0; this.dx5 = 0; this.dy5 = 0;
+    this.live = false;
+  };
+  /* One sample in at the base rate, one out. `g` is the drive gain. */
+  DriveOS.prototype.tick = function (x, g) {
+    var a, b, t;
+    /* up: the first of the two samples through sections 0 2 4 ... */
+    t = OS_C0 * (x - this.uy0) + this.ux0; this.ux0 = x; this.uy0 = t; a = t;
+    t = OS_C2 * (a - this.uy2) + this.ux2; this.ux2 = a; this.uy2 = t; a = t;
+    t = OS_C4 * (a - this.uy4) + this.ux4; this.ux4 = a; this.uy4 = t; a = t;
+    /* ... the second through 1 3 5 */
+    t = OS_C1 * (x - this.uy1) + this.ux1; this.ux1 = x; this.uy1 = t; b = t;
+    t = OS_C3 * (b - this.uy3) + this.ux3; this.ux3 = b; this.uy3 = t; b = t;
+    t = OS_C5 * (b - this.uy5) + this.ux5; this.ux5 = b; this.uy5 = t; b = t;
+
+    /* the curve, untouched, on both */
+    a = driveCurve(a * g);
+    b = driveCurve(b * g);
+
+    /* down: the LATER sample through 0 2 4, the earlier through 1 3 5 */
+    t = OS_C0 * (b - this.dy0) + this.dx0; this.dx0 = b; this.dy0 = t; b = t;
+    t = OS_C2 * (b - this.dy2) + this.dx2; this.dx2 = b; this.dy2 = t; b = t;
+    t = OS_C4 * (b - this.dy4) + this.dx4; this.dx4 = b; this.dy4 = t; b = t;
+    t = OS_C1 * (a - this.dy1) + this.dx1; this.dx1 = a; this.dy1 = t; a = t;
+    t = OS_C3 * (a - this.dy3) + this.dx3; this.dx3 = a; this.dy3 = t; a = t;
+    t = OS_C5 * (a - this.dy5) + this.dx5; this.dx5 = a; this.dy5 = t; a = t;
+    return 0.5 * (a + b);
+  };
+
+  // ------------------------------------------------------------------
   // 7. THE INSTRUMENT
   // ------------------------------------------------------------------
   function PallbearerCore(sampleRate, seed) {
@@ -796,6 +879,7 @@ var PB = (function () {
     this.coil.lowpassRes(this.p.coilFreq, this.p.coilQ, this.sr);
     this.tonez = 0;
     this.toneCoef = 0.3;
+    this.driveOS = new DriveOS();
     this.attackLayer = null;
     this._rebuild();
     this._recalcTone();
@@ -915,6 +999,7 @@ var PB = (function () {
     this.handVel = 0;
     this.body.reset();
     this.coil.reset();
+    this.driveOS.reset();
   };
 
   PallbearerCore.prototype.soundingCount = function () {
@@ -974,6 +1059,17 @@ var PB = (function () {
       }
     }
 
+    /* THE DRIVE STAGE. Decided once per call, since drive cannot move inside
+       one. When the stage goes from running to bypassed its filters are
+       emptied, once, so that turning drive back up later starts from silence
+       and not from whatever the filters held when it was turned down. */
+    var os = this.driveOS;
+    var driven = drive > 0.001;
+    var driveGain = 1 + drive * 6;
+    var driveMake = 1 + drive * 0.5;
+    if (driven) os.live = true;
+    else if (os.live) os.reset();
+
     for (var i = 0; i < n; i++) {
       var sum = 0;
       var newBus = 0;
@@ -1006,12 +1102,7 @@ var PB = (function () {
       this.tonez += this.toneCoef * (sum - this.tonez);
       var y = this.tonez;
 
-      if (drive > 0.001) {
-        var g = 1 + drive * 6;
-        var xg = y * g;
-        y = xg / (1 + Math.abs(xg));
-        y *= (1 + drive * 0.5);
-      }
+      if (driven) y = os.tick(y, driveGain) * driveMake;
 
       y *= lvl;
       if (y > 1.6) y = 1.6; else if (y < -1.6) y = -1.6;
@@ -1120,6 +1211,9 @@ var PB = (function () {
     PallbearerCore: PallbearerCore,
     String_: String_,
     Allpass1: Allpass1,
+    DriveOS: DriveOS,
+    driveCurve: driveCurve,
+    OS_COEFS: OS_COEFS,
     Biquad: Biquad,
     Body: Body,
     Rng: Rng,

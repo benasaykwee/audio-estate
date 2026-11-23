@@ -156,6 +156,22 @@ int main() {
           check(b.tick(i == 0 ? 1.0 : (i % 7 == 0 ? -0.3 : 0.1)), EXP_BODY[k++], "body.tick");
       } }
 
+    /* ---- 3c. the oversampled drive stage, alone ---- */
+    { int k = 0;
+      const double OS_G[4] = { 1, 1.72, 4, 7 };
+      const double coefs[6] = { OS_C0, OS_C1, OS_C2, OS_C3, OS_C4, OS_C5 };
+      for (int i = 0; i < 6; ++i) check(coefs[i], EXP_DRIVEOS[k++], "driveOS.coef");
+      for (int gi = 0; gi < 4; ++gi) {
+        DriveOS d;
+        Rng r(0xD81FEu);
+        for (int i = 0; i < 96; ++i) {
+          double x = i == 0 ? 1.0 : (i < 48 ? r.bi() * 0.8 : (i % 9 == 0 ? -0.6 : 0.2));
+          check(d.tick(x, OS_G[gi]), EXP_DRIVEOS[k++], "driveOS.tick");
+        }
+        d.reset();
+        check(d.tick(0.5, OS_G[gi]), EXP_DRIVEOS[k++], "driveOS.afterReset");
+      } }
+
     /* ---- 5. the fingering brain ---- */
     { int k = 0;
       std::vector<int> open = tuningOpen("standard-4");
@@ -175,7 +191,7 @@ int main() {
     /* ---- 6. RENDERED AUDIO ---- */
     struct RC { const char* name; std::vector<int> notes; };
     { int k = 0;
-      for (int ci = 0; ci < 10; ++ci) {
+      for (int ci = 0; ci < 11; ++ci) {
         PallbearerCore core(SR, 0x5EED1Eu);
         std::vector<int> notes;
         switch (ci) {
@@ -205,6 +221,8 @@ int main() {
           case 9: core.p.coilFreq = 1200; core.p.coilQ = 6; core.p.drive = 0.6; core.p.couple = 0.8;
                   core.setCoil();
                   notes = { 28, 35 }; break;
+          case 10: core.p.drive = 0.8; core.p.tone = 9000;
+                  notes = { 40, 45, 52 }; break;
         }
         core.recalcTone();
         std::vector<double> L(EXP_RENDER_N, 0.0), R(EXP_RENDER_N, 0.0);
@@ -216,6 +234,12 @@ int main() {
             while (ni < (int)notes.size() && pos >= ni * gap) {
                 if (cur >= 0) core.noteOff(cur);
                 cur = notes[ni]; core.noteOn(cur, 0.85); ni++;
+            }
+            if (ci == 10) {                 // drive_moves: mirrors driveAt in parity_emit.js
+                if (pos == 1536) core.p.drive = 0;
+                if (pos == 3072) core.p.drive = 1;
+                if (pos == 4480) core.p.drive = 0.0005;
+                if (pos == 5120) core.p.drive = 0.35;
             }
             int m = std::min(blk, EXP_RENDER_N - pos);
             core.render(tl, tr, m);

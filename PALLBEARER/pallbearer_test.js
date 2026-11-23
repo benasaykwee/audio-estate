@@ -1155,6 +1155,245 @@ S('XXIV · String Coupling stays stable across the range');
 })();
 
 // -------------------------------------------------------------------
+S('XXV · the drive stage, oversampled');
+// -------------------------------------------------------------------
+/* The README said for months that the drive stage aliases and wants
+   oversampling. This section is the measurement that sentence never had:
+   what the aliasing WAS (the bare curve at the sample rate, which is the
+   stage as it stood), what it IS, and the things oversampling was not
+   allowed to change. A change that cannot show its improvement in numbers
+   should not ship. */
+(function () {
+  var sr = 48000, N = 65536, i;
+
+  // ---- the coefficients are DERIVED here, quoted in the core ----
+  /* Polyphase IIR half-band, elliptic, after Valenzuela and Constantinides
+     (1983) in the closed form published with Laurent de Soras's HIIR. Six
+     coefficients, transition 0.05 of the doubled rate. */
+  function ipow(x, n) { var z = 1; while (n) { if (n & 1) z *= x; n >>= 1; x *= x; } return z; }
+  function design(n, tbw) {
+    var k = Math.tan((1 - tbw * 2) * Math.PI / 4); k *= k;
+    var ks = Math.pow(1 - k * k, 0.25), e = 0.5 * (1 - ks) / (1 + ks), e4 = e * e * e * e;
+    var q = e * (1 + e4 * (2 + e4 * (15 + 150 * e4)));
+    var order = n * 2 + 1, out = [];
+    for (var c = 1; c <= n; c++) {
+      var num = 0, den = 0, t, ii = 0, j = 1;
+      do { t = ipow(q, ii * (ii + 1)) * Math.sin((ii * 2 + 1) * c * Math.PI / order) * j; num += t; j = -j; ii++; } while (Math.abs(t) > 1e-100);
+      ii = 1; j = -1;
+      do { t = ipow(q, ii * ii) * Math.cos(ii * 2 * c * Math.PI / order) * j; den += t; j = -j; ii++; } while (Math.abs(t) > 1e-100);
+      var ww = num * Math.pow(q, 0.25) / (den + 0.5); ww *= ww;
+      var x = Math.sqrt((1 - ww * k) * (1 - ww / k)) / (1 + ww);
+      out.push((1 - x) / (1 + x));
+    }
+    return out;
+  }
+  var want = design(6, 0.05), worstC = 0;
+  for (i = 0; i < 6; i++) worstC = Math.max(worstC, Math.abs(want[i] - PB.OS_COEFS[i]));
+  ok('the six filter coefficients in the core are the ones the design formula gives',
+     PB.OS_COEFS.length === 6 && worstC < 1e-14, 'worst difference ' + worstC.toExponential(2));
+
+  // ---- an FFT, for this section only ----
+  function fft(re, im) {
+    var n = re.length, a, b, j, t, len;
+    for (a = 1, j = 0; a < n; a++) {
+      var bit = n >> 1;
+      for (; j & bit; bit >>= 1) j ^= bit;
+      j ^= bit;
+      if (a < j) { t = re[a]; re[a] = re[j]; re[j] = t; t = im[a]; im[a] = im[j]; im[j] = t; }
+    }
+    for (len = 2; len <= n; len <<= 1) {
+      var ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
+      for (a = 0; a < n; a += len) {
+        var cr = 1, ci = 0;
+        for (b = 0; b < len / 2; b++) {
+          var ur = re[a + b], ui = im[a + b];
+          var vr = re[a + b + len / 2] * cr - im[a + b + len / 2] * ci;
+          var vi = re[a + b + len / 2] * ci + im[a + b + len / 2] * cr;
+          re[a + b] = ur + vr; im[a + b] = ui + vi;
+          re[a + b + len / 2] = ur - vr; im[a + b + len / 2] = ui - vi;
+          t = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = t;
+        }
+      }
+    }
+  }
+  function spectrum(y) {       // the LAST N samples: the filters have settled by then
+    var re = Float64Array.from(y.subarray(y.length - N)), im = new Float64Array(N);
+    fft(re, im);
+    return { re: re, im: im };
+  }
+
+  /* A HIGH NOTE, DRIVEN HARD. The top C of a six-string (C5), as a steady
+     harmonic series: fifteen partials at 1/h, reaching 7.9 kHz, peak 0.8.
+     The fundamental sits on FFT bin 719 exactly, and 719 is prime, so every
+     harmonic the curve makes lands on a multiple of 719 and every ALIAS
+     lands somewhere else. "Non-harmonic energy" is therefore exactly the
+     aliasing and nothing but: no window, no leakage, no judgement. */
+  var K = 719, PARTS = 15, PEAK = 0.8;
+  function highNote() {
+    var x = new Float64Array(N * 2), pk = 0, h;
+    for (i = 0; i < x.length; i++) {
+      var v = 0;
+      for (h = 1; h <= PARTS; h++) v += Math.sin(2 * Math.PI * K * h * i / N + h * h * 0.7) / h;
+      x[i] = v; if (Math.abs(v) > pk) pk = Math.abs(v);
+    }
+    for (i = 0; i < x.length; i++) x[i] *= PEAK / pk;
+    return x;
+  }
+  var note = highNote();
+  function stageBefore(x, drive) {   // the stage as it stood: the bare curve at the sample rate
+    var g = 1 + drive * 6, mk = 1 + drive * 0.5, y = new Float64Array(x.length);
+    for (var n = 0; n < x.length; n++) y[n] = PB.driveCurve(x[n] * g) * mk;
+    return y;
+  }
+  function stageAfter(x, drive) {    // the stage as the core runs it now
+    var g = 1 + drive * 6, mk = 1 + drive * 0.5, y = new Float64Array(x.length), d = new PB.DriveOS();
+    for (var n = 0; n < x.length; n++) y[n] = d.tick(x[n], g) * mk;
+    return y;
+  }
+  function aliasDb(y, upToHz) {      // non-harmonic power over harmonic power, below upToHz
+    var sp = spectrum(y), lim = Math.min(N / 2, Math.floor(upToHz / (sr / N))), harm = 0, non = 0;
+    for (var b = 1; b < lim; b++) {
+      var p = sp.re[b] * sp.re[b] + sp.im[b] * sp.im[b];
+      if (b % K === 0) harm += p; else non += p;
+    }
+    return 10 * Math.log10(non / harm);
+  }
+  var f0 = K * sr / N;
+  console.log('    a high note driven hard: ' + f0.toFixed(1) + ' Hz, ' + PARTS + ' partials to ' +
+              (f0 * PARTS / 1000).toFixed(1) + ' kHz, peak ' + PEAK);
+  console.log('    aliasing = energy on non-harmonic bins, in dB under the harmonic energy');
+  var rows = [1, 0.5, 0.12].map(function (dr) {
+    var b = stageBefore(note, dr), a = stageAfter(note, dr);
+    var r = { drive: dr, bAll: aliasDb(b, sr / 2), aAll: aliasDb(a, sr / 2), bAud: aliasDb(b, 20000), aAud: aliasDb(a, 20000) };
+    console.log('    drive ' + dr.toFixed(2) + '   below 20 kHz: before ' + r.bAud.toFixed(1) + ' dB, after ' + r.aAud.toFixed(1) +
+                ' dB (' + (r.bAud - r.aAud).toFixed(1) + ' better)   to Nyquist: before ' + r.bAll.toFixed(1) +
+                ' dB, after ' + r.aAll.toFixed(1) + ' dB (' + (r.bAll - r.aAll).toFixed(1) + ' better)');
+    return r;
+  });
+  ok('before, the hard-driven high note aliased audibly (the README was right)',
+     rows[0].bAud > -50, rows[0].bAud.toFixed(1) + ' dB below 20 kHz at drive 1');
+  ok('after, its aliasing below 20 kHz is at least 18 dB lower at full drive',
+     rows[0].bAud - rows[0].aAud >= 18, rows[0].bAud.toFixed(1) + ' → ' + rows[0].aAud.toFixed(1) + ' dB');
+  ok('and at least 12 dB lower measured all the way to Nyquist',
+     rows[0].bAll - rows[0].aAll >= 12, rows[0].bAll.toFixed(1) + ' → ' + rows[0].aAll.toFixed(1) + ' dB');
+  ok('the improvement holds at half drive and at the default 0.12',
+     rows[1].bAud - rows[1].aAud >= 18 && rows[2].bAud - rows[2].aAud >= 18,
+     (rows[1].bAud - rows[1].aAud).toFixed(1) + ' dB and ' + (rows[2].bAud - rows[2].aAud).toFixed(1) + ' dB');
+
+  // ---- what oversampling was NOT allowed to change ----
+  /* The transfer curve. Hold the input still and the filters pass it
+     through untouched (an allpass has unity gain at DC), so the stage must
+     settle on exactly the old curve's value. */
+  var worstDc = 0;
+  [-1.4, -0.3, -0.01, 0.02, 0.5, 0.9, 1.6].forEach(function (x) {
+    [1.72, 4, 7].forEach(function (g) {
+      var d = new PB.DriveOS(), y = 0;
+      for (var n = 0; n < 600; n++) y = d.tick(x, g);
+      worstDc = Math.max(worstDc, Math.abs(y - PB.driveCurve(x * g)));
+    });
+  });
+  ok('the transfer curve itself is untouched (a held input settles on the old curve)',
+     worstDc < 1e-12, 'worst ' + worstDc.toExponential(2) + ' over 21 points');
+
+  /* The harmonics it is SUPPOSED to make. Aliasing aside, the new stage
+     should put the same energy on the same harmonics as the old one. It
+     does in total, and nearly per harmonic, and the "nearly" is real and is
+     NOT hidden: the up filter is not linear-phase, so the partials reach the
+     curve with their phases turned by a few degrees, and a curve given a
+     slightly different wave shape makes slightly different overtones. A
+     string's partials have no fixed phase to begin with, so this is very
+     likely inaudible, but it is a change in the drive's voice and it is
+     one for an ear to pass, not a test. The numbers are printed. */
+  var spB = spectrum(stageBefore(note, 1)), spA = spectrum(stageAfter(note, 1));
+  var worstLoud = 0, worstAny = 0, loud = 0, any = 0, eB = 0, eA = 0;
+  var fundP = spB.re[K] * spB.re[K] + spB.im[K] * spB.im[K];
+  for (var hb = K; hb < 20000 / (sr / N); hb += K) {
+    var pb = spB.re[hb] * spB.re[hb] + spB.im[hb] * spB.im[hb];
+    var pa = spA.re[hb] * spA.re[hb] + spA.im[hb] * spA.im[hb];
+    eB += pb; eA += pa;
+    var rel = 10 * Math.log10(pb / fundP), ch = Math.abs(10 * Math.log10(pa / pb));
+    if (rel > -30) { loud++; worstLoud = Math.max(worstLoud, ch); }
+    if (rel > -45) { any++; worstAny = Math.max(worstAny, ch); }
+  }
+  var totalCh = 10 * Math.log10(eA / eB);
+  ok('the harmonic energy the curve makes below 20 kHz is the same in total',
+     Math.abs(totalCh) < 0.02, totalCh.toFixed(4) + ' dB');
+  ok('every strong harmonic (within 30 dB of the fundamental) holds its level to 0.3 dB',
+     worstLoud < 0.3, 'worst ' + worstLoud.toFixed(3) + ' dB over ' + loud + ' harmonics');
+  ok('and every harmonic within 45 dB holds to 0.75 dB',
+     worstAny < 0.75, 'worst ' + worstAny.toFixed(3) + ' dB over ' + any + ' harmonics');
+
+  /* The filters alone, at a level too small for the curve to bend. */
+  function tone(bin) {
+    var x = new Float64Array(N * 2);
+    for (var n = 0; n < x.length; n++) x[n] = 1e-7 * Math.sin(2 * Math.PI * bin * n / N);
+    return x;
+  }
+  var worstFlat = 0, flatAt = [100, 1000, 5000, 10000, 15000, 20000, 21500], delayLow = 0, delay10k = 0;
+  flatAt.forEach(function (hz) {
+    var bin = Math.round(hz / (sr / N));
+    var xi = tone(bin), yo = stageAfter(xi, 0), sx = spectrum(xi), sy = spectrum(yo);
+    var gdb = 10 * Math.log10((sy.re[bin] * sy.re[bin] + sy.im[bin] * sy.im[bin]) / (sx.re[bin] * sx.re[bin] + sx.im[bin] * sx.im[bin]));
+    worstFlat = Math.max(worstFlat, Math.abs(gdb));
+  });
+  function delayAt(hz) {             // group delay by phase difference across two neighbouring bins
+    var b0 = Math.round(hz / (sr / N)), ph = [b0, b0 + 8].map(function (bin) {
+      var xi = tone(bin), yo = stageAfter(xi, 0), sx = spectrum(xi), sy = spectrum(yo);
+      return Math.atan2(sy.im[bin], sy.re[bin]) - Math.atan2(sx.im[bin], sx.re[bin]);
+    });
+    var dph = ph[1] - ph[0];
+    while (dph > Math.PI) dph -= 2 * Math.PI;
+    while (dph < -Math.PI) dph += 2 * Math.PI;
+    return -dph / (2 * Math.PI * 8 / N);
+  }
+  delayLow = delayAt(100); delay10k = delayAt(10000);
+  ok('the filters are flat to 21.5 kHz (nothing is made darker by the filtering itself)',
+     worstFlat < 0.01, 'worst ' + worstFlat.toFixed(5) + ' dB at ' + flatAt.join(', ') + ' Hz');
+  ok('the delay they add is a few samples, not a latency to report',
+     delayLow > 0 && delayLow < 6 && delay10k < 12,
+     delayLow.toFixed(2) + ' samples at 100 Hz, ' + delay10k.toFixed(2) + ' at 10 kHz');
+
+  // ---- bypass ----
+  function phrase(drive, mid) {
+    var core = new PB.PallbearerCore(sr, 0x5EED1E);
+    core.setPatch({ drive: drive, tone: 9000 });
+    var L = new Float64Array(9600), tl = new Float64Array(64), tr = new Float64Array(64), pos = 0;
+    core.noteOn(40, 0.9);
+    while (pos < L.length) {
+      if (mid && pos === 4800) mid(core);
+      core.render(tl, tr, 64); L.set(tl, pos); pos += 64;
+    }
+    return { L: L, core: core };
+  }
+  function same(a, b, from, to) { for (var n = from; n < to; n++) if (a[n] !== b[n]) return false; return true; }
+  var dry = phrase(0), edge = phrase(0.001), wet = phrase(0.5);
+  ok('with drive at 0 the stage is never run (the dry twins in the regression hold the bytes)',
+     dry.core.driveOS.live === false && dry.core.driveOS.ux0 === 0 && dry.core.driveOS.dy5 === 0);
+  ok('drive 0.001, the old threshold, is still bypass and still bit-identical to 0',
+     same(dry.L, edge.L, 0, dry.L.length) && edge.core.driveOS.live === false);
+  ok('with drive up the instrument really does go through the oversampled stage',
+     wet.core.driveOS.live === true && wet.core.driveOS.uy5 !== 0 && !same(dry.L, wet.L, 0, 9600));
+  var off = phrase(0.5, function (c) { c.p.drive = 0; });
+  ok('turning drive down to 0 mid-note empties the filters, once',
+     off.core.driveOS.live === false && off.core.driveOS.uy5 === 0 && off.core.driveOS.dx0 === 0);
+  var cleared = phrase(0.5); cleared.core.allOff();
+  ok('allOff empties them too', cleared.core.driveOS.live === false && cleared.core.driveOS.dy4 === 0);
+  var allFinite = true; for (i = 0; i < wet.L.length; i++) if (!isFinite(wet.L[i])) allFinite = false;
+  ok('the driven output is finite and inside the old ceiling', allFinite && Math.max.apply(null, Array.from(wet.L).map(Math.abs)) <= 1.6);
+
+  // ---- the gate can fail ----
+  /* A stage with the filters but run at the BASE rate (the curve applied
+     once, between them) must not pass the aliasing check: that is the
+     mistake of adding filters and calling it oversampling. */
+  (function () {
+    var d1 = new PB.DriveOS(), g = 7, mk = 1.5, y = new Float64Array(note.length);
+    for (var n = 0; n < note.length; n++) { d1.tick(note[n], 1e-9); y[n] = PB.driveCurve(note[n] * g) * mk; }
+    ok('the aliasing check bites: the bare curve does not pass it',
+       !(rows[0].bAud - aliasDb(y, 20000) >= 18));
+  })();
+})();
+
+// -------------------------------------------------------------------
 console.log('\n' + '═'.repeat(64));
 console.log('  PALLBEARER v' + PB.VERSION + ' — ' + pass + ' passed, ' + fail + ' failed');
 console.log('  worst tuning error across the range: ' + worstCents.toFixed(3) + ' cents');

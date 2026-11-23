@@ -122,6 +122,25 @@ COIL_F.forEach(function (f) {
 });
 total += coilv.length;
 
+/* ---- 3c. the oversampled drive stage, alone (2026-11-23) ----
+   Twelve allpass sections of multiply-then-add around a division: the
+   arithmetic LAW 1 exists for. Driven hard enough to bend, long enough for
+   every section to fill, with no transcendental in the input. */
+var OS_G = [1, 1.72, 4, 7];
+var osv = [];
+PB.OS_COEFS.forEach(function (c) { osv.push(c); });
+OS_G.forEach(function (g) {
+  var d = new PB.DriveOS();
+  var r = new PB.Rng(0xD81FE);
+  for (var i = 0; i < 96; i++) {
+    var x = i === 0 ? 1 : (i < 48 ? r.bi() * 0.8 : (i % 9 === 0 ? -0.6 : 0.2));
+    osv.push(d.tick(x, g));
+  }
+  d.reset();
+  osv.push(d.tick(0.5, g));
+});
+total += osv.length;
+
 /* ---- 4. body ---- */
 var BODY_F = [40, 62, 92, 160, 260];
 var BODY_Q = [0.5, 3.2, 8];
@@ -177,7 +196,13 @@ var RENDER_CASES = [
   { name: 'coupled',   patch: { couple: 1, decay: 9, damping: 0.12, fretNoise: 1, humanize: 0.5 },
                        notes: [28, 60, 28, 55] },
   { name: 'dead',      patch: { artic: 'dead', noise: 1, buzz: 1, couple: 0.5 }, notes: [33, 40, 33] },
-  { name: 'coilmax',   patch: { coilFreq: 1200, coilQ: 6, drive: 0.6, couple: 0.8 }, notes: [28, 35] }
+  { name: 'coilmax',   patch: { coilFreq: 1200, coilQ: 6, drive: 0.6, couple: 0.8 }, notes: [28, 35] },
+  /* The drive knob moved DURING a phrase: on, off, on again. `driveAt` maps
+     a sample position to the drive set at the first block at or past it, so
+     the bypass, the one-time emptying of the filters and the restart from
+     silence are all inside the bit-exact gate. */
+  { name: 'drive_moves', patch: { drive: 0.8, tone: 9000 }, notes: [40, 45, 52],
+                         driveAt: [[1536, 0], [3072, 1], [4480, 0.0005], [5120, 0.35]] }
 ];
 var RENDER_N = 6000, RENDER_STRIDE = 11;
 var renderv = [];
@@ -193,6 +218,7 @@ RENDER_CASES.forEach(function (c) {
       if (cur >= 0) core.noteOff(cur);
       cur = c.notes[ni]; core.noteOn(cur, 0.85); ni++;
     }
+    if (c.driveAt) c.driveAt.forEach(function (d) { if (pos === d[0]) core.p.drive = d[1]; });
     var m = Math.min(blk, RENDER_N - pos);
     core.render(tl, tr, m);
     L.set(tl.subarray(0, m), pos);
@@ -258,6 +284,7 @@ out += arr('EXP_STYLE', ssv);
 out += arr('EXP_ARTIC', arv);
 out += arr('EXP_ALLPASS', apv);
 out += arr('EXP_COIL', coilv);
+out += arr('EXP_DRIVEOS', osv);
 out += arr('EXP_BODY', bodyv);
 out += arr('EXP_FINGER', fbv);
 out += arr('EXP_RENDER', renderv);
@@ -268,5 +295,5 @@ console.log('✓ wrote tests/parity_expected.h — ' + total + ' values');
 console.log('  rng ' + rngv.length + ' · seedFor ' + seedv.length + ' · midiToFreq ' + mtf.length +
             ' · loopGain ' + lgv.length + ' · dispersion ' + div.length);
 console.log('  velBright ' + vbv.length + ' · style ' + ssv.length + ' · artic ' + arv.length +
-            ' · allpass ' + apv.length + ' · body ' + bodyv.length);
+            ' · allpass ' + apv.length + ' · body ' + bodyv.length + ' · driveOS ' + osv.length);
 console.log('  fingering ' + fbv.length + ' · RENDERED AUDIO ' + renderv.length + ' · layer ' + layerv.length);

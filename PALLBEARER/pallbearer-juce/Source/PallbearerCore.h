@@ -175,6 +175,57 @@ struct Allpass1 {
 };
 
 /* ---------------------------------------------------------------
+   The drive stage, oversampled (2026-11-23). Mirrors section 6b of
+   pallbearer_core.js, where the reasoning and the measurements live.
+   The curve x/(1+|x|) runs at twice the rate between two polyphase
+   IIR half-band filters. Every line below is the same arithmetic in
+   the same order as the JS: one multiply and two adds per section,
+   which is precisely what a compiler fuses without -ffp-contract=off.
+   The six coefficients are the same decimal literals as the JS.
+   --------------------------------------------------------------- */
+static const double OS_C0 = 0.060297390957124372;
+static const double OS_C1 = 0.21597144456092948;
+static const double OS_C2 = 0.41259072036105632;
+static const double OS_C3 = 0.60435862646583627;
+static const double OS_C4 = 0.77271565374292339;
+static const double OS_C5 = 0.92388613865329061;
+
+inline double driveCurve(double x) { return x / (1.0 + std::fabs(x)); }
+
+struct DriveOS {
+    double ux0 = 0, uy0 = 0, ux1 = 0, uy1 = 0, ux2 = 0, uy2 = 0;
+    double ux3 = 0, uy3 = 0, ux4 = 0, uy4 = 0, ux5 = 0, uy5 = 0;
+    double dx0 = 0, dy0 = 0, dx1 = 0, dy1 = 0, dx2 = 0, dy2 = 0;
+    double dx3 = 0, dy3 = 0, dx4 = 0, dy4 = 0, dx5 = 0, dy5 = 0;
+    bool live = false;
+    inline void reset() {
+        ux0 = uy0 = ux1 = uy1 = ux2 = uy2 = ux3 = uy3 = ux4 = uy4 = ux5 = uy5 = 0;
+        dx0 = dy0 = dx1 = dy1 = dx2 = dy2 = dx3 = dy3 = dx4 = dy4 = dx5 = dy5 = 0;
+        live = false;
+    }
+    inline double tick(double x, double g) {
+        double a, b, t;
+        t = OS_C0 * (x - uy0) + ux0; ux0 = x; uy0 = t; a = t;
+        t = OS_C2 * (a - uy2) + ux2; ux2 = a; uy2 = t; a = t;
+        t = OS_C4 * (a - uy4) + ux4; ux4 = a; uy4 = t; a = t;
+        t = OS_C1 * (x - uy1) + ux1; ux1 = x; uy1 = t; b = t;
+        t = OS_C3 * (b - uy3) + ux3; ux3 = b; uy3 = t; b = t;
+        t = OS_C5 * (b - uy5) + ux5; ux5 = b; uy5 = t; b = t;
+
+        a = driveCurve(a * g);
+        b = driveCurve(b * g);
+
+        t = OS_C0 * (b - dy0) + dx0; dx0 = b; dy0 = t; b = t;
+        t = OS_C2 * (b - dy2) + dx2; dx2 = b; dy2 = t; b = t;
+        t = OS_C4 * (b - dy4) + dx4; dx4 = b; dy4 = t; b = t;
+        t = OS_C1 * (a - dy1) + dx1; dx1 = a; dy1 = t; a = t;
+        t = OS_C3 * (a - dy3) + dx3; dx3 = a; dy3 = t; a = t;
+        t = OS_C5 * (a - dy5) + dx5; dx5 = a; dy5 = t; a = t;
+        return 0.5 * (a + b);
+    }
+};
+
+/* ---------------------------------------------------------------
    Parameters — mirrors the JS registry, sanitised the same way
    --------------------------------------------------------------- */
 struct Params {
@@ -599,6 +650,7 @@ public:
     Body body;
     Biquad coil;
     double tonez = 0, toneCoef = 0.3;
+    DriveOS driveOS;
     const AttackLayer* attackLayer = nullptr;
 
     explicit PallbearerCore(double sampleRate = 48000, std::uint32_t sd = 0x5EED1Eu)
@@ -687,6 +739,7 @@ public:
         handVel = 0;
         body.reset();
         coil.reset();
+        driveOS.reset();
     }
 
     int soundingCount() const {
@@ -720,6 +773,14 @@ public:
                     strings[ps2].prime(midiToFreq((double)open[ps2]), p);
         }
 
+        /* The drive stage, decided once per call. See the JS twin: the
+           filters are emptied once when the stage goes to bypass. */
+        bool driven = drive > 0.001;
+        double driveGain = 1.0 + drive * 6.0;
+        double driveMake = 1.0 + drive * 0.5;
+        if (driven) driveOS.live = true;
+        else if (driveOS.live) driveOS.reset();
+
         for (int i = 0; i < n; ++i) {
             double sum = 0.0;
             double newBus = 0.0;
@@ -745,12 +806,7 @@ public:
             tonez += toneCoef * (sum - tonez);
             double y = tonez;
 
-            if (drive > 0.001) {
-                double g = 1.0 + drive * 6.0;
-                double xg = y * g;
-                y = xg / (1.0 + std::fabs(xg));
-                y *= (1.0 + drive * 0.5);
-            }
+            if (driven) y = driveOS.tick(y, driveGain) * driveMake;
 
             y *= lvl;
             if (y > 1.6) y = 1.6; else if (y < -1.6) y = -1.6;
