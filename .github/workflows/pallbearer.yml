@@ -223,6 +223,43 @@ jobs:
       - name: List artefacts
         run: find build -name "*.component" -o -name "*.vst3" -o -name "*.app" | head -20
 
+      # ---- THE SESSION-STATE TEST, added 2026-11-23 -----------------------
+      # tests/state_roundtrip.cpp compiles the REAL PluginProcessor.cpp against
+      # real JUCE and drives it the way a host does: save, reopen, render, and
+      # a save in the middle of a note. Until now it ran only on Ben's Mac,
+      # because it needs JUCE and the JS job has none. This job already has it.
+      #
+      # A SECOND build directory, on purpose. The plugin's own configure and
+      # build above are not touched by so much as a flag, so a broken test
+      # target cannot change what the plugin is built with. JUCE is not
+      # fetched twice: FETCHCONTENT_SOURCE_DIR_JUCE points at the checkout the
+      # first configure made, and it must be an absolute path.
+      #
+      # The binary is FOUND rather than named, because its folder depends on
+      # the generator (single-config puts it under Release/). Not finding it
+      # is a failure, never a skip: a test that did not run is not a pass.
+      - name: Configure the session-state test
+        run: |
+          set -euo pipefail
+          test -d "$PWD/build/_deps/juce-src/modules"
+          cmake -B build-tests -S pallbearer-juce -DCMAKE_BUILD_TYPE=Release \
+                -DPALLBEARER_TESTS=ON \
+                -DFETCHCONTENT_SOURCE_DIR_JUCE="$PWD/build/_deps/juce-src"
+
+      - name: Build the session-state test
+        run: cmake --build build-tests --config Release --target PallbearerStateTest -j 3
+
+      - name: Session state round trip, and a save during a note
+        run: |
+          set -euo pipefail
+          bin="$(find build-tests -type f -name PallbearerStateTest -perm -u+x | head -1)"
+          if [ -z "$bin" ]; then
+            echo "::error::PallbearerStateTest was built but no executable was found under build-tests"
+            exit 1
+          fi
+          echo "running $bin"
+          "$bin"
+
       # `path:` is an input to a `uses:` action, so working-directory does NOT
       # apply — spelled from the repo root or the upload finds nothing and
       # only warns.

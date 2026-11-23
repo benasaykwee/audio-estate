@@ -26,7 +26,10 @@
      cmake -S PALLBEARER/pallbearer-juce -B <dir> -DPALLBEARER_TESTS=ON \
            -DFETCHCONTENT_SOURCE_DIR_JUCE=<a JUCE 7.0.12 checkout>
      cmake --build <dir> --target PallbearerStateTest
-     <dir>/PallbearerStateTest_artefacts/PallbearerStateTest            */
+     <dir>/PallbearerStateTest_artefacts/PallbearerStateTest
+   (under Release/ or Debug/ when a build type is given, which is why CI
+   finds the binary rather than naming it). CI runs exactly this in the
+   macOS job of .github/workflows/pallbearer.yml.                      */
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "../pallbearer-juce/Source/PluginProcessor.h"
 #include <cmath>

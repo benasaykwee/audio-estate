@@ -140,8 +140,8 @@ ok('a future state version is refused, not half-loaded', /if \(v > 2\) return;/.
 /* THE ATTACK LAYER IN THE SESSION (2026-11-22). The real proof is
    tests/state_roundtrip.cpp, which compiles PluginProcessor.cpp against JUCE
    and round-trips a layer through the host's own save and reopen; it needs
-   a JUCE checkout, so it is not run here. These are the text-level half that
-   CI can see, the same contract read from the source. */
+   JUCE, so it runs in the macOS plugin job and not here. These are the
+   text-level half this job can see, the same contract read from the source. */
 var CODEP = PROC.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
 ok('the session SAVES the attack layer as audio',
    /state\.appendChild\(t,/.test(CODEP) && /juce::MemoryBlock\(saving->data\.data\(\)/.test(CODEP),

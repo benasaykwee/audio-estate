@@ -225,8 +225,19 @@ not the optimisation level, is what matters.
   layers by drag and drop. Proof of the save half: `tests/state_roundtrip.cpp`, built with
   `-DPALLBEARER_TESTS=ON` (instructions in its header), round-trips a layer through the
   real `PluginProcessor.cpp` and renders the reopened patch bit-identical to the saved one.
-  It needs a JUCE checkout, so CI runs only the text-level half in
-  `tests/pallbearer_plugin_test.js`.
+  It needs JUCE, so it runs in the macOS job of `.github/workflows/pallbearer.yml`, in a
+  build directory of its own beside the plugin build, and a failing check fails that job.
+  The JS job still runs the text-level half in `tests/pallbearer_plugin_test.js`.
+  **That wiring was written on 2026-11-23 and has not yet run on a runner**: it was
+  validated by running the same three steps on a Mac, which is not the same thing.
+- **A save during a note is inaudible, as of 2026-11-23.** It was not: the audio thread
+  tries the layer lock, and a block rendered while a save held it got no layer, which
+  ends a sampled attack for good. The layer is now an immutable shared store; a save
+  copies a pointer, the audio thread keeps the reference it has when the try fails, and
+  it never frees one. Sections V and VI of the same test hold the lock across real blocks
+  and fail against the old behaviour. One limit is left and is asserted rather than
+  hidden: a layer loaded WHILE audio is running reaches the audio thread at the first
+  block whose try succeeds. Nothing loads a layer during playback today (see above).
 - **No bespoke editor.** Generic sliders plus a neck diagram, deliberately — writing a
   rich JUCE editor without a compiler is how a session gets spent for nothing.
 - **Mono out.** Both channels are identical.
