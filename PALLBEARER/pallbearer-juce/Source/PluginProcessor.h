@@ -49,6 +49,23 @@ public:
     void getStateInformation(juce::MemoryBlock&) override;
     void setStateInformation(const void*, int) override;
 
+    /* THE ATTACK LAYER. The recorded transient behind the hybrid and sampled
+       paths. This is the seam a loader calls (an editor button, a drop); the
+       plugin has no loader of its own yet, see README "Still in the ground".
+       Data is mono, at its own rate `sr`, recorded at MIDI note `root`, the
+       same three things the browser instrument posts to its worklet. An
+       empty vector clears the layer. Message thread only. Returns false and
+       changes nothing if the layer is not one the core can play. */
+    bool setAttackLayer(std::vector<double> data, double sr, double root);
+    bool hasAttackLayer() const;
+    /* a copy, under the lock: for tests and for an editor to draw */
+    void copyAttackLayer(std::vector<double>& data, double& sr, double& root) const;
+
+    /* Bounds a stored layer must meet before it is played or restored. The
+       browser trims to 0.6 s of attack; ten seconds at the highest rate a
+       host offers is far beyond any attack and still a bounded session. */
+    static constexpr int kMaxLayerSamples = 384000 * 10;
+
     juce::AudioProcessorValueTreeState apvts;
 
     /* The editor reads these to draw the neck. Written on the audio thread,
@@ -68,6 +85,15 @@ private:
        per sample inside the render loop would both cost more and put a
        float rounding step in the middle of a parity-proven signal path. */
     std::vector<double> scratchL, scratchR;
+
+    /* The layer's storage. `layer` points into `layerData`; both change only
+       under `layerLock`, which processBlock holds (by try-lock) for the whole
+       render, so the audio thread never reads a vector being replaced. If the
+       message thread holds the lock at that moment, that one block renders
+       without the layer rather than waiting. */
+    std::vector<double> layerData;
+    pallbearer::AttackLayer layer;
+    mutable juce::SpinLock layerLock;
 
     void pushParameters();
     void handleMidi(const juce::MidiMessage& m);

@@ -217,9 +217,16 @@ not the optimisation level, is what matters.
   Unit is a macOS format requiring Apple frameworks, and this sandbox is Linux aarch64.
   The `.component` comes from the `macos-15` job in `.github/workflows/pallbearer.yml`,
   and only a host proves it actually runs.
-- **The attack layer does not survive a session save.** State carries a version stamp but
-  not the audio, so a sampled or hybrid patch reloads silent. Saving a file path instead
-  would break the moment the file moved, which is worse.
+- **The plugin has no way to LOAD an attack layer.** As of 2026-11-22 a layer survives a
+  session save (the samples themselves go into the state, version 2, never a file path),
+  and `setAttackLayer()` on the processor is the seam a loader calls. Nothing calls it yet:
+  the editor has no file button, so in the plugin the hybrid and sampled paths are only
+  reachable from a session saved by a build that had one. The browser instrument loads
+  layers by drag and drop. Proof of the save half: `tests/state_roundtrip.cpp`, built with
+  `-DPALLBEARER_TESTS=ON` (instructions in its header), round-trips a layer through the
+  real `PluginProcessor.cpp` and renders the reopened patch bit-identical to the saved one.
+  It needs a JUCE checkout, so CI runs only the text-level half in
+  `tests/pallbearer_plugin_test.js`.
 - **No bespoke editor.** Generic sliders plus a neck diagram, deliberately — writing a
   rich JUCE editor without a compiler is how a session gets spent for nothing.
 - **Mono out.** Both channels are identical.

@@ -1,6 +1,8 @@
 /* PALLBEARER — PluginProcessor.cpp */
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include <cmath>
+#include <cstring>
 
 using namespace pallbearer;
 
@@ -136,6 +138,12 @@ void PallbearerAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
        a whole-block approximation would quantise every note to the block
        boundary, which at 512 samples is 10 ms of slop and audible on
        anything fast. */
+    /* Held for the whole render: see `layerLock` in the header. The core is
+       handed the layer every block because prepareToPlay rebuilds the core
+       and a pointer set once would not survive it. */
+    const juce::SpinLock::ScopedTryLockType layerHeld(layerLock);
+    core->setAttackLayer(layerHeld.isLocked() && layer.length > 0 ? &layer : nullptr);
+
     int pos = 0;
     for (const auto meta : midi) {
         const int at = juce::jlimit(0, n, meta.samplePosition);
@@ -165,14 +173,42 @@ void PallbearerAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
    version to read. Stamping an empty format costs nothing today and is
    impossible to arrange later.
 
-   What is NOT saved yet: the attack layer's audio. A sampled or hybrid
-   patch will not survive a session reload until that lands, and pretending
-   otherwise by saving a file path would break the moment the file moved.
+   THE ATTACK LAYER IS SAVED AS AUDIO, NOT AS A PATH (2026-11-22). A path
+   breaks the moment the file moves, which is worse than not saving at all,
+   so the samples themselves go into the session: a child `AttackLayer`
+   holding the raw doubles (JUCE writes a MemoryBlock property to XML as
+   base64 and reads it back byte for byte), its own rate and its root. Raw
+   doubles, not floats, because the reopened patch must render bit-identical
+   to the saved one; the browser trims a layer to 0.6 s, about 230 KB.
+
+   The stamp moves to 2 ONLY when a layer is present. A layer-less session
+   stays version 1 and every build ever shipped reads it. A session whose
+   sound depends on a layer is refused by a build that cannot carry one,
+   which is the same rule as above: better refused than reopened silent.
    -------------------------------------------------------------------------- */
+static const juce::Identifier kLayerTag("AttackLayer");
+
+static bool layerIsPlayable(const std::vector<double>& d, double sr, double root);
+
 void PallbearerAudioProcessor::getStateInformation(juce::MemoryBlock& dest)
 {
     auto state = apvts.copyState();
-    state.setProperty("pallbearerVersion", 1, nullptr);
+    state.removeChild(state.getChildWithName(kLayerTag), nullptr);   // never two
+    int version = 1;
+    {
+        const juce::SpinLock::ScopedLockType held(layerLock);
+        if (layer.length > 0) {
+            juce::ValueTree t(kLayerTag);
+            t.setProperty("sr", layer.sr, nullptr);
+            t.setProperty("root", layer.root, nullptr);
+            t.setProperty("length", layer.length, nullptr);
+            t.setProperty("data", juce::var(juce::MemoryBlock(layerData.data(),
+                                                              layerData.size() * sizeof(double))), nullptr);
+            state.appendChild(t, nullptr);
+            version = 2;
+        }
+    }
+    state.setProperty("pallbearerVersion", version, nullptr);
     state.setProperty("coreVersion", juce::String(pallbearer::VERSION), nullptr);
     if (auto xml = state.createXml()) copyXmlToBinary(*xml, dest);
 }
@@ -190,12 +226,72 @@ void PallbearerAudioProcessor::setStateInformation(const void* data, int size)
        silently keeping the ones it recognises produces a patch that is
        neither the saved one nor the default. */
     const int v = (int)tree.getProperty("pallbearerVersion", 1);
-    if (v > 1) return;
+    if (v > 2) return;
+
+    /* The layer is read out and REMOVED before apvts takes the tree, so it
+       never lives in apvts' own state and a later save cannot write it twice.
+       A session with no layer clears any loaded one: the session is the
+       truth about this patch, not whatever happened to be in memory. A
+       stored layer that fails the same checks a live load must pass is
+       dropped and the rest of the session still loads. */
+    std::vector<double> restored;
+    double lsr = 48000.0, lroot = 33.0;
+    auto lt = tree.getChildWithName(kLayerTag);
+    if (lt.isValid()) {
+        if (auto* mb = lt.getProperty("data").getBinaryData()) {
+            const int n = (int)lt.getProperty("length", 0);
+            if (n > 0 && mb->getSize() == (size_t)n * sizeof(double)) {
+                restored.resize((size_t)n);
+                std::memcpy(restored.data(), mb->getData(), mb->getSize());
+            }
+        }
+        lsr = (double)lt.getProperty("sr", 48000.0);
+        lroot = (double)lt.getProperty("root", 33.0);
+        tree.removeChild(lt, nullptr);
+    }
+    if (!restored.empty() && !layerIsPlayable(restored, lsr, lroot)) restored.clear();
+    setAttackLayer(std::move(restored), lsr, lroot);
 
     apvts.replaceState(tree);
     lastTuningIdx = lastBodyF = lastBodyQ = lastWood = -1.f;
     lastCoilF = lastCoilQ = lastTone = -1.f;
     if (core) core->allOff();
+}
+
+/* ---- the attack layer ------------------------------------------------- */
+static bool layerIsPlayable(const std::vector<double>& d, double sr, double root)
+{
+    if (d.size() < 2 || d.size() > (size_t)PallbearerAudioProcessor::kMaxLayerSamples) return false;
+    if (!std::isfinite(sr) || sr < 8000.0 || sr > 384000.0) return false;
+    if (!std::isfinite(root) || root < 0.0 || root > 127.0) return false;
+    for (double v : d) if (!std::isfinite(v)) return false;
+    return true;
+}
+
+bool PallbearerAudioProcessor::setAttackLayer(std::vector<double> data, double sr, double root)
+{
+    if (!data.empty() && !layerIsPlayable(data, sr, root)) return false;
+    {
+        const juce::SpinLock::ScopedLockType held(layerLock);
+        layerData.swap(data);
+        layer.data = layerData.empty() ? nullptr : layerData.data();
+        layer.length = (int)layerData.size();
+        layer.sr = layerData.empty() ? 48000.0 : sr;
+        layer.root = layerData.empty() ? 33.0 : root;
+    }
+    return true;                        // the old samples free here, outside the lock
+}
+
+bool PallbearerAudioProcessor::hasAttackLayer() const
+{
+    const juce::SpinLock::ScopedLockType held(layerLock);
+    return layer.length > 0;
+}
+
+void PallbearerAudioProcessor::copyAttackLayer(std::vector<double>& data, double& sr, double& root) const
+{
+    const juce::SpinLock::ScopedLockType held(layerLock);
+    data = layerData; sr = layer.sr; root = layer.root;
 }
 
 juce::AudioProcessorEditor* PallbearerAudioProcessor::createEditor()

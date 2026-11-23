@@ -50,3 +50,24 @@ target_link_libraries(Pallbearer
 if (NOT MSVC)
   target_compile_options(Pallbearer PRIVATE -ffp-contract=off)
 endif()
+
+# THE STATE ROUND-TRIP TEST (added 2026-11-22). Off by default so the plugin
+# build is untouched. A console app that compiles the REAL PluginProcessor.cpp
+# against real JUCE and drives it through the calls a host makes on save and
+# reopen. No host and no listening: see tests/state_roundtrip.cpp.
+option(PALLBEARER_TESTS "Build the headless session-state test" OFF)
+if (PALLBEARER_TESTS)
+  juce_add_console_app(PallbearerStateTest PRODUCT_NAME "PallbearerStateTest")
+  target_sources(PallbearerStateTest PRIVATE
+    ../tests/state_roundtrip.cpp
+    Source/PluginProcessor.cpp
+    Source/PluginEditor.cpp)
+  target_compile_definitions(PallbearerStateTest PRIVATE
+    JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+  target_link_libraries(PallbearerStateTest
+    PRIVATE juce::juce_audio_utils
+    PUBLIC juce::juce_recommended_config_flags)
+  if (NOT MSVC)
+    target_compile_options(PallbearerStateTest PRIVATE -ffp-contract=off)
+  endif()
+endif()

@@ -135,7 +135,31 @@ ok('it asks for MIDI input', /NEEDS_MIDI_INPUT TRUE/.test(fs.readFileSync(path.j
 ok('LAW 1 is in the build file', /-ffp-contract=off/.test(fs.readFileSync(path.join(__dirname, '..', 'pallbearer-juce', 'CMakeLists.txt'), 'utf8')));
 ok('state carries a version stamp', /pallbearerVersion/.test(PROC),
    'cannot be added retroactively — NECROPHONE round-15');
-ok('a future state version is refused, not half-loaded', /v > 1/.test(PROC));
+ok('a future state version is refused, not half-loaded', /if \(v > 2\) return;/.test(PROC),
+   '2 = a session carrying an attack layer');
+/* THE ATTACK LAYER IN THE SESSION (2026-11-22). The real proof is
+   tests/state_roundtrip.cpp, which compiles PluginProcessor.cpp against JUCE
+   and round-trips a layer through the host's own save and reopen; it needs
+   a JUCE checkout, so it is not run here. These are the text-level half that
+   CI can see, the same contract read from the source. */
+var CODEP = PROC.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+ok('the session SAVES the attack layer as audio',
+   /state\.appendChild\(t,/.test(CODEP) && /juce::MemoryBlock\(layerData\.data\(\)/.test(CODEP),
+   'samples, not a file path');
+ok('the session RESTORES it',
+   /getChildWithName\(kLayerTag\)/.test(CODEP.slice(CODEP.indexOf('::setStateInformation'))) &&
+   /setAttackLayer\(std::move\(restored\)/.test(CODEP));
+ok('the layer leaves the tree BEFORE apvts takes it (or saves would double it)',
+   (function () {
+     var body = CODEP.slice(CODEP.indexOf('::setStateInformation'));
+     var rm = body.indexOf('tree.removeChild(lt'), rep = body.indexOf('apvts.replaceState(tree)');
+     return rm > 0 && rep > rm;
+   })());
+ok('a restored layer passes the same checks as a live one',
+   /layerIsPlayable\(restored,/.test(CODEP));
+ok('the headless round-trip test exists and is buildable',
+   fs.existsSync(path.join(__dirname, 'state_roundtrip.cpp')) &&
+   /PALLBEARER_TESTS/.test(fs.readFileSync(path.join(__dirname, '..', 'pallbearer-juce', 'CMakeLists.txt'), 'utf8')));
 ok('MIDI is handled sample-accurately, not per block', /meta\.samplePosition/.test(PROC));
 ok('the tail length is declared for long decays', /getTailLengthSeconds/.test(fs.readFileSync(path.join(__dirname, '..', 'pallbearer-juce', 'Source', 'PluginProcessor.h'), 'utf8')));
 ok('the processor rebuilds the core on a rate change', /make_unique<PallbearerCore>\(sampleRate\)/.test(PROC),
